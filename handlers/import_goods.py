@@ -2,21 +2,20 @@ import logging
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from config import ADMIN_IDS, PRICE_PER_M2
-from keyboards.default_kb import get_main_menu
+from config import PRICE_PER_M2, BRANCH_NAMES
+from keyboards.default_kb import get_branch_menu
 from keyboards.inline_kb import get_width_kb, get_color_kb, get_confirm_import_kb
 from utils.states import ImportStates
 from database.local_db import add_roll
+from handlers.common import get_user_role
 
 router = Router()
 logger = logging.getLogger(__name__)
 
-def is_admin(user_id: int) -> bool:
-    return user_id in ADMIN_IDS
-
 @router.message(F.text == "📥 Import (Kirim)")
 async def start_import(message: Message, state: FSMContext):
-    if not is_admin(message.from_user.id):
+    role, branch_id = get_user_role(message.from_user.id)
+    if role != "branch":
         return
     await state.clear()
     await state.set_state(ImportStates.choosing_width)
@@ -24,7 +23,8 @@ async def start_import(message: Message, state: FSMContext):
 
 @router.callback_query(F.data.startswith("import_width:"), ImportStates.choosing_width)
 async def process_width(callback: CallbackQuery, state: FSMContext):
-    if not is_admin(callback.from_user.id):
+    role, branch_id = get_user_role(callback.from_user.id)
+    if role != "branch":
         return
     width = float(callback.data.split(":")[1])
     await state.update_data(width=width)
@@ -37,7 +37,8 @@ async def process_width(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data.startswith("import_color:"), ImportStates.choosing_color)
 async def process_color(callback: CallbackQuery, state: FSMContext):
-    if not is_admin(callback.from_user.id):
+    role, branch_id = get_user_role(callback.from_user.id)
+    if role != "branch":
         return
     color = callback.data.split(":")[1]
     await state.update_data(color=color)
@@ -54,7 +55,8 @@ async def process_color(callback: CallbackQuery, state: FSMContext):
 
 @router.message(ImportStates.entering_length)
 async def process_length(message: Message, state: FSMContext):
-    if not is_admin(message.from_user.id):
+    role, branch_id = get_user_role(message.from_user.id)
+    if role != "branch":
         return
     text = message.text.strip().replace(",", ".")
     try:
@@ -76,8 +78,9 @@ async def process_length(message: Message, state: FSMContext):
     await state.update_data(length=length, area_m2=area_m2, total_price=total_price)
     await state.set_state(ImportStates.confirming)
     
+    b_name = BRANCH_NAMES.get(branch_id, "Filial")
     summary = (
-        f"📦 *Yangi rulon ma'lumotlari:*\n\n"
+        f"📦 *Yangi rulon ({b_name}):*\n\n"
         f"📏 O'lchami: `{width:g} x {length} metr`\n"
         f"🎨 Rangi: *{color}*\n"
         f"📐 Maydoni: `{area_m2} m²`\n"
@@ -89,7 +92,8 @@ async def process_length(message: Message, state: FSMContext):
 
 @router.callback_query(F.data == "retry_import", ImportStates.confirming)
 async def retry_import(callback: CallbackQuery, state: FSMContext):
-    if not is_admin(callback.from_user.id):
+    role, branch_id = get_user_role(callback.from_user.id)
+    if role != "branch":
         return
     await state.set_state(ImportStates.choosing_width)
     await callback.message.edit_text("Rulonning enini tanlang:", reply_markup=get_width_kb("import_width"))
@@ -97,14 +101,15 @@ async def retry_import(callback: CallbackQuery, state: FSMContext):
 
 @router.callback_query(F.data == "confirm_import", ImportStates.confirming)
 async def confirm_import(callback: CallbackQuery, state: FSMContext):
-    if not is_admin(callback.from_user.id):
+    role, branch_id = get_user_role(callback.from_user.id)
+    if role != "branch":
         return
     data = await state.get_data()
     width = data["width"]
     color = data["color"]
     length = data["length"]
     
-    created_roll = await add_roll(width=width, color=color, length=length)
+    created_roll = await add_roll(width=width, color=color, length=length, branch_id=branch_id)
     
     await state.clear()
     try:
@@ -112,13 +117,14 @@ async def confirm_import(callback: CallbackQuery, state: FSMContext):
     except Exception:
         pass
         
+    b_name = BRANCH_NAMES.get(branch_id, "Filial")
     await callback.message.answer(
-        f"✅ *Rulon omborga muvaffaqiyatli saqlandi!*\n\n"
+        f"✅ *Rulon omborga saqlandi! ({b_name})*\n\n"
         f"🆔 Rulon kodi: *{created_roll['roll_code']}*\n"
         f"📐 O'lchami: {width:g} x {length} metr ({created_roll['area_m2']} m²)\n"
         f"🎨 Rangi: {color}\n"
         f"💰 Qiymati: ${created_roll['total_price']:.2f}",
         parse_mode="Markdown",
-        reply_markup=get_main_menu()
+        reply_markup=get_branch_menu(b_name)
     )
     await callback.answer("Saqlandi!")

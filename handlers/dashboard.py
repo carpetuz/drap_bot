@@ -3,51 +3,56 @@ import logging
 from datetime import datetime
 from aiogram import Router, F
 from aiogram.types import Message, FSInputFile
-from config import ADMIN_IDS
+from config import BRANCH_NAMES
 from database.local_db import get_dashboard_stats, get_all_active_rolls
 from utils.excel_export import generate_excel_report
+from handlers.common import get_user_role
 
 router = Router()
 logger = logging.getLogger(__name__)
 
-def is_admin(user_id: int) -> bool:
-    return user_id in ADMIN_IDS
+# --- FILIAL XODIMI STATISTIKASI ---
 
 @router.message(F.text == "📊 Dashboard")
 async def show_dashboard(message: Message):
-    if not is_admin(message.from_user.id):
+    role, branch_id = get_user_role(message.from_user.id)
+    if role != "branch":
         return
-    stats = await get_dashboard_stats()
+    stats = await get_dashboard_stats(branch_id=branch_id)
+    b_name = BRANCH_NAMES.get(branch_id, "Filial")
     
     text = (
-        "📊 *OMBOR VA BIZNES DASHBOARDI*\n\n"
-        "📦 *Ombordagi tovar holati:*\n"
+        f"📊 *{b_name} DASHBOARDI*\n\n"
+        f"📦 *Ombordagi tovaringiz:*\n"
         f"• Faol rulonlar: *{stats['stock_rolls_count']} ta*\n"
         f"• Jami hajm: *{stats['stock_total_m2']} m²*\n"
         f"• Tovar qiymati ($8/m²): *${stats['stock_total_value']:.2f}*\n\n"
-        "💵 *Kassa holati:*\n"
+        f"💵 *Kassa holatingiz:*\n"
         f"• Kassadagi naqd pul: *${stats['cash_balance']:.2f}*\n\n"
-        "📈 *Bugungi savdo:*\n"
+        f"📈 *Bugungi savdo:*\n"
         f"• Sotuvlar soni: *{stats['today_sales_count']} ta*\n"
         f"• Sotilgan maydon: *{stats['today_sold_m2']} m²*\n"
         f"• Bugungi tushum: *${stats['today_revenue']:.2f}*\n\n"
-        "🏆 *Umumiy statistika:*\n"
-        f"• Jami sotuvlar soni: *{stats['all_sales_count']} ta*\n"
-        f"• Jami sotilgan hajm: *{stats['all_sold_m2']} m²*\n"
+        f"🏆 *Umumiy statistika:*\n"
+        f"• Jami sotuvlar: *{stats['all_sales_count']} ta*\n"
+        f"• Jami sotilgan: *{stats['all_sold_m2']} m²*\n"
         f"• Jami umumiy tushum: *${stats['all_revenue']:.2f}*"
     )
     await message.answer(text, parse_mode="Markdown")
 
 @router.message(F.text == "📦 Ombor qoldig'i")
 async def show_inventory(message: Message):
-    if not is_admin(message.from_user.id):
+    role, branch_id = get_user_role(message.from_user.id)
+    if role != "branch":
         return
-    rolls = await get_all_active_rolls()
+    rolls = await get_all_active_rolls(branch_id=branch_id)
+    b_name = BRANCH_NAMES.get(branch_id, "Filial")
+    
     if not rolls:
-        await message.answer("Omborda mahsulot mavjud emas!")
+        await message.answer(f"📦 {b_name} omborida mahsulot mavjud emas!")
         return
 
-    lines = [f"📦 *OMBORDAGI MAVJUD RULONLAR ({len(rolls)} ta):*\n"]
+    lines = [f"📦 *{b_name} OMBOR QOLDIG'I ({len(rolls)} ta):*\n"]
     total_m2 = 0.0
     total_val = 0.0
 
@@ -66,19 +71,119 @@ async def show_inventory(message: Message):
 
 @router.message(F.text == "📑 Excel hisobot")
 async def send_excel_report(message: Message):
-    if not is_admin(message.from_user.id):
+    role, branch_id = get_user_role(message.from_user.id)
+    if role != "branch":
         return
-    wait_msg = await message.answer("⏳ Excel hisobot tayyorlanmoqda, iltimos kuting...")
+    b_name = BRANCH_NAMES.get(branch_id, "Filial")
+    wait_msg = await message.answer("⏳ Excel hisobot tayyorlanmoqda...")
     try:
-        report_path = "CRM_Hisobot.xlsx"
-        await generate_excel_report(report_path)
-        doc = FSInputFile(report_path, filename=f"CRM_Hisobot_{datetime.now().strftime('%Y-%m-%d')}.xlsx")
+        report_path = f"CRM_{b_name}.xlsx"
+        await generate_excel_report(report_path, branch_id=branch_id)
+        doc = FSInputFile(report_path, filename=f"Hisobot_{b_name}_{datetime.now().strftime('%Y-%m-%d')}.xlsx")
         await message.answer_document(
             document=doc,
-            caption="📊 *Rezinka gilam CRM hisoboti*\n\nUshbu faylda:\n1. Ombor qoldig'i\n2. Sotuvlar tarixi\n3. Kassa amallari\njamlangan.",
+            caption=f"📊 *{b_name} hisoboti*\n\n1. Ombor qoldig'i\n2. Sotuvlar tarixi\n3. Kassa amallari",
             parse_mode="Markdown"
         )
         await wait_msg.delete()
     except Exception as e:
-        logger.error(f"Excel yaratishda xatolik: {e}")
-        await wait_msg.edit_text(f"❌ Xatolik yuz berdi: {e}")
+        logger.error(f"Excel xatolik: {e}")
+        await wait_msg.edit_text(f"❌ Xatolik: {e}")
+
+# --- SUPER ADMIN STATISTIKASI ---
+
+@router.message(F.text.in_(["🏢 1-Filial hisoboti", "🏢 2-Filial hisoboti"]))
+async def superadmin_branch_stats(message: Message):
+    role, _ = get_user_role(message.from_user.id)
+    if role != "superadmin":
+        return
+    branch_id = 1 if "1-Filial" in message.text else 2
+    b_name = BRANCH_NAMES.get(branch_id, f"Filial-{branch_id}")
+    stats = await get_dashboard_stats(branch_id=branch_id)
+    
+    text = (
+        f"🏢 *{b_name} STATISTIKASI (Bosh Admin uchun)*\n\n"
+        f"📦 *Ombordagi tovar holati:*\n"
+        f"• Faol rulonlar: *{stats['stock_rolls_count']} ta*\n"
+        f"• Jami hajm: *{stats['stock_total_m2']} m²*\n"
+        f"• Tovar qiymati ($8/m²): *${stats['stock_total_value']:.2f}*\n\n"
+        f"💵 *Kassa holati:*\n"
+        f"• Kassadagi naqd pul: *${stats['cash_balance']:.2f}*\n\n"
+        f"📈 *Bugungi savdo:*\n"
+        f"• Sotuvlar soni: *{stats['today_sales_count']} ta*\n"
+        f"• Sotilgan maydon: *{stats['today_sold_m2']} m²*\n"
+        f"• Bugungi tushum: *${stats['today_revenue']:.2f}*\n\n"
+        f"🏆 *Umumiy statistika:*\n"
+        f"• Jami sotuvlar: *{stats['all_sales_count']} ta*\n"
+        f"• Jami sotilgan: *{stats['all_sold_m2']} m²*\n"
+        f"• Jami umumiy tushum: *${stats['all_revenue']:.2f}*"
+    )
+    await message.answer(text, parse_mode="Markdown")
+
+@router.message(F.text == "🌐 Barcha filiallar statistikasi")
+async def superadmin_global_stats(message: Message):
+    role, _ = get_user_role(message.from_user.id)
+    if role != "superadmin":
+        return
+    stats = await get_dashboard_stats(branch_id=None)
+    
+    text = (
+        "🌐 *BARCHA FILIALLARNING UMUMIY STATISTIKASI*\n\n"
+        f"📦 *Umumiy barcha omborlardagi tovar:*\n"
+        f"• Jami faol rulonlar: *{stats['stock_rolls_count']} ta*\n"
+        f"• Jami hajm: *{stats['stock_total_m2']} m²*\n"
+        f"• Tovar umumiy qiymati ($8/m²): *${stats['stock_total_value']:.2f}*\n\n"
+        f"💵 *Umumiy kassa (Barcha filiallar):*\n"
+        f"• Jami naqd pul yig'indisi: *${stats['cash_balance']:.2f}*\n\n"
+        f"📈 *Bugungi umumiy savdo:*\n"
+        f"• Jami sotuvlar: *{stats['today_sales_count']} ta*\n"
+        f"• Sotilgan maydon: *{stats['today_sold_m2']} m²*\n"
+        f"• Bugungi umumiy tushum: *${stats['today_revenue']:.2f}*\n\n"
+        f"🏆 *Umumiy statistika (Barcha davr):*\n"
+        f"• Jami sotuvlar: *{stats['all_sales_count']} ta*\n"
+        f"• Jami sotilgan hajm: *{stats['all_sold_m2']} m²*\n"
+        f"• Jami umumiy tushum: *${stats['all_revenue']:.2f}*"
+    )
+    await message.answer(text, parse_mode="Markdown")
+
+@router.message(F.text.in_(["📑 1-Filial Excel", "📑 2-Filial Excel"]))
+async def superadmin_branch_excel(message: Message):
+    role, _ = get_user_role(message.from_user.id)
+    if role != "superadmin":
+        return
+    branch_id = 1 if "1-Filial" in message.text else 2
+    b_name = BRANCH_NAMES.get(branch_id, f"Filial-{branch_id}")
+    wait_msg = await message.answer(f"⏳ {b_name} Excel hisoboti tayyorlanmoqda...")
+    try:
+        report_path = f"CRM_{b_name}.xlsx"
+        await generate_excel_report(report_path, branch_id=branch_id)
+        doc = FSInputFile(report_path, filename=f"Hisobot_{b_name}_{datetime.now().strftime('%Y-%m-%d')}.xlsx")
+        await message.answer_document(
+            document=doc,
+            caption=f"📊 *{b_name} hisoboti*\n\n1. Ombor qoldig'i\n2. Sotuvlar tarixi\n3. Kassa amallari",
+            parse_mode="Markdown"
+        )
+        await wait_msg.delete()
+    except Exception as e:
+        logger.error(f"Excel xatolik: {e}")
+        await wait_msg.edit_text(f"❌ Xatolik: {e}")
+
+@router.message(F.text == "📊 Umumiy Birlashgan Excel")
+async def superadmin_global_excel(message: Message):
+    role, _ = get_user_role(message.from_user.id)
+    if role != "superadmin":
+        return
+    wait_msg = await message.answer("⏳ Barcha filiallar umumiy Excel hisoboti tayyorlanmoqda...")
+    try:
+        report_path = "CRM_Barcha_Filiallar.xlsx"
+        await generate_excel_report(report_path, branch_id=None)
+        doc = FSInputFile(report_path, filename=f"CRM_Umumiy_{datetime.now().strftime('%Y-%m-%d')}.xlsx")
+        await message.answer_document(
+            document=doc,
+            caption="🌐 *Barcha filiallar birlashgan Excel hisoboti*\n\nUshbu faylda 1-filial va 2-filialning barcha qoldiqlari, sotuvlari va kassa harakatlari alohida ustunda ko'rsatilgan.",
+            parse_mode="Markdown"
+        )
+        await wait_msg.delete()
+    except Exception as e:
+        logger.error(f"Excel xatolik: {e}")
+        await wait_msg.edit_text(f"❌ Xatolik: {e}")

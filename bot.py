@@ -7,7 +7,7 @@ from aiogram import Bot, Dispatcher
 from aiogram.types import FSInputFile
 from aiogram.fsm.storage.memory import MemoryStorage
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from config import BOT_TOKEN, ADMIN_IDS
+from config import BOT_TOKEN, SUPER_ADMIN_IDS
 from database.local_db import init_db, DB_PATH
 from handlers import common, import_goods, sales, cashbox, dashboard
 from utils.excel_export import generate_excel_report
@@ -30,17 +30,17 @@ async def start_dummy_web_server():
     logger.info(f"Healthcheck web server {port}-portda ishga tushdi.")
 
 async def send_weekly_backup(bot: Bot):
-    logger.info("Haftalik backup yuborilmoqda...")
+    logger.info("Haftalik backup faqat Bosh Adminga yuborilmoqda...")
     now_str = datetime.now().strftime("%Y-%m-%d")
-    for admin_id in ADMIN_IDS:
+    for admin_id in SUPER_ADMIN_IDS:
         try:
-            # 1. Excel hisobot
-            excel_file = f"CRM_Haftalik_{now_str}.xlsx"
-            await generate_excel_report(excel_file)
+            # 1. Umumiy Excel hisobot
+            excel_file = f"CRM_Umumiy_{now_str}.xlsx"
+            await generate_excel_report(excel_file, branch_id=None)
             await bot.send_document(
                 chat_id=admin_id,
                 document=FSInputFile(excel_file),
-                caption=f"🔔 *Haftalik Excel hisobot* ({now_str})\nOmbor qoldig'i, sotuvlar va kassa to'liq jamlangan.",
+                caption=f"🔔 *Haftalik Umumiy Birlashgan Excel hisobot* ({now_str})\nBarcha filiallarning ombor qoldig'i, sotuvlar va kassalari to'liq jamlangan.",
                 parse_mode="Markdown"
             )
             
@@ -49,10 +49,10 @@ async def send_weekly_backup(bot: Bot):
                 await bot.send_document(
                     chat_id=admin_id,
                     document=FSInputFile(DB_PATH, filename=f"backup_data_{now_str}.db"),
-                    caption=f"🛡 *Haftalik xavfsiz zaxira nusxa (data.db)*\nSana: {now_str}\n\nHatto server kuysa ham barcha hisob-kitoblar ushbu faylda saqlangan.",
+                    caption=f"🛡 *Haftalik xavfsiz zaxira nusxa (data.db)*\nSana: {now_str}\n\nBarcha filiallarning ma'lumotlar bazasi zaxira nusxasi.",
                     parse_mode="Markdown"
                 )
-            logger.info(f"Admin {admin_id} ga backup yuborildi.")
+            logger.info(f"Super Admin {admin_id} ga backup yuborildi.")
         except Exception as e:
             logger.error(f"Backup yuborishda xatolik ({admin_id}): {e}")
 
@@ -76,7 +76,7 @@ async def main():
     dp.include_router(cashbox.router)
     dp.include_router(dashboard.router)
 
-    # 4. Haftalik zaxira vazifasi (Har yakshanba 23:59 da)
+    # 4. Haftalik zaxira vazifasi (Har yakshanba 23:59 da faqat Super Adminga)
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
         send_weekly_backup,
@@ -87,7 +87,7 @@ async def main():
         args=[bot]
     )
     scheduler.start()
-    logger.info("Haftalik backup scheduler (Yakshanba 23:59) ishga tushirildi!")
+    logger.info("Haftalik backup scheduler (Yakshanba 23:59) faqat Super Adminga ulandi!")
 
     # 5. Render bepul web service uchun healthcheck server
     await start_dummy_web_server()

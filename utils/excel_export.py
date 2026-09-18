@@ -4,11 +4,11 @@ import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from datetime import datetime
 from database.local_db import DB_PATH
+from config import BRANCH_NAMES
 
-async def generate_excel_report(file_path: str = "CRM_Hisobot.xlsx") -> str:
+async def generate_excel_report(file_path: str = "CRM_Hisobot.xlsx", branch_id: int | None = None) -> str:
     wb = openpyxl.Workbook()
     
-    # Stillar
     header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
     header_fill = PatternFill(start_color="1F497D", end_color="1F497D", fill_type="solid")
     thin_border = Border(
@@ -29,16 +29,24 @@ async def generate_excel_report(file_path: str = "CRM_Hisobot.xlsx") -> str:
         ws_ombor.title = "Ombor Qoldig'i"
         
         headers_ombor = [
-            "Rulon kodi", "Eni (m)", "Rangi", "Boshlang'ich metr", 
+            "Filial", "Rulon kodi", "Eni (m)", "Rangi", "Boshlang'ich metr", 
             "Qoldiq metr", "Maydon (m²)", "Tovar qiymati ($)", "Holati", "Kirim sanasi"
         ]
         ws_ombor.append(headers_ombor)
         
-        async with db.execute("SELECT * FROM rolls ORDER BY id DESC") as cursor:
+        if branch_id is not None:
+            q_rolls = "SELECT * FROM rolls WHERE branch_id = ? ORDER BY id DESC"
+            p_rolls = (branch_id,)
+        else:
+            q_rolls = "SELECT * FROM rolls ORDER BY branch_id ASC, id DESC"
+            p_rolls = ()
+            
+        async with db.execute(q_rolls, p_rolls) as cursor:
             rolls = await cursor.fetchall()
             for r in rolls:
+                b_name = BRANCH_NAMES.get(r["branch_id"], f"Filial-{r['branch_id']}")
                 ws_ombor.append([
-                    r["roll_code"], r["width"], r["color"], r["initial_length"],
+                    b_name, r["roll_code"], r["width"], r["color"], r["initial_length"],
                     r["current_length"], r["area_m2"], r["total_price"],
                     "Mavjud" if r["status"] == "active" and r["current_length"] > 0 else "Tugagan",
                     r["created_at"]
@@ -47,45 +55,58 @@ async def generate_excel_report(file_path: str = "CRM_Hisobot.xlsx") -> str:
         # 2. Sotuvlar tarixi
         ws_sales = wb.create_sheet(title="Sotuvlar Tarixi")
         headers_sales = [
-            "Sana va Vaqt", "Rulon kodi", "Mahsulot", "Sotilgan metr (m)", 
+            "Filial", "Sana va Vaqt", "Rulon kodi", "Mahsulot", "Sotilgan metr (m)", 
             "Maydoni (m²)", "Narx ($/m²)", "Jami summa ($)"
         ]
         ws_sales.append(headers_sales)
         
-        async with db.execute("SELECT * FROM sales ORDER BY id DESC") as cursor:
+        if branch_id is not None:
+            q_sales = "SELECT * FROM sales WHERE branch_id = ? ORDER BY id DESC"
+            p_sales = (branch_id,)
+        else:
+            q_sales = "SELECT * FROM sales ORDER BY branch_id ASC, id DESC"
+            p_sales = ()
+            
+        async with db.execute(q_sales, p_sales) as cursor:
             sales = await cursor.fetchall()
             for s in sales:
+                b_name = BRANCH_NAMES.get(s["branch_id"], f"Filial-{s['branch_id']}")
                 ws_sales.append([
-                    s["created_at"], s["roll_code"], f"{s['width']}x{s['sold_length']}m - {s['color']}",
+                    b_name, s["created_at"], s["roll_code"], f"{s['width']}x{s['sold_length']}m - {s['color']}",
                     s["sold_length"], s["area_m2"], s["price_per_m2"], s["total_price"]
                 ])
                 
         # 3. Kassa tarixi
         ws_cash = wb.create_sheet(title="Kassa Amallari")
         headers_cash = [
-            "Sana va Vaqt", "Operatsiya turi", "Summa ($)", "Izoh", "Kassa qoldig'i ($)"
+            "Filial", "Sana va Vaqt", "Operatsiya turi", "Summa ($)", "Izoh", "Kassa qoldig'i ($)"
         ]
         ws_cash.append(headers_cash)
         
-        async with db.execute("SELECT * FROM cashbox ORDER BY id DESC") as cursor:
+        if branch_id is not None:
+            q_cash = "SELECT * FROM cashbox WHERE branch_id = ? ORDER BY id DESC"
+            p_cash = (branch_id,)
+        else:
+            q_cash = "SELECT * FROM cashbox ORDER BY branch_id ASC, id DESC"
+            p_cash = ()
+            
+        async with db.execute(q_cash, p_cash) as cursor:
             cash = await cursor.fetchall()
             for c in cash:
+                b_name = BRANCH_NAMES.get(c["branch_id"], f"Filial-{c['branch_id']}")
                 ws_cash.append([
-                    c["created_at"],
+                    b_name, c["created_at"],
                     "Kirim (Sotuv)" if c["operation_type"] == "INCOME" else "Chiqim (Topshirildi)",
                     c["amount"], c["note"], c["balance_after"]
                 ])
 
-    # Varaqlarni formatlash
     for ws in [ws_ombor, ws_sales, ws_cash]:
-        # Sarlavha qatori stili
         for col_num in range(1, ws.max_column + 1):
             cell = ws.cell(row=1, column=col_num)
             cell.font = header_font
             cell.fill = header_fill
             cell.alignment = center_align
             
-        # Ma'lumot qatorlari
         for row in range(2, ws.max_row + 1):
             for col in range(1, ws.max_column + 1):
                 cell = ws.cell(row=row, column=col)
@@ -95,7 +116,6 @@ async def generate_excel_report(file_path: str = "CRM_Hisobot.xlsx") -> str:
                 else:
                     cell.alignment = left_align
                     
-        # Ustun kengliklarini avtomatik to'g'irlash
         for col in ws.columns:
             max_len = max(len(str(cell.value or '')) for cell in col)
             col_letter = openpyxl.utils.get_column_letter(col[0].column)

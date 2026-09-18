@@ -2,26 +2,26 @@ import logging
 from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
-from config import ADMIN_IDS
-from keyboards.default_kb import get_main_menu
+from config import BRANCH_NAMES
+from keyboards.default_kb import get_branch_menu
 from keyboards.inline_kb import get_cash_menu_kb, get_confirm_withdraw_kb
 from utils.states import CashStates
 from database.local_db import get_cash_balance, withdraw_cash
+from handlers.common import get_user_role
 
 router = Router()
 logger = logging.getLogger(__name__)
 
-def is_admin(user_id: int) -> bool:
-    return user_id in ADMIN_IDS
-
 @router.message(F.text == "💵 Kassa")
 async def show_cash(message: Message, state: FSMContext):
-    if not is_admin(message.from_user.id):
+    role, branch_id = get_user_role(message.from_user.id)
+    if role != "branch":
         return
     await state.clear()
-    balance = await get_cash_balance()
+    balance = await get_cash_balance(branch_id=branch_id)
+    b_name = BRANCH_NAMES.get(branch_id, "Filial")
     await message.answer(
-        f"💵 *KASSA VA PUL TOPSHIRISH BO'LIMI:*\n\n"
+        f"💵 *KASSA VA PUL TOPSHIRISH ({b_name}):*\n\n"
         f"💰 Hozirgi kassadagi qoldiq summa: *${balance:.2f}*\n\n"
         f"Pul topshirish (chiqim qilish) uchun quyidagi tugmani bosing:",
         parse_mode="Markdown",
@@ -30,9 +30,10 @@ async def show_cash(message: Message, state: FSMContext):
 
 @router.callback_query(F.data == "cash_withdraw")
 async def start_withdraw(callback: CallbackQuery, state: FSMContext):
-    if not is_admin(callback.from_user.id):
+    role, branch_id = get_user_role(callback.from_user.id)
+    if role != "branch":
         return
-    balance = await get_cash_balance()
+    balance = await get_cash_balance(branch_id=branch_id)
     if balance <= 0:
         await callback.message.answer("Kassada topshirish uchun pul mavjud emas ($0.00).")
         await callback.answer()
@@ -48,7 +49,8 @@ async def start_withdraw(callback: CallbackQuery, state: FSMContext):
 
 @router.message(CashStates.entering_withdrawal_amount)
 async def process_withdraw_amount(message: Message, state: FSMContext):
-    if not is_admin(message.from_user.id):
+    role, branch_id = get_user_role(message.from_user.id)
+    if role != "branch":
         return
     text = message.text.strip().replace(",", ".").replace("$", "")
     try:
@@ -60,7 +62,7 @@ async def process_withdraw_amount(message: Message, state: FSMContext):
         await message.answer("Iltimos, to'g'ri summa kiriting (Masalan: 325):")
         return
 
-    balance = await get_cash_balance()
+    balance = await get_cash_balance(branch_id=branch_id)
     if amount > balance:
         await message.answer(
             f"❌ Xatolik! Kassada buncha mablag' yo'q!\n"
@@ -86,12 +88,14 @@ async def process_withdraw_amount(message: Message, state: FSMContext):
 
 @router.callback_query(F.data == "confirm_withdraw", CashStates.confirming_withdrawal)
 async def confirm_withdraw(callback: CallbackQuery, state: FSMContext):
-    if not is_admin(callback.from_user.id):
+    role, branch_id = get_user_role(callback.from_user.id)
+    if role != "branch":
         return
     data = await state.get_data()
     amount = data["amount"]
     
-    res = await withdraw_cash(amount=amount, note="Kassa topshirildi")
+    b_name = BRANCH_NAMES.get(branch_id, "Filial")
+    res = await withdraw_cash(amount=amount, branch_id=branch_id, note="Kassa topshirildi")
     
     await state.clear()
     try:
@@ -99,10 +103,10 @@ async def confirm_withdraw(callback: CallbackQuery, state: FSMContext):
     except Exception:
         pass
     await callback.message.answer(
-        f"✅ *Kassa muvaffaqiyatli topshirildi!*\n\n"
+        f"✅ *Kassa muvaffaqiyatli topshirildi! ({b_name})*\n\n"
         f"📤 Chiqim summasi: *${res['amount']:.2f}*\n"
         f"💰 Kassadagi yangi qoldiq: *${res['new_balance']:.2f}*",
         parse_mode="Markdown",
-        reply_markup=get_main_menu()
+        reply_markup=get_branch_menu(b_name)
     )
     await callback.answer("Topshirildi!")
