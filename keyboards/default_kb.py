@@ -2,9 +2,23 @@ from aiogram.types import ReplyKeyboardMarkup, KeyboardButton
 
 def get_branch_menu(branch_name: str = "Filial"):
     kb = [
-        [KeyboardButton(text="📥 Import (Kirim)"), KeyboardButton(text="🛒 Sotuv qilish")],
-        [KeyboardButton(text="📦 Ombor qoldig'i"), KeyboardButton(text="💵 Kassa")],
+        [KeyboardButton(text="🌀 Rezinka Gilam"), KeyboardButton(text="🐑 Teri Bo'limi")],
+        [KeyboardButton(text="📦 Umumiy Ombor"), KeyboardButton(text="💵 Kassa")],
         [KeyboardButton(text="📊 Dashboard"), KeyboardButton(text="📑 Excel hisobot")]
+    ]
+    return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
+
+def get_carpet_submenu():
+    kb = [
+        [KeyboardButton(text="📥 Gilam Kirim"), KeyboardButton(text="🛒 Gilam Sotuv")],
+        [KeyboardButton(text="📦 Gilam Ombori"), KeyboardButton(text="🔙 Bosh menyu")]
+    ]
+    return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
+
+def get_leather_submenu():
+    kb = [
+        [KeyboardButton(text="📥 Teri Kirim"), KeyboardButton(text="🛒 Teri Sotuv")],
+        [KeyboardButton(text="📦 Teri Ombori"), KeyboardButton(text="🔙 Bosh menyu")]
     ]
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 

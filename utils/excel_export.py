@@ -10,12 +10,13 @@ async def generate_excel_report(file_path: str = "CRM_Hisobot.xlsx", branch_id: 
     wb = openpyxl.Workbook()
     
     header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
-    header_fill = PatternFill(start_color="1F497D", end_color="1F497D", fill_type="solid")
+    carpet_fill = PatternFill(start_color="1F497D", end_color="1F497D", fill_type="solid") # Moviy
+    leather_fill = PatternFill(start_color="804000", end_color="804000", fill_type="solid") # Jigarrang
+    cash_fill = PatternFill(start_color="274E13", end_color="274E13", fill_type="solid")    # Yashil
+    
     thin_border = Border(
-        left=Side(style="thin", color="D9D9D9"),
-        right=Side(style="thin", color="D9D9D9"),
-        top=Side(style="thin", color="D9D9D9"),
-        bottom=Side(style="thin", color="D9D9D9")
+        left=Side(style="thin", color="D9D9D9"), right=Side(style="thin", color="D9D9D9"),
+        top=Side(style="thin", color="D9D9D9"), bottom=Side(style="thin", color="D9D9D9")
     )
     center_align = Alignment(horizontal="center", vertical="center")
     right_align = Alignment(horizontal="right", vertical="center")
@@ -24,87 +25,83 @@ async def generate_excel_report(file_path: str = "CRM_Hisobot.xlsx", branch_id: 
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         
-        # 1. Ombor qoldig'i
-        ws_ombor = wb.active
-        ws_ombor.title = "Ombor Qoldig'i"
-        
-        headers_ombor = [
-            "Filial", "Rulon kodi", "Eni (m)", "Rangi", "Boshlang'ich metr", 
-            "Qoldiq metr", "Maydon (m²)", "Tovar qiymati ($)", "Holati", "Kirim sanasi"
-        ]
-        ws_ombor.append(headers_ombor)
-        
-        if branch_id is not None:
-            q_rolls = "SELECT * FROM rolls WHERE branch_id = ? ORDER BY id DESC"
-            p_rolls = (branch_id,)
-        else:
-            q_rolls = "SELECT * FROM rolls ORDER BY branch_id ASC, id DESC"
-            p_rolls = ()
-            
-        async with db.execute(q_rolls, p_rolls) as cursor:
-            rolls = await cursor.fetchall()
-            for r in rolls:
+        # 1. Gilam Ombor Qoldig'i
+        ws_c_ombor = wb.active
+        ws_c_ombor.title = "Gilam Ombori"
+        headers_c_ombor = ["Filial", "Rulon kodi", "Eni (m)", "Rangi", "Boshlang'ich metr", "Qoldiq metr", "Maydon (m²)", "Qiymati ($)", "Holati", "Kirim sanasi"]
+        ws_c_ombor.append(headers_c_ombor)
+        q = "SELECT * FROM rolls WHERE branch_id = ? ORDER BY id DESC" if branch_id else "SELECT * FROM rolls ORDER BY branch_id ASC, id DESC"
+        p = (branch_id,) if branch_id else ()
+        async with db.execute(q, p) as cursor:
+            for r in await cursor.fetchall():
                 b_name = BRANCH_NAMES.get(r["branch_id"], f"Filial-{r['branch_id']}")
-                ws_ombor.append([
-                    b_name, r["roll_code"], r["width"], r["color"], r["initial_length"],
-                    r["current_length"], r["area_m2"], r["total_price"],
-                    "Mavjud" if r["status"] == "active" and r["current_length"] > 0 else "Tugagan",
-                    r["created_at"]
-                ])
+                ws_c_ombor.append([b_name, r["roll_code"], r["width"], r["color"], r["initial_length"], r["current_length"], r["area_m2"], r["total_price"], "Mavjud" if r["status"] == "active" and r["current_length"] > 0 else "Tugagan", r["created_at"]])
                 
-        # 2. Sotuvlar tarixi
-        ws_sales = wb.create_sheet(title="Sotuvlar Tarixi")
-        headers_sales = [
-            "Filial", "Sana va Vaqt", "Rulon kodi", "Mahsulot", "Sotilgan metr (m)", 
-            "Maydoni (m²)", "Narx ($/m²)", "Jami summa ($)"
-        ]
-        ws_sales.append(headers_sales)
-        
-        if branch_id is not None:
-            q_sales = "SELECT * FROM sales WHERE branch_id = ? ORDER BY id DESC"
-            p_sales = (branch_id,)
-        else:
-            q_sales = "SELECT * FROM sales ORDER BY branch_id ASC, id DESC"
-            p_sales = ()
-            
-        async with db.execute(q_sales, p_sales) as cursor:
-            sales = await cursor.fetchall()
-            for s in sales:
-                b_name = BRANCH_NAMES.get(s["branch_id"], f"Filial-{s['branch_id']}")
-                ws_sales.append([
-                    b_name, s["created_at"], s["roll_code"], f"{s['width']}x{s['sold_length']}m - {s['color']}",
-                    s["sold_length"], s["area_m2"], s["price_per_m2"], s["total_price"]
-                ])
-                
-        # 3. Kassa tarixi
-        ws_cash = wb.create_sheet(title="Kassa Amallari")
-        headers_cash = [
-            "Filial", "Sana va Vaqt", "Operatsiya turi", "Summa ($)", "Izoh", "Kassa qoldig'i ($)"
-        ]
-        ws_cash.append(headers_cash)
-        
-        if branch_id is not None:
-            q_cash = "SELECT * FROM cashbox WHERE branch_id = ? ORDER BY id DESC"
-            p_cash = (branch_id,)
-        else:
-            q_cash = "SELECT * FROM cashbox ORDER BY branch_id ASC, id DESC"
-            p_cash = ()
-            
-        async with db.execute(q_cash, p_cash) as cursor:
-            cash = await cursor.fetchall()
-            for c in cash:
-                b_name = BRANCH_NAMES.get(c["branch_id"], f"Filial-{c['branch_id']}")
-                ws_cash.append([
-                    b_name, c["created_at"],
-                    "Kirim (Sotuv)" if c["operation_type"] == "INCOME" else "Chiqim (Topshirildi)",
-                    c["amount"], c["note"], c["balance_after"]
-                ])
+        # 2. Teri Ombor Qoldig'i
+        ws_l_ombor = wb.create_sheet(title="Teri Ombori")
+        headers_l_ombor = ["Filial", "Mahsulot", "Rangi", "Qoldiq (dona)", "Narxi ($/dona)", "Jami qiymati ($)", "Oxirgi yangilanish"]
+        ws_l_ombor.append(headers_l_ombor)
+        q = "SELECT * FROM leather_inventory WHERE branch_id = ? ORDER BY color ASC" if branch_id else "SELECT * FROM leather_inventory ORDER BY branch_id ASC, color ASC"
+        async with db.execute(q, p) as cursor:
+            for l in await cursor.fetchall():
+                b_name = BRANCH_NAMES.get(l["branch_id"], f"Filial-{l['branch_id']}")
+                val = round(l["quantity"] * l["price_per_item"], 2)
+                ws_l_ombor.append([b_name, "Teri", l["color"], l["quantity"], l["price_per_item"], val, l["updated_at"]])
 
-    for ws in [ws_ombor, ws_sales, ws_cash]:
+        # 3. Gilam Sotuvlar Tarixi
+        ws_c_sales = wb.create_sheet(title="Gilam Sotuvlari")
+        headers_c_sales = ["Filial", "Sana va Vaqt", "Rulon kodi", "O'lchami va rangi", "Sotilgan metr", "Maydoni (m²)", "Narx ($/m²)", "Jami summa ($)"]
+        ws_c_sales.append(headers_c_sales)
+        q = "SELECT * FROM sales WHERE branch_id = ? ORDER BY id DESC" if branch_id else "SELECT * FROM sales ORDER BY branch_id ASC, id DESC"
+        async with db.execute(q, p) as cursor:
+            for s in await cursor.fetchall():
+                b_name = BRANCH_NAMES.get(s["branch_id"], f"Filial-{s['branch_id']}")
+                ws_c_sales.append([b_name, s["created_at"], s["roll_code"], f"{s['width']}x{s['sold_length']}m - {s['color']}", s["sold_length"], s["area_m2"], s["price_per_m2"], s["total_price"]])
+
+        # 4. Teri Sotuvlar Tarixi
+        ws_l_sales = wb.create_sheet(title="Teri Sotuvlari")
+        headers_l_sales = ["Filial", "Sana va Vaqt", "Mahsulot", "Rangi", "Sotilgan dona", "Narx ($/dona)", "Jami summa ($)"]
+        ws_l_sales.append(headers_l_sales)
+        q = "SELECT * FROM leather_sales WHERE branch_id = ? ORDER BY id DESC" if branch_id else "SELECT * FROM leather_sales ORDER BY branch_id ASC, id DESC"
+        async with db.execute(q, p) as cursor:
+            for ls in await cursor.fetchall():
+                b_name = BRANCH_NAMES.get(ls["branch_id"], f"Filial-{ls['branch_id']}")
+                ws_l_sales.append([b_name, ls["created_at"], "Teri", ls["color"], ls["quantity"], ls["price_per_item"], ls["total_price"]])
+
+        # 5. Gilam Kassasi Harakatlari
+        ws_c_cash = wb.create_sheet(title="Gilam Kassasi")
+        headers_c_cash = ["Filial", "Sana va Vaqt", "Operatsiya", "Summa ($)", "Izoh", "Kassa qoldig'i ($)"]
+        ws_c_cash.append(headers_c_cash)
+        q = "SELECT * FROM cashbox WHERE branch_id = ? AND category = 'carpet' ORDER BY id DESC" if branch_id else "SELECT * FROM cashbox WHERE category = 'carpet' ORDER BY branch_id ASC, id DESC"
+        async with db.execute(q, p) as cursor:
+            for c in await cursor.fetchall():
+                b_name = BRANCH_NAMES.get(c["branch_id"], f"Filial-{c['branch_id']}")
+                ws_c_cash.append([b_name, c["created_at"], "Kirim (Sotuv)" if c["operation_type"] == "INCOME" else "Chiqim (Topshirildi)", c["amount"], c["note"], c["balance_after"]])
+
+        # 6. Teri Kassasi Harakatlari
+        ws_l_cash = wb.create_sheet(title="Teri Kassasi")
+        headers_l_cash = ["Filial", "Sana va Vaqt", "Operatsiya", "Summa ($)", "Izoh", "Kassa qoldig'i ($)"]
+        ws_l_cash.append(headers_l_cash)
+        q = "SELECT * FROM cashbox WHERE branch_id = ? AND category = 'leather' ORDER BY id DESC" if branch_id else "SELECT * FROM cashbox WHERE category = 'leather' ORDER BY branch_id ASC, id DESC"
+        async with db.execute(q, p) as cursor:
+            for c in await cursor.fetchall():
+                b_name = BRANCH_NAMES.get(c["branch_id"], f"Filial-{c['branch_id']}")
+                ws_l_cash.append([b_name, c["created_at"], "Kirim (Sotuv)" if c["operation_type"] == "INCOME" else "Chiqim (Topshirildi)", c["amount"], c["note"], c["balance_after"]])
+
+    # Stillar va formatlash
+    sheet_configs = [
+        (ws_c_ombor, carpet_fill),
+        (ws_l_ombor, leather_fill),
+        (ws_c_sales, carpet_fill),
+        (ws_l_sales, leather_fill),
+        (ws_c_cash, cash_fill),
+        (ws_l_cash, cash_fill)
+    ]
+    for ws, fill in sheet_configs:
         for col_num in range(1, ws.max_column + 1):
             cell = ws.cell(row=1, column=col_num)
             cell.font = header_font
-            cell.fill = header_fill
+            cell.fill = fill
             cell.alignment = center_align
             
         for row in range(2, ws.max_row + 1):

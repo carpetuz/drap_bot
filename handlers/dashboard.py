@@ -4,7 +4,7 @@ from datetime import datetime
 from aiogram import Router, F
 from aiogram.types import Message, FSInputFile
 from config import BRANCH_NAMES
-from database.local_db import get_dashboard_stats, get_all_active_rolls
+from database.local_db import get_dashboard_stats, get_all_active_rolls, get_leather_stock
 from utils.excel_export import generate_excel_report
 from handlers.common import get_user_role
 
@@ -23,50 +23,78 @@ async def show_dashboard(message: Message):
     
     text = (
         f"📊 *{b_name} DASHBOARDI*\n\n"
-        f"📦 *Ombordagi tovaringiz:*\n"
-        f"• Faol rulonlar: *{stats['stock_rolls_count']} ta*\n"
-        f"• Jami hajm: *{stats['stock_total_m2']} m²*\n"
-        f"• Tovar qiymati ($8/m²): *${stats['stock_total_value']:.2f}*\n\n"
-        f"💵 *Kassa holatingiz:*\n"
-        f"• Kassadagi naqd pul: *${stats['cash_balance']:.2f}*\n\n"
-        f"📈 *Bugungi savdo:*\n"
-        f"• Sotuvlar soni: *{stats['today_sales_count']} ta*\n"
-        f"• Sotilgan maydon: *{stats['today_sold_m2']} m²*\n"
-        f"• Bugungi tushum: *${stats['today_revenue']:.2f}*\n\n"
-        f"🏆 *Umumiy statistika:*\n"
-        f"• Jami sotuvlar: *{stats['all_sales_count']} ta*\n"
-        f"• Jami sotilgan: *{stats['all_sold_m2']} m²*\n"
-        f"• Jami umumiy tushum: *${stats['all_revenue']:.2f}*"
+        f"🌀 *REZINKA GILAM:*\n"
+        f"• Ombordagi rulonlar: *{stats['carpet_rolls_count']} ta* ({stats['carpet_total_m2']} m²)\n"
+        f"• Tovar qiymati ($8/m²): *${stats['carpet_total_val']:.2f}*\n"
+        f"• Bugungi savdo: *{stats['today_carpet_count']} ta* ({stats['today_carpet_m2']} m² — ${stats['today_carpet_rev']:.2f})\n"
+        f"• 💵 *Gilam kassasi qoldig'i:* *${stats['carpet_cash']:.2f}*\n\n"
+        f"🐑 *TERI MAHSULOTI ($50/dona):*\n"
+        f"• Ombordagi teri: *{stats['leather_total_qty']} dona*\n"
+        f"• Tovar qiymati: *${stats['leather_total_val']:.2f}*\n"
+        f"• Bugungi savdo: *{stats['today_leather_count']} ta* ({stats['today_leather_qty']} dona — ${stats['today_leather_rev']:.2f})\n"
+        f"• 💵 *Teri kassasi qoldig'i:* *${stats['leather_cash']:.2f}*"
     )
     await message.answer(text, parse_mode="Markdown")
 
-@router.message(F.text == "📦 Ombor qoldig'i")
+@router.message(F.text.in_(["📦 Ombor Qoldig'i", "📦 Umumiy Ombor"]))
 async def show_inventory(message: Message):
     role, branch_id = get_user_role(message.from_user.id)
     if role != "branch":
         return
     rolls = await get_all_active_rolls(branch_id=branch_id)
+    leathers = await get_leather_stock(branch_id=branch_id)
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
     
+    lines = [f"📦 *{b_name} — OMBOR QOLDIG'I:*\n"]
+    
+    # Gilamlar
+    lines.append("🌀 *Rezinka Gilamlar:*")
     if not rolls:
-        await message.answer(f"📦 {b_name} omborida mahsulot mavjud emas!")
-        return
+        lines.append("• Gilam mavjud emas.")
+    else:
+        c_m2 = 0.0
+        c_val = 0.0
+        for idx, r in enumerate(rolls, start=1):
+            c_m2 += r["area_m2"]
+            c_val += r["total_price"]
+            lines.append(f"{idx}. *{r['roll_code']}*: `{r['width']:g}x{r['current_length']}m` - {r['color']} ({r['area_m2']} m² | ${r['total_price']:.2f})")
+        lines.append(f"Jami gilam: `{round(c_m2, 2)} m²` (${round(c_val, 2):.2f})\n")
+        
+    # Terilar
+    lines.append("🐑 *Teri Mahsulotlari:*")
+    if not leathers:
+        lines.append("• Teri mavjud emas.")
+    else:
+        l_qty = 0
+        l_val = 0.0
+        for idx, s in enumerate(leathers, start=1):
+            v = round(s["quantity"] * s["price_per_item"], 2)
+            l_qty += s["quantity"]
+            l_val += v
+            lines.append(f"• *{s['color']}*: `{s['quantity']} dona` (${v:.2f})")
+        lines.append(f"Jami teri: `{l_qty} dona` (${round(l_val, 2):.2f})")
 
-    lines = [f"📦 *{b_name} OMBOR QOLDIG'I ({len(rolls)} ta):*\n"]
+    await message.answer("\n".join(lines), parse_mode="Markdown")
+
+@router.message(F.text == "📦 Gilam Ombori")
+async def show_carpet_inventory(message: Message):
+    role, branch_id = get_user_role(message.from_user.id)
+    if role != "branch":
+        return
+    rolls = await get_all_active_rolls(branch_id=branch_id)
+    b_name = BRANCH_NAMES.get(branch_id, "Filial")
+    if not rolls:
+        await message.answer(f"📦 {b_name} omborida gilam mavjud emas!")
+        return
+        
+    lines = [f"🌀 *{b_name} — GILAM OMBOR QOLDIG'I ({len(rolls)} ta):*\n"]
     total_m2 = 0.0
     total_val = 0.0
-
     for idx, r in enumerate(rolls, start=1):
         total_m2 += r["area_m2"]
         total_val += r["total_price"]
-        lines.append(
-            f"{idx}. *{r['roll_code']}*: `{r['width']:g} x {r['current_length']} m` - *{r['color']}* "
-            f"({r['area_m2']} m² | ${r['total_price']:.2f})"
-        )
-
-    lines.append(f"\n📐 *Jami hajm:* `{round(total_m2, 2)} m²`")
-    lines.append(f"💰 *Jami qiymat:* `${round(total_val, 2):.2f}`")
-
+        lines.append(f"{idx}. *{r['roll_code']}*: `{r['width']:g}x{r['current_length']}m` - *{r['color']}* ({r['area_m2']} m² | ${r['total_price']:.2f})")
+    lines.append(f"\n📐 *Jami:* `{round(total_m2, 2)} m²` | 💰 `${round(total_val, 2):.2f}`")
     await message.answer("\n".join(lines), parse_mode="Markdown")
 
 @router.message(F.text == "📑 Excel hisobot")
@@ -82,7 +110,7 @@ async def send_excel_report(message: Message):
         doc = FSInputFile(report_path, filename=f"Hisobot_{b_name}_{datetime.now().strftime('%Y-%m-%d')}.xlsx")
         await message.answer_document(
             document=doc,
-            caption=f"📊 *{b_name} hisoboti*\n\n1. Ombor qoldig'i\n2. Sotuvlar tarixi\n3. Kassa amallari",
+            caption=f"📊 *{b_name} to'liq hisoboti*\n\n1. Gilam Ombori\n2. Teri Ombori\n3. Gilam Sotuvlari\n4. Teri Sotuvlari\n5. Gilam Kassasi\n6. Teri Kassasi",
             parse_mode="Markdown"
         )
         await wait_msg.delete()
@@ -103,20 +131,16 @@ async def superadmin_branch_stats(message: Message):
     
     text = (
         f"🏢 *{b_name} STATISTIKASI (Bosh Admin uchun)*\n\n"
-        f"📦 *Ombordagi tovar holati:*\n"
-        f"• Faol rulonlar: *{stats['stock_rolls_count']} ta*\n"
-        f"• Jami hajm: *{stats['stock_total_m2']} m²*\n"
-        f"• Tovar qiymati ($8/m²): *${stats['stock_total_value']:.2f}*\n\n"
-        f"💵 *Kassa holati:*\n"
-        f"• Kassadagi naqd pul: *${stats['cash_balance']:.2f}*\n\n"
-        f"📈 *Bugungi savdo:*\n"
-        f"• Sotuvlar soni: *{stats['today_sales_count']} ta*\n"
-        f"• Sotilgan maydon: *{stats['today_sold_m2']} m²*\n"
-        f"• Bugungi tushum: *${stats['today_revenue']:.2f}*\n\n"
-        f"🏆 *Umumiy statistika:*\n"
-        f"• Jami sotuvlar: *{stats['all_sales_count']} ta*\n"
-        f"• Jami sotilgan: *{stats['all_sold_m2']} m²*\n"
-        f"• Jami umumiy tushum: *${stats['all_revenue']:.2f}*"
+        f"🌀 *REZINKA GILAM:*\n"
+        f"• Ombordagi tovar: *{stats['carpet_rolls_count']} ta* ({stats['carpet_total_m2']} m²)\n"
+        f"• Tovar qiymati: *${stats['carpet_total_val']:.2f}*\n"
+        f"• Bugungi savdo: *{stats['today_carpet_count']} ta* (${stats['today_carpet_rev']:.2f})\n"
+        f"• 💵 *Gilam kassasi:* *${stats['carpet_cash']:.2f}*\n\n"
+        f"🐑 *TERI MAHSULOTI:*\n"
+        f"• Ombordagi tovar: *{stats['leather_total_qty']} dona*\n"
+        f"• Tovar qiymati: *${stats['leather_total_val']:.2f}*\n"
+        f"• Bugungi savdo: *{stats['today_leather_count']} ta* (${stats['today_leather_rev']:.2f})\n"
+        f"• 💵 *Teri kassasi:* *${stats['leather_cash']:.2f}*"
     )
     await message.answer(text, parse_mode="Markdown")
 
@@ -129,20 +153,16 @@ async def superadmin_global_stats(message: Message):
     
     text = (
         "🌐 *BARCHA FILIALLARNING UMUMIY STATISTIKASI*\n\n"
-        f"📦 *Umumiy barcha omborlardagi tovar:*\n"
-        f"• Jami faol rulonlar: *{stats['stock_rolls_count']} ta*\n"
-        f"• Jami hajm: *{stats['stock_total_m2']} m²*\n"
-        f"• Tovar umumiy qiymati ($8/m²): *${stats['stock_total_value']:.2f}*\n\n"
-        f"💵 *Umumiy kassa (Barcha filiallar):*\n"
-        f"• Jami naqd pul yig'indisi: *${stats['cash_balance']:.2f}*\n\n"
-        f"📈 *Bugungi umumiy savdo:*\n"
-        f"• Jami sotuvlar: *{stats['today_sales_count']} ta*\n"
-        f"• Sotilgan maydon: *{stats['today_sold_m2']} m²*\n"
-        f"• Bugungi umumiy tushum: *${stats['today_revenue']:.2f}*\n\n"
-        f"🏆 *Umumiy statistika (Barcha davr):*\n"
-        f"• Jami sotuvlar: *{stats['all_sales_count']} ta*\n"
-        f"• Jami sotilgan hajm: *{stats['all_sold_m2']} m²*\n"
-        f"• Jami umumiy tushum: *${stats['all_revenue']:.2f}*"
+        f"🌀 *REZINKA GILAMLAR (Jami):*\n"
+        f"• Ombordagi rulonlar: *{stats['carpet_rolls_count']} ta* ({stats['carpet_total_m2']} m²)\n"
+        f"• Tovar qiymati: *${stats['carpet_total_val']:.2f}*\n"
+        f"• Bugungi savdo: *${stats['today_carpet_rev']:.2f}*\n"
+        f"• 💵 *Jami Gilam kassalari:* *${stats['carpet_cash']:.2f}*\n\n"
+        f"🐑 *TERI MAHSULOTLARI (Jami):*\n"
+        f"• Ombordagi teri: *{stats['leather_total_qty']} dona*\n"
+        f"• Tovar qiymati: *${stats['leather_total_val']:.2f}*\n"
+        f"• Bugungi savdo: *${stats['today_leather_rev']:.2f}*\n"
+        f"• 💵 *Jami Teri kassalari:* *${stats['leather_cash']:.2f}*"
     )
     await message.answer(text, parse_mode="Markdown")
 
@@ -160,7 +180,7 @@ async def superadmin_branch_excel(message: Message):
         doc = FSInputFile(report_path, filename=f"Hisobot_{b_name}_{datetime.now().strftime('%Y-%m-%d')}.xlsx")
         await message.answer_document(
             document=doc,
-            caption=f"📊 *{b_name} hisoboti*\n\n1. Ombor qoldig'i\n2. Sotuvlar tarixi\n3. Kassa amallari",
+            caption=f"📊 *{b_name} hisoboti*\n\n1. Gilam Ombori\n2. Teri Ombori\n3. Gilam Sotuvlari\n4. Teri Sotuvlari\n5. Gilam Kassasi\n6. Teri Kassasi",
             parse_mode="Markdown"
         )
         await wait_msg.delete()
@@ -180,7 +200,7 @@ async def superadmin_global_excel(message: Message):
         doc = FSInputFile(report_path, filename=f"CRM_Umumiy_{datetime.now().strftime('%Y-%m-%d')}.xlsx")
         await message.answer_document(
             document=doc,
-            caption="🌐 *Barcha filiallar birlashgan Excel hisoboti*\n\nUshbu faylda 1-filial va 2-filialning barcha qoldiqlari, sotuvlari va kassa harakatlari alohida ustunda ko'rsatilgan.",
+            caption="🌐 *Barcha filiallar birlashgan to'liq Excel hisoboti*\n\nUshbu faylda Gilam ombori, Teri ombori, barcha sotuvlar va har bir toifaning alohida kassa harakatlari jamlangan.",
             parse_mode="Markdown"
         )
         await wait_msg.delete()

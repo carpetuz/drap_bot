@@ -3,7 +3,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from config import PRICE_PER_M2, BRANCH_NAMES
-from keyboards.default_kb import get_branch_menu
+from keyboards.default_kb import get_carpet_submenu
 from keyboards.inline_kb import get_width_kb, get_color_kb, get_confirm_import_kb
 from utils.states import ImportStates
 from database.local_db import add_roll
@@ -12,7 +12,7 @@ from handlers.common import get_user_role
 router = Router()
 logger = logging.getLogger(__name__)
 
-@router.message(F.text == "📥 Import (Kirim)")
+@router.message(F.text.in_(["📥 Import (Kirim)", "📥 Gilam Kirim"]))
 async def start_import(message: Message, state: FSMContext):
     role, branch_id = get_user_role(message.from_user.id)
     if role != "branch":
@@ -80,7 +80,7 @@ async def process_length(message: Message, state: FSMContext):
     
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
     summary = (
-        f"📦 *Yangi rulon ({b_name}):*\n\n"
+        f"📦 *Yangi gilam ruloni ({b_name}):*\n\n"
         f"📏 O'lchami: `{width:g} x {length} metr`\n"
         f"🎨 Rangi: *{color}*\n"
         f"📐 Maydoni: `{area_m2} m²`\n"
@@ -125,6 +125,6 @@ async def confirm_import(callback: CallbackQuery, state: FSMContext):
         f"🎨 Rangi: {color}\n"
         f"💰 Qiymati: ${created_roll['total_price']:.2f}",
         parse_mode="Markdown",
-        reply_markup=get_branch_menu(b_name)
+        reply_markup=get_carpet_submenu()
     )
     await callback.answer("Saqlandi!")

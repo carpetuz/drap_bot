@@ -3,7 +3,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from config import PRICE_PER_M2, BRANCH_NAMES
-from keyboards.default_kb import get_branch_menu
+from keyboards.default_kb import get_carpet_submenu
 from keyboards.inline_kb import (
     get_available_widths_kb, 
     get_available_colors_kb, 
@@ -23,7 +23,7 @@ from handlers.common import get_user_role
 router = Router()
 logger = logging.getLogger(__name__)
 
-@router.message(F.text == "🛒 Sotuv qilish")
+@router.message(F.text.in_(["🛒 Sotuv qilish", "🛒 Gilam Sotuv"]))
 async def start_sale(message: Message, state: FSMContext):
     role, branch_id = get_user_role(message.from_user.id)
     if role != "branch":
@@ -33,8 +33,8 @@ async def start_sale(message: Message, state: FSMContext):
     widths = await get_available_widths(branch_id=branch_id)
     if not widths:
         await message.answer(
-            f"Sizning filialingiz omborida mavjud gilam rulonlari yo'q! Avval '📥 Import (Kirim)' bo'limidan mahsulot qo'shing.",
-            reply_markup=get_branch_menu()
+            f"Sizning filialingiz omborida mavjud gilam rulonlari yo'q! Avval '📥 Gilam Kirim' bo'limidan mahsulot qo'shing.",
+            reply_markup=get_carpet_submenu()
         )
         return
         
@@ -172,7 +172,7 @@ async def sale_process_length(message: Message, state: FSMContext):
     await state.set_state(SaleStates.confirming)
     
     summary = (
-        f"🛒 *Sotuvni tasdiqlash:*\n\n"
+        f"🛒 *Gilam sotuvini tasdiqlang:*\n\n"
         f"🆔 Rulon: *{roll['roll_code']}*\n"
         f"📦 Mahsulot: `{roll['width']:g}x{sold_length} metr - {roll['color']}`\n"
         f"📐 Sotilgan maydon: `{sold_area} m²`\n"
@@ -217,14 +217,14 @@ async def confirm_sale(callback: CallbackQuery, state: FSMContext):
     
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
     await callback.message.answer(
-        f"✅ *Sotuv muvaffaqiyatli amalga oshirildi! ({b_name})*\n\n"
+        f"✅ *Gilam sotuvi muvaffaqiyatli amalga oshirildi! ({b_name})*\n\n"
         f"📦 Mahsulot: {result['width']:g}x{result['sold_length']}m - {result['color']}\n"
         f"📐 Maydoni: {result['sold_area']} m²\n"
         f"💰 Sotuv summasi: *${result['sale_total_price']:.2f}*\n"
         f"✂️ Rulondagi qoldiq: {result['remaining_length']} metr\n\n"
-        f"💵 *Kassangizga qo'shildi:* +${result['sale_total_price']:.2f}\n"
-        f"💰 *Joriy kassa balansingiz:* ${result['new_cash_balance']:.2f}",
+        f"💵 *Gilam kassasiga qo'shildi:* +${result['sale_total_price']:.2f}\n"
+        f"💰 *Joriy Gilam kassa balansi:* ${result['new_cash_balance']:.2f}",
         parse_mode="Markdown",
-        reply_markup=get_branch_menu(b_name)
+        reply_markup=get_carpet_submenu()
     )
     await callback.answer("Sotildi!")

@@ -4,7 +4,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from config import BRANCH_NAMES
 from keyboards.default_kb import get_branch_menu
-from keyboards.inline_kb import get_cash_menu_kb, get_confirm_withdraw_kb
+from keyboards.inline_kb import get_cash_categories_kb, get_confirm_withdraw_kb
 from utils.states import CashStates
 from database.local_db import get_cash_balance, withdraw_cash
 from handlers.common import get_user_role
@@ -18,31 +18,40 @@ async def show_cash(message: Message, state: FSMContext):
     if role != "branch":
         return
     await state.clear()
-    balance = await get_cash_balance(branch_id=branch_id)
+    
+    carpet_balance = await get_cash_balance(branch_id=branch_id, category="carpet")
+    leather_balance = await get_cash_balance(branch_id=branch_id, category="leather")
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
-    await message.answer(
-        f"💵 *KASSA VA PUL TOPSHIRISH ({b_name}):*\n\n"
-        f"💰 Hozirgi kassadagi qoldiq summa: *${balance:.2f}*\n\n"
-        f"Pul topshirish (chiqim qilish) uchun quyidagi tugmani bosing:",
-        parse_mode="Markdown",
-        reply_markup=get_cash_menu_kb()
+    
+    text = (
+        f"💵 *{b_name} — KASSA VA TOPSHIRISH BO'LIMI:*\n\n"
+        f"🌀 *Gilam kassasi qoldig'i:* `${carpet_balance:.2f}`\n"
+        f"🐑 *Teri kassasi qoldig'i:* `${leather_balance:.2f}`\n\n"
+        f"⚠️ *Eslatma:* Kassalar alohida shaxslarga topshiriladi. Topshirmoqchi bo'lgan kassangizni tanlang:"
     )
+    await message.answer(text, parse_mode="Markdown", reply_markup=get_cash_categories_kb())
 
-@router.callback_query(F.data == "cash_withdraw")
-async def start_withdraw(callback: CallbackQuery, state: FSMContext):
+@router.callback_query(F.data.startswith("withdraw_cat:"))
+async def choose_withdraw_category(callback: CallbackQuery, state: FSMContext):
     role, branch_id = get_user_role(callback.from_user.id)
     if role != "branch":
         return
-    balance = await get_cash_balance(branch_id=branch_id)
+    category = callback.data.split(":")[1]  # 'carpet' or 'leather'
+    balance = await get_cash_balance(branch_id=branch_id, category=category)
+    cat_name = "🌀 Gilam" if category == "carpet" else "🐑 Teri"
+    
     if balance <= 0:
-        await callback.message.answer("Kassada topshirish uchun pul mavjud emas ($0.00).")
+        await callback.message.answer(f"{cat_name} kassasida topshirish uchun pul mavjud emas ($0.00).")
         await callback.answer()
         return
         
+    await state.update_data(category=category, balance=balance)
     await state.set_state(CashStates.entering_withdrawal_amount)
+    
     await callback.message.edit_text(
-        f"Joriy kassa: *${balance:.2f}*\n\n"
-        "Qancha kassa berdingiz? Summani yozing (Masalan: 325 yoki 100):",
+        f"Tanlangan: *{cat_name} kassasi*\n"
+        f"Mavjud kassa: *${balance:.2f}*\n\n"
+        f"Qancha kassa berdingiz? Summani yozing (Masalan: 150):",
         parse_mode="Markdown"
     )
     await callback.answer()
@@ -59,13 +68,17 @@ async def process_withdraw_amount(message: Message, state: FSMContext):
             await message.answer("Summa 0 dan katta bo'lishi kerak! Qaytadan kiriting:")
             return
     except ValueError:
-        await message.answer("Iltimos, to'g'ri summa kiriting (Masalan: 325):")
+        await message.answer("Iltimos, to'g'ri summa kiriting (Masalan: 150):")
         return
 
-    balance = await get_cash_balance(branch_id=branch_id)
+    data = await state.get_data()
+    category = data["category"]
+    balance = await get_cash_balance(branch_id=branch_id, category=category)
+    cat_name = "🌀 Gilam" if category == "carpet" else "🐑 Teri"
+    
     if amount > balance:
         await message.answer(
-            f"❌ Xatolik! Kassada buncha mablag' yo'q!\n"
+            f"❌ Xatolik! {cat_name} kassasida buncha mablag' yo'q!\n"
             f"Mavjud kassa: *${balance:.2f}*.\n\n"
             f"Qaytadan kiriting:",
             parse_mode="Markdown"
@@ -77,9 +90,9 @@ async def process_withdraw_amount(message: Message, state: FSMContext):
     await state.set_state(CashStates.confirming_withdrawal)
     
     await message.answer(
-        f"📤 *Kassa topshirishni tasdiqlang:*\n\n"
-        f"Oldingi balans: `${balance:.2f}`\n"
-        f"Topshirilayotgan summa: *-${amount:.2f}*\n"
+        f"📤 *Kassa topshirishni tasdiqlang: ({cat_name} kassasi)*\n\n"
+        f"Mavjud edi: `${balance:.2f}`\n"
+        f"Topshirilmoqda: *-${amount:.2f}*\n"
         f"Kassada qoladigan pul: *${new_balance:.2f}*\n\n"
         f"Tasdiqlaysizmi?",
         parse_mode="Markdown",
@@ -93,19 +106,22 @@ async def confirm_withdraw(callback: CallbackQuery, state: FSMContext):
         return
     data = await state.get_data()
     amount = data["amount"]
+    category = data["category"]
+    cat_name = "🌀 Gilam" if category == "carpet" else "🐑 Teri"
     
-    b_name = BRANCH_NAMES.get(branch_id, "Filial")
-    res = await withdraw_cash(amount=amount, branch_id=branch_id, note="Kassa topshirildi")
+    res = await withdraw_cash(amount=amount, branch_id=branch_id, category=category, note=f"Kassa topshirildi ({cat_name})")
     
     await state.clear()
     try:
         await callback.message.delete()
     except Exception:
         pass
+        
+    b_name = BRANCH_NAMES.get(branch_id, "Filial")
     await callback.message.answer(
-        f"✅ *Kassa muvaffaqiyatli topshirildi! ({b_name})*\n\n"
+        f"✅ *{cat_name} kassasi muvaffaqiyatli topshirildi! ({b_name})*\n\n"
         f"📤 Chiqim summasi: *${res['amount']:.2f}*\n"
-        f"💰 Kassadagi yangi qoldiq: *${res['new_balance']:.2f}*",
+        f"💰 {cat_name} kassasidagi yangi qoldiq: *${res['new_balance']:.2f}*",
         parse_mode="Markdown",
         reply_markup=get_branch_menu(b_name)
     )

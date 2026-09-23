@@ -9,7 +9,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from config import BOT_TOKEN, SUPER_ADMIN_IDS
 from database.local_db import init_db, DB_PATH
-from handlers import common, import_goods, sales, cashbox, dashboard
+from handlers import common, import_goods, sales, cashbox, dashboard, leather
 from utils.excel_export import generate_excel_report
 
 logging.basicConfig(
@@ -34,22 +34,19 @@ async def send_weekly_backup(bot: Bot):
     now_str = datetime.now().strftime("%Y-%m-%d")
     for admin_id in SUPER_ADMIN_IDS:
         try:
-            # 1. Umumiy Excel hisobot
             excel_file = f"CRM_Umumiy_{now_str}.xlsx"
             await generate_excel_report(excel_file, branch_id=None)
             await bot.send_document(
                 chat_id=admin_id,
                 document=FSInputFile(excel_file),
-                caption=f"🔔 *Haftalik Umumiy Birlashgan Excel hisobot* ({now_str})\nBarcha filiallarning ombor qoldig'i, sotuvlar va kassalari to'liq jamlangan.",
+                caption=f"🔔 *Haftalik Umumiy Birlashgan Excel hisobot* ({now_str})\nGilam va Teri ombori, sotuvlar va alohida kassalar to'liq jamlangan.",
                 parse_mode="Markdown"
             )
-            
-            # 2. SQLite baza nusxasi (data.db)
             if os.path.exists(DB_PATH):
                 await bot.send_document(
                     chat_id=admin_id,
                     document=FSInputFile(DB_PATH, filename=f"backup_data_{now_str}.db"),
-                    caption=f"🛡 *Haftalik xavfsiz zaxira nusxa (data.db)*\nSana: {now_str}\n\nBarcha filiallarning ma'lumotlar bazasi zaxira nusxasi.",
+                    caption=f"🛡 *Haftalik xavfsiz zaxira nusxa (data.db)*\nSana: {now_str}\n\nBarcha filiallarning to'liq ma'lumotlar bazasi.",
                     parse_mode="Markdown"
                 )
             logger.info(f"Super Admin {admin_id} ga backup yuborildi.")
@@ -63,7 +60,7 @@ async def main():
 
     # 1. Bazani initsializatsiya qilish
     await init_db()
-    logger.info("SQLite bazasi tayyor!")
+    logger.info("SQLite bazasi tayyor (Gilam, Teri va alohida kassalar)!")
 
     # 2. Bot va Dispatcher
     bot = Bot(token=BOT_TOKEN)
@@ -71,12 +68,13 @@ async def main():
 
     # 3. Routerlarni ro'yxatdan o'tkazish
     dp.include_router(common.router)
-    dp.include_router(import_goods.router)
-    dp.include_router(sales.router)
-    dp.include_router(cashbox.router)
-    dp.include_router(dashboard.router)
+    dp.include_router(leather.router)      # Yangi Teri routeri
+    dp.include_router(import_goods.router) # Gilam kirim
+    dp.include_router(sales.router)        # Gilam sotuv
+    dp.include_router(cashbox.router)      # Alohida kassalar
+    dp.include_router(dashboard.router)    # Statistika va hisobotlar
 
-    # 4. Haftalik zaxira vazifasi (Har yakshanba 23:59 da faqat Super Adminga)
+    # 4. Haftalik zaxira (Har yakshanba 23:59 da faqat Super Adminga)
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
         send_weekly_backup,
@@ -87,9 +85,9 @@ async def main():
         args=[bot]
     )
     scheduler.start()
-    logger.info("Haftalik backup scheduler (Yakshanba 23:59) faqat Super Adminga ulandi!")
+    logger.info("Haftalik backup scheduler (Yakshanba 23:59) faol!")
 
-    # 5. Render bepul web service uchun healthcheck server
+    # 5. Render healthcheck server
     await start_dummy_web_server()
 
     logger.info("Bot polling rejimida ishga tushmoqda...")

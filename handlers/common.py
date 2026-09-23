@@ -4,7 +4,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from config import SUPER_ADMIN_IDS, BRANCH_USERS, BRANCH_NAMES
-from keyboards.default_kb import get_branch_menu, get_superadmin_menu
+from keyboards.default_kb import get_branch_menu, get_superadmin_menu, get_carpet_submenu
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ async def cmd_start(message: Message, state: FSMContext):
     if role == "superadmin":
         msg = (
             f"Assalomu alaykum, Hurmatli Bosh Admin ({first_name})!\n\n"
-            "Siz tizimdagi barcha filiallarni to'liq nazorat qilish huquqiga egasiz.\n"
+            "Siz tizimdagi barcha filiallarning Gilam va Teri tovarlari hisobini to'liq nazorat qilish huquqiga egasiz.\n"
             "Kerakli filialni yoki umumiy hisobotni tanlang:"
         )
         await message.answer(msg, reply_markup=get_superadmin_menu())
@@ -37,19 +37,33 @@ async def cmd_start(message: Message, state: FSMContext):
         b_name = BRANCH_NAMES.get(branch_id, f"Filial-{branch_id}")
         msg = (
             f"Assalomu alaykum, {first_name}!\n\n"
-            f"Siz *{b_name}* tizimiga ulandingiz.\n"
+            f"Siz *{b_name}* CRM tizimiga ulandingiz.\n"
             "Kerakli bo'limni tanlang:"
         )
         await message.answer(msg, parse_mode="Markdown", reply_markup=get_branch_menu(b_name))
 
+@router.message(F.text == "🌀 Rezinka Gilam")
+async def open_carpet_menu(message: Message, state: FSMContext):
+    role, branch_id = get_user_role(message.from_user.id)
+    if role != "branch":
+        return
+    await state.clear()
+    b_name = BRANCH_NAMES.get(branch_id, "Filial")
+    await message.answer(
+        f"🌀 *{b_name} — Rezinka Gilam Bo'limi*\n\nKerakli amalni tanlang:",
+        parse_mode="Markdown",
+        reply_markup=get_carpet_submenu()
+    )
+
+@router.message(F.text == "🔙 Bosh menyu")
 @router.message(F.text == "❌ Bekor qilish")
 async def btn_cancel(message: Message, state: FSMContext):
     role, branch_id = get_user_role(message.from_user.id)
     if not role:
         return
     await state.clear()
-    menu = get_superadmin_menu() if role == "superadmin" else get_branch_menu()
-    await message.answer("Amal bekor qilindi.", reply_markup=menu)
+    menu = get_superadmin_menu() if role == "superadmin" else get_branch_menu(BRANCH_NAMES.get(branch_id, "Filial"))
+    await message.answer("Bosh menyu:", reply_markup=menu)
 
 @router.callback_query(F.data == "cancel_action")
 async def cb_cancel(callback: CallbackQuery, state: FSMContext):
@@ -61,7 +75,7 @@ async def cb_cancel(callback: CallbackQuery, state: FSMContext):
         await callback.message.delete()
     except Exception:
         pass
-    menu = get_superadmin_menu() if role == "superadmin" else get_branch_menu()
+    menu = get_superadmin_menu() if role == "superadmin" else get_branch_menu(BRANCH_NAMES.get(branch_id, "Filial"))
     await callback.message.answer("Amal bekor qilindi.", reply_markup=menu)
     await callback.answer()
 
@@ -75,6 +89,6 @@ async def cb_back_to_main(callback: CallbackQuery, state: FSMContext):
         await callback.message.delete()
     except Exception:
         pass
-    menu = get_superadmin_menu() if role == "superadmin" else get_branch_menu()
+    menu = get_superadmin_menu() if role == "superadmin" else get_branch_menu(BRANCH_NAMES.get(branch_id, "Filial"))
     await callback.message.answer("Asosiy menyu:", reply_markup=menu)
     await callback.answer()
