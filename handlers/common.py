@@ -29,7 +29,7 @@ async def cmd_start(message: Message, state: FSMContext):
     if role == "superadmin":
         msg = (
             f"Assalomu alaykum, Hurmatli Bosh Admin ({first_name})!\n\n"
-            "Siz tizimdagi barcha filiallarning Gilam va Teri tovarlari hisobini to'liq nazorat qilish huquqiga egasiz.\n"
+            "Siz tizimdagi barcha filiallarning Gilam, Teri va Asl Kavralan tovarlari hisobini to'liq nazorat qilish huquqiga egasiz.\n"
             "Kerakli filialni yoki umumiy hisobotni tanlang:"
         )
         await message.answer(msg, reply_markup=get_superadmin_menu())

@@ -129,9 +129,41 @@ def get_confirm_leather_sale_kb():
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
+# --- ASL KAVRALAN TUGMALARI ---
+def get_confirm_kavralan_import_kb():
+    buttons = [
+        [
+            InlineKeyboardButton(text="✅ Tasdiqlash", callback_data="confirm_kavralan_import"),
+            InlineKeyboardButton(text="✏️ Qayta kiritish", callback_data="retry_kavralan_import")
+        ],
+        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_action")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def get_kavralan_rolls_selection_kb(rolls: list[dict]):
+    buttons = []
+    for r in rolls:
+        label = f"{r['roll_code']}: 4x{r['current_length']}m ({r['area_m2']} m²)"
+        buttons.append([InlineKeyboardButton(text=label, callback_data=f"kavralan_sale_roll:{r['id']}")])
+    buttons.append([InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_action")])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def get_confirm_kavralan_sale_kb():
+    buttons = [
+        [
+            InlineKeyboardButton(text="💵 Naqd to'lov", callback_data="confirm_kavralan_sale_cash"),
+            InlineKeyboardButton(text="📝 Nasiya (Qarz)", callback_data="kavralan_debt_start")
+        ],
+        [
+            InlineKeyboardButton(text="✏️ O'zgartirish", callback_data="retry_kavralan_sale"),
+            InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_action")
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
 # --- NASIYA (QARZ) TUGMALARI ---
 def get_confirm_debt_sale_kb(category="carpet"):
-    prefix = "carpet" if category == "carpet" else "leather"
+    prefix = "carpet" if category == "carpet" else ("leather" if category == "leather" else "kavralan")
     buttons = [
         [
             InlineKeyboardButton(text="✅ Nasiyani tasdiqlash", callback_data=f"confirm_{prefix}_debt_final"),
@@ -153,7 +185,7 @@ def get_debts_main_kb(is_superadmin=False):
 def get_debts_selection_kb(debts: list[dict]):
     buttons = []
     for d in debts:
-        cat_emoji = "🌀" if d["category"] == "carpet" else "🐑"
+        cat_emoji = "🌀" if d["category"] == "carpet" else ("🐑" if d["category"] == "leather" else "🧶")
         label = f"{cat_emoji} {d['customer_name']} (${d['remaining_amount']:.2f} qarz)"
         buttons.append([InlineKeyboardButton(text=label, callback_data=f"debt_pay_select:{d['id']}")])
     buttons.append([InlineKeyboardButton(text="🔙 Ortga", callback_data="debts_menu")])
@@ -173,6 +205,7 @@ def get_cash_categories_kb():
     buttons = [
         [InlineKeyboardButton(text="📤 🌀 Gilam kassasini topshirish", callback_data="withdraw_cat:carpet")],
         [InlineKeyboardButton(text="📤 🐑 Teri kassasini topshirish", callback_data="withdraw_cat:leather")],
+        [InlineKeyboardButton(text="📤 🧶 Kavralan kassasini topshirish", callback_data="withdraw_cat:kavralan")],
         [InlineKeyboardButton(text="🔙 Asosiy menyu", callback_data="back_to_main")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)

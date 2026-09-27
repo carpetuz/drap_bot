@@ -21,13 +21,15 @@ async def show_cash(message: Message, state: FSMContext):
     
     carpet_balance = await get_cash_balance(branch_id=branch_id, category="carpet")
     leather_balance = await get_cash_balance(branch_id=branch_id, category="leather")
+    kavralan_balance = await get_cash_balance(branch_id=branch_id, category="kavralan")
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
     
     text = (
         f"💵 *{b_name} — KASSA VA TOPSHIRISH BO'LIMI:*\n\n"
         f"🌀 *Gilam kassasi qoldig'i:* `${carpet_balance:.2f}`\n"
-        f"🐑 *Teri kassasi qoldig'i:* `${leather_balance:.2f}`\n\n"
-        f"⚠️ *Eslatma:* Kassalar alohida shaxslarga topshiriladi. Topshirmoqchi bo'lgan kassangizni tanlang:"
+        f"🐑 *Teri kassasi qoldig'i:* `${leather_balance:.2f}`\n"
+        f"🧶 *Kavralan kassasi qoldig'i:* `${kavralan_balance:.2f}`\n\n"
+        f"⚠️ *Eslatma:* Kassalar alohida topshiriladi. Topshirmoqchi bo'lgan kassangizni tanlang:"
     )
     await message.answer(text, parse_mode="Markdown", reply_markup=get_cash_categories_kb())
 
@@ -36,9 +38,9 @@ async def choose_withdraw_category(callback: CallbackQuery, state: FSMContext):
     role, branch_id = get_user_role(callback.from_user.id)
     if role != "branch":
         return
-    category = callback.data.split(":")[1]  # 'carpet' or 'leather'
+    category = callback.data.split(":")[1]  # 'carpet', 'leather', or 'kavralan'
     balance = await get_cash_balance(branch_id=branch_id, category=category)
-    cat_name = "🌀 Gilam" if category == "carpet" else "🐑 Teri"
+    cat_name = "🌀 Gilam" if category == "carpet" else ("🐑 Teri" if category == "leather" else "🧶 Kavralan")
     
     if balance <= 0:
         await callback.message.answer(f"{cat_name} kassasida topshirish uchun pul mavjud emas ($0.00).")
@@ -74,7 +76,7 @@ async def process_withdraw_amount(message: Message, state: FSMContext):
     data = await state.get_data()
     category = data["category"]
     balance = await get_cash_balance(branch_id=branch_id, category=category)
-    cat_name = "🌀 Gilam" if category == "carpet" else "🐑 Teri"
+    cat_name = "🌀 Gilam" if category == "carpet" else ("🐑 Teri" if category == "leather" else "🧶 Kavralan")
     
     if amount > balance:
         await message.answer(
@@ -107,7 +109,7 @@ async def confirm_withdraw(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     amount = data["amount"]
     category = data["category"]
-    cat_name = "🌀 Gilam" if category == "carpet" else "🐑 Teri"
+    cat_name = "🌀 Gilam" if category == "carpet" else ("🐑 Teri" if category == "leather" else "🧶 Kavralan")
     
     res = await withdraw_cash(amount=amount, branch_id=branch_id, category=category, note=f"Kassa topshirildi ({cat_name})")
     

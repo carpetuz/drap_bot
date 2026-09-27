@@ -4,7 +4,7 @@ from datetime import datetime
 from aiogram import Router, F
 from aiogram.types import Message, FSInputFile
 from config import BRANCH_NAMES
-from database.local_db import get_dashboard_stats, get_all_active_rolls, get_leather_stock
+from database.local_db import get_dashboard_stats, get_all_active_rolls, get_leather_stock, get_all_active_kavralan_rolls
 from utils.excel_export import generate_excel_report
 from handlers.common import get_user_role
 
@@ -33,10 +33,15 @@ async def show_dashboard(message: Message):
         f"• Tovar qiymati: *${stats['leather_total_val']:.2f}*\n"
         f"• Bugungi savdo: *{stats['today_leather_count']} ta* ({stats['today_leather_qty']} dona — ${stats['today_leather_rev']:.2f})\n"
         f"• 💵 *Teri kassasi qoldig'i:* *${stats['leather_cash']:.2f}*\n\n"
+        f"🧶 *ASL KAVRALAN ($30/m²):*\n"
+        f"• Ombordagi rulonlar: *{stats['kavralan_rolls_count']} ta* ({stats['kavralan_total_m2']} m²)\n"
+        f"• Tovar qiymati: *${stats['kavralan_total_val']:.2f}*\n"
+        f"• Bugungi savdo: *{stats['today_kavralan_count']} ta* ({stats['today_kavralan_m2']} m² — ${stats['today_kavralan_rev']:.2f})\n"
+        f"• 💵 *Kavralan kassasi qoldig'i:* *${stats['kavralan_cash']:.2f}*\n\n"
         f"📒 *NASIYALAR (QARZLAR):*\n"
         f"• Faol qarzdorlar soni: *{stats['active_debts_count']} ta*\n"
         f"• ⏳ Kutilayotgan umumiy qarz: *${stats['total_debt_rem']:.2f}*\n"
-        f"  (Gilam: ${stats['carpet_debt_rem']:.2f} | Teri: ${stats['leather_debt_rem']:.2f})"
+        f"  (Gilam: ${stats['carpet_debt_rem']:.2f} | Teri: ${stats['leather_debt_rem']:.2f} | Kavralan: ${stats['kavralan_debt_rem']:.2f})"
     )
     await message.answer(text, parse_mode="Markdown")
 
@@ -47,6 +52,7 @@ async def show_inventory(message: Message):
         return
     rolls = await get_all_active_rolls(branch_id=branch_id)
     leathers = await get_leather_stock(branch_id=branch_id)
+    kavralans = await get_all_active_kavralan_rolls(branch_id=branch_id)
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
     
     lines = [f"📦 *{b_name} — OMBOR QOLDIG'I:*\n"]
@@ -76,7 +82,20 @@ async def show_inventory(message: Message):
             l_qty += s["quantity"]
             l_val += v
             lines.append(f"• *{s['color']}*: `{s['quantity']} dona` (${v:.2f})")
-        lines.append(f"Jami teri: `{l_qty} dona` (${round(l_val, 2):.2f})")
+        lines.append(f"Jami teri: `{l_qty} dona` (${round(l_val, 2):.2f})\n")
+
+    # Kavralan
+    lines.append("🧶 *Asl Kavralan (4x):*")
+    if not kavralans:
+        lines.append("• Kavralan mavjud emas.")
+    else:
+        k_m2 = 0.0
+        k_val = 0.0
+        for idx, k in enumerate(kavralans, start=1):
+            k_m2 += k["area_m2"]
+            k_val += k["total_price"]
+            lines.append(f"{idx}. *{k['roll_code']}*: `4x{k['current_length']}m` ({k['area_m2']} m² | ${k['total_price']:.2f})")
+        lines.append(f"Jami kavralan: `{round(k_m2, 2)} m²` (${round(k_val, 2):.2f})")
 
     await message.answer("\n".join(lines), parse_mode="Markdown")
 
@@ -145,10 +164,15 @@ async def superadmin_branch_stats(message: Message):
         f"• Tovar qiymati: *${stats['leather_total_val']:.2f}*\n"
         f"• Bugungi savdo: *{stats['today_leather_count']} ta* (${stats['today_leather_rev']:.2f})\n"
         f"• 💵 *Teri kassasi:* *${stats['leather_cash']:.2f}*\n\n"
+        f"🧶 *ASL KAVRALAN:*\n"
+        f"• Ombordagi tovar: *{stats['kavralan_rolls_count']} ta* ({stats['kavralan_total_m2']} m²)\n"
+        f"• Tovar qiymati: *${stats['kavralan_total_val']:.2f}*\n"
+        f"• Bugungi savdo: *{stats['today_kavralan_count']} ta* (${stats['today_kavralan_rev']:.2f})\n"
+        f"• 💵 *Kavralan kassasi:* *${stats['kavralan_cash']:.2f}*\n\n"
         f"📒 *NASIYALAR (QARZLAR):*\n"
         f"• Faol qarzdorlar soni: *{stats['active_debts_count']} ta*\n"
         f"• ⏳ Kutilayotgan umumiy qarz: *${stats['total_debt_rem']:.2f}*\n"
-        f"  (Gilam: ${stats['carpet_debt_rem']:.2f} | Teri: ${stats['leather_debt_rem']:.2f})"
+        f"  (Gilam: ${stats['carpet_debt_rem']:.2f} | Teri: ${stats['leather_debt_rem']:.2f} | Kavralan: ${stats['kavralan_debt_rem']:.2f})"
     )
     await message.answer(text, parse_mode="Markdown")
 
@@ -171,10 +195,15 @@ async def superadmin_global_stats(message: Message):
         f"• Tovar qiymati: *${stats['leather_total_val']:.2f}*\n"
         f"• Bugungi savdo: *${stats['today_leather_rev']:.2f}*\n"
         f"• 💵 *Jami Teri kassalari:* *${stats['leather_cash']:.2f}*\n\n"
+        f"🧶 *ASL KAVRALAN (Jami):*\n"
+        f"• Ombordagi rulonlar: *{stats['kavralan_rolls_count']} ta* ({stats['kavralan_total_m2']} m²)\n"
+        f"• Tovar qiymati: *${stats['kavralan_total_val']:.2f}*\n"
+        f"• Bugungi savdo: *${stats['today_kavralan_rev']:.2f}*\n"
+        f"• 💵 *Jami Kavralan kassalari:* *${stats['kavralan_cash']:.2f}*\n\n"
         f"📒 *NASIYALAR (QARZLAR) — JAMI:*\n"
         f"• Barcha faol qarzdorlar: *{stats['active_debts_count']} ta*\n"
         f"• ⏳ Kutilayotgan umumiy qarz: *${stats['total_debt_rem']:.2f}*\n"
-        f"  (Gilam: ${stats['carpet_debt_rem']:.2f} | Teri: ${stats['leather_debt_rem']:.2f})"
+        f"  (Gilam: ${stats['carpet_debt_rem']:.2f} | Teri: ${stats['leather_debt_rem']:.2f} | Kavralan: ${stats['kavralan_debt_rem']:.2f})"
     )
     await message.answer(text, parse_mode="Markdown")
 
@@ -192,7 +221,7 @@ async def superadmin_branch_excel(message: Message):
         doc = FSInputFile(report_path, filename=f"Hisobot_{b_name}_{datetime.now().strftime('%Y-%m-%d')}.xlsx")
         await message.answer_document(
             document=doc,
-            caption=f"📊 *{b_name} hisoboti*\n\n1. Gilam Ombori\n2. Teri Ombori\n3. Gilam Sotuvlari\n4. Teri Sotuvlari\n5. Gilam Kassasi\n6. Teri Kassasi\n7. Nasiyalar (Qarzlar)",
+            caption=f"📊 *{b_name} hisoboti*\n\n1. Gilam Ombori\n2. Teri Ombori\n3. Kavralan Ombori\n4. Sotuvlar (Gilam, Teri, Kavralan)\n5. Kassalar (Gilam, Teri, Kavralan)\n6. Nasiyalar (Qarzlar)",
             parse_mode="Markdown"
         )
         await wait_msg.delete()
@@ -212,7 +241,7 @@ async def superadmin_global_excel(message: Message):
         doc = FSInputFile(report_path, filename=f"CRM_Umumiy_{datetime.now().strftime('%Y-%m-%d')}.xlsx")
         await message.answer_document(
             document=doc,
-            caption="🌐 *Barcha filiallar birlashgan to'liq Excel hisoboti*\n\nUshbu faylda Gilam ombori, Teri ombori, barcha sotuvlar, har bir toifaning alohida kassa harakatlari va to'liq Nasiyalar daftari jamlangan.",
+            caption="🌐 *Barcha filiallar birlashgan to'liq Excel hisoboti*\n\nUshbu faylda Gilam, Teri va Asl Kavralan omborlari, barcha sotuvlar, har bir toifaning alohida kassa harakatlari hamda to'liq Nasiyalar daftari jamlangan.",
             parse_mode="Markdown"
         )
         await wait_msg.delete()

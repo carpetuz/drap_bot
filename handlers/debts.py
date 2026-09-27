@@ -44,7 +44,8 @@ async def show_debts_menu(message: Message, state: FSMContext):
         f"👥 Faol qarzdorlar soni: *{summary['active_count']} ta*\n"
         f"⏳ Jami kutilayotgan summa: *${summary['total_rem']:.2f}*\n"
         f"  • 🌀 Gilam bo'yicha: *${summary['carpet_rem']:.2f}*\n"
-        f"  • 🐑 Teri bo'yicha: *${summary['leather_rem']:.2f}*\n\n"
+        f"  • 🐑 Teri bo'yicha: *${summary['leather_rem']:.2f}*\n"
+        f"  • 🧶 Kavralan bo'yicha: *${summary['kavralan_rem']:.2f}*\n\n"
         "Kerakli bo'limni tanlang:"
     )
     await message.answer(text, parse_mode="Markdown", reply_markup=get_debts_main_kb(is_superadmin=(role == "superadmin")))
@@ -68,7 +69,8 @@ async def cb_debts_menu(callback: CallbackQuery, state: FSMContext):
         f"👥 Faol qarzdorlar soni: *{summary['active_count']} ta*\n"
         f"⏳ Jami kutilayotgan summa: *${summary['total_rem']:.2f}*\n"
         f"  • 🌀 Gilam bo'yicha: *${summary['carpet_rem']:.2f}*\n"
-        f"  • 🐑 Teri bo'yicha: *${summary['leather_rem']:.2f}*\n\n"
+        f"  • 🐑 Teri bo'yicha: *${summary['leather_rem']:.2f}*\n"
+        f"  • 🧶 Kavralan bo'yicha: *${summary['kavralan_rem']:.2f}*\n\n"
         "Kerakli bo'limni tanlang:"
     )
     await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=get_debts_main_kb(is_superadmin=(role == "superadmin")))
@@ -98,8 +100,8 @@ async def show_active_debts(callback: CallbackQuery):
     buttons = []
     
     for idx, d in enumerate(debts, start=1):
-        cat_emoji = "🌀" if d["category"] == "carpet" else "🐑"
-        cat_name = "Gilam" if d["category"] == "carpet" else "Teri"
+        cat_emoji = "🌀" if d["category"] == "carpet" else ("🐑" if d["category"] == "leather" else "🧶")
+        cat_name = "Gilam" if d["category"] == "carpet" else ("Teri" if d["category"] == "leather" else "Kavralan")
         b_name = BRANCH_NAMES.get(d["branch_id"], f"Filial-{d['branch_id']}")
         
         info = (
@@ -173,8 +175,8 @@ async def select_debt_for_payment(callback: CallbackQuery, state: FSMContext):
     await state.update_data(debt_id=debt_id, debt=debt)
     await state.set_state(DebtPaymentStates.entering_payment_amount)
     
-    cat_emoji = "🌀" if debt["category"] == "carpet" else "🐑"
-    cat_name = "Gilam" if debt["category"] == "carpet" else "Teri"
+    cat_emoji = "🌀" if debt["category"] == "carpet" else ("🐑" if debt["category"] == "leather" else "🧶")
+    cat_name = "Gilam" if debt["category"] == "carpet" else ("Teri" if debt["category"] == "leather" else "Kavralan")
     
     text = (
         f"💵 *Qarz to'lovini kiritish:*\n\n"
@@ -220,7 +222,7 @@ async def process_debt_payment_amount(message: Message, state: FSMContext):
     await state.update_data(payment_amount=amount, new_rem=new_rem)
     await state.set_state(DebtPaymentStates.confirming_payment)
     
-    cat_name = "Gilam" if debt["category"] == "carpet" else "Teri"
+    cat_name = "Gilam" if debt["category"] == "carpet" else ("Teri" if debt["category"] == "leather" else "Kavralan")
     status_hint = "🎉 Qarz to'liq yopiladi" if new_rem <= 0.001 else "Qisman to'lanadi"
     
     summary = (
@@ -251,7 +253,7 @@ async def confirm_debt_payment(callback: CallbackQuery, state: FSMContext):
         pass
         
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
-    cat_title = "Gilam" if res["category"] == "carpet" else "Teri"
+    cat_title = "Gilam" if res["category"] == "carpet" else ("Teri" if res["category"] == "leather" else "Kavralan")
     status_str = "🎉 *QARZ TO'LIQ YOPILDI!*" if res["status"] == "paid" else f"⏳ *Qolgan qarz:* ${res['remaining_amount']:.2f}"
     
     receipt = (
@@ -288,7 +290,7 @@ async def show_debts_history(callback: CallbackQuery):
         
     lines = ["📜 *OXIRGI YOPILGAN (TO'LANGAN) QARZLAR:*\n"]
     for idx, d in enumerate(closed, start=1):
-        cat_name = "Gilam" if d["category"] == "carpet" else "Teri"
+        cat_name = "Gilam" if d["category"] == "carpet" else ("Teri" if d["category"] == "leather" else "Kavralan")
         b_name = BRANCH_NAMES.get(d["branch_id"], f"Filial-{d['branch_id']}")
         lines.append(
             f"{idx}. *#D-{d['id']} | {d['customer_name']}* ({b_name})\n"

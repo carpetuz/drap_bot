@@ -1,6 +1,6 @@
 import aiosqlite
 from datetime import datetime
-from config import PRICE_PER_M2, LEATHER_PRICE, BRANCH_NAMES, LEATHER_COLORS
+from config import PRICE_PER_M2, LEATHER_PRICE, BRANCH_NAMES, LEATHER_COLORS, KAVRALAN_PRICE, KAVRALAN_WIDTH
 
 DB_PATH = "data.db"
 
@@ -110,8 +110,41 @@ async def init_db():
             )
         """)
         
+        # 8. Asl Kavralan ombori (4x rulonlar)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS kavralan_rolls (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                branch_id INTEGER NOT NULL DEFAULT 1,
+                roll_code TEXT UNIQUE,
+                width REAL NOT NULL DEFAULT 4.0,
+                initial_length REAL NOT NULL,
+                current_length REAL NOT NULL,
+                area_m2 REAL NOT NULL,
+                total_price REAL NOT NULL,
+                status TEXT NOT NULL DEFAULT 'active',
+                created_at TEXT NOT NULL
+            )
+        """)
+        
+        # 9. Asl Kavralan sotuvlari
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS kavralan_sales (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                branch_id INTEGER NOT NULL DEFAULT 1,
+                roll_id INTEGER NOT NULL,
+                roll_code TEXT NOT NULL,
+                width REAL NOT NULL DEFAULT 4.0,
+                sold_length REAL NOT NULL,
+                area_m2 REAL NOT NULL,
+                price_per_m2 REAL NOT NULL DEFAULT 30.0,
+                total_price REAL NOT NULL,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (roll_id) REFERENCES kavralan_rolls (id)
+            )
+        """)
+        
         # Xavfsiz avtomatik migratsiyalar
-        for tbl in ["rolls", "sales", "cashbox", "debts"]:
+        for tbl in ["rolls", "sales", "cashbox", "debts", "kavralan_rolls", "kavralan_sales"]:
             try:
                 async with db.execute(f"PRAGMA table_info({tbl})") as cur:
                     cols = [row[1] for row in await cur.fetchall()]
@@ -161,7 +194,7 @@ async def withdraw_cash(amount: float, branch_id: int = 1, category: str = "carp
     if amount <= 0:
         raise ValueError("Chiqim summasi 0 dan katta bo'lishi kerak!")
     if amount > current_balance:
-        cat_name = "Gilam" if category == "carpet" else "Teri"
+        cat_name = "Gilam" if category == "carpet" else ("Teri" if category == "leather" else "Kavralan")
         raise ValueError(f"{cat_name} kassasida yetarli mablag' yo'q! Mavjud: ${current_balance:.2f}")
         
     new_balance = round(current_balance - amount, 2)
@@ -508,6 +541,169 @@ async def make_leather_sale(
         "new_leather_cash_balance": new_balance
     }
 
+# --- ASL KAVRALAN FUNKSIYALARI (4x, $30 / m²) ---
+
+async def add_kavralan_roll(length: float, branch_id: int = 1, price_per_m2: float = KAVRALAN_PRICE) -> dict:
+    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    width = KAVRALAN_WIDTH
+    area_m2 = round(width * length, 2)
+    total_price = round(area_m2 * price_per_m2, 2)
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("SELECT MAX(id) FROM kavralan_rolls") as cursor:
+            row = await cursor.fetchone()
+            next_id = (row[0] or 0) + 1001
+            
+        roll_code = f"#K{branch_id}-{next_id}"
+        
+        await db.execute("""
+            INSERT INTO kavralan_rolls (branch_id, roll_code, width, initial_length, current_length, area_m2, total_price, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?)
+        """, (branch_id, roll_code, width, length, length, area_m2, total_price, created_at))
+        await db.commit()
+        
+        return {
+            "id": next_id,
+            "branch_id": branch_id,
+            "roll_code": roll_code,
+            "width": width,
+            "initial_length": length,
+            "current_length": length,
+            "area_m2": area_m2,
+            "total_price": total_price,
+            "created_at": created_at
+        }
+
+async def get_available_kavralan_rolls(branch_id: int = 1) -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT * FROM kavralan_rolls 
+            WHERE branch_id = ? AND current_length > 0 AND status = 'active'
+            ORDER BY current_length ASC
+        """, (branch_id,)) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+async def get_all_active_kavralan_rolls(branch_id: int | None = None) -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        if branch_id is not None:
+            query = "SELECT * FROM kavralan_rolls WHERE branch_id = ? AND current_length > 0 AND status = 'active' ORDER BY current_length DESC"
+            params = (branch_id,)
+        else:
+            query = "SELECT * FROM kavralan_rolls WHERE current_length > 0 AND status = 'active' ORDER BY branch_id ASC, current_length DESC"
+            params = ()
+        async with db.execute(query, params) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+async def get_kavralan_roll_by_id(roll_id: int) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM kavralan_rolls WHERE id = ?", (roll_id,)) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+async def make_kavralan_sale(
+    roll_id: int, 
+    sold_length: float, 
+    branch_id: int = 1, 
+    price_per_m2: float = KAVRALAN_PRICE,
+    is_debt: bool = False,
+    customer_name: str = "",
+    customer_phone: str = "",
+    initial_paid: float = 0.0
+) -> dict:
+    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    width = KAVRALAN_WIDTH
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM kavralan_rolls WHERE id = ? AND branch_id = ?", (roll_id, branch_id)) as cursor:
+            roll = await cursor.fetchone()
+            if not roll:
+                raise ValueError("Kavralan ruloni topilmadi yoki boshqa filialga tegishli!")
+            if sold_length > roll["current_length"]:
+                raise ValueError(f"Rulonda yetarli uzunlik yo'q! Mavjud qoldiq: {roll['current_length']} m")
+                
+        new_length = round(roll["current_length"] - sold_length, 2)
+        new_area = round(width * new_length, 2)
+        new_total_price = round(new_area * price_per_m2, 2)
+        new_status = "finished" if new_length <= 0 else "active"
+        
+        await db.execute("""
+            UPDATE kavralan_rolls 
+            SET current_length = ?, area_m2 = ?, total_price = ?, status = ?
+            WHERE id = ?
+        """, (new_length, new_area, new_total_price, new_status, roll_id))
+        
+        sold_area = round(width * sold_length, 2)
+        sale_total_price = round(sold_area * price_per_m2, 2)
+        
+        async with db.execute("""
+            INSERT INTO kavralan_sales (branch_id, roll_id, roll_code, width, sold_length, area_m2, price_per_m2, total_price, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (branch_id, roll_id, roll["roll_code"], width, sold_length, sold_area, price_per_m2, sale_total_price, created_at)) as cursor:
+            sale_id = cursor.lastrowid
+            
+        debt_id = None
+        if is_debt:
+            initial_paid = round(float(initial_paid), 2)
+            remaining_amount = round(sale_total_price - initial_paid, 2)
+            debt_status = "partial" if initial_paid > 0 else "unpaid"
+            
+            item_desc = f"Kavralan: {roll['roll_code']} (4x{sold_length}m = {sold_area} m²)"
+            async with db.execute("""
+                INSERT INTO debts (branch_id, category, customer_name, customer_phone, item_details, total_amount, initial_paid, paid_amount, remaining_amount, status, created_at, updated_at)
+                VALUES (?, 'kavralan', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (branch_id, customer_name, customer_phone, item_desc, sale_total_price, initial_paid, initial_paid, remaining_amount, debt_status, created_at, created_at)) as cursor:
+                debt_id = cursor.lastrowid
+                
+            current_balance = await get_cash_balance(branch_id=branch_id, category="kavralan")
+            if initial_paid > 0:
+                new_balance = round(current_balance + initial_paid, 2)
+                await db.execute("""
+                    INSERT INTO cashbox (branch_id, category, operation_type, amount, note, balance_after, created_at)
+                    VALUES (?, 'kavralan', 'INCOME', ?, ?, ?, ?)
+                """, (branch_id, initial_paid, f"Nasiya boshlang'ich to'lov (Kavralan): {customer_name} (#{debt_id})", new_balance, created_at))
+                
+                await db.execute("""
+                    INSERT INTO debt_payments (debt_id, branch_id, category, amount, note, created_at)
+                    VALUES (?, ?, 'kavralan', ?, ?, ?)
+                """, (debt_id, branch_id, initial_paid, "Boshlang'ich to'lov", created_at))
+            else:
+                new_balance = current_balance
+        else:
+            # Kavralan kassasiga to'liq tushum
+            current_balance = await get_cash_balance(branch_id=branch_id, category="kavralan")
+            new_balance = round(current_balance + sale_total_price, 2)
+            await db.execute("""
+                INSERT INTO cashbox (branch_id, category, operation_type, amount, note, balance_after, created_at)
+                VALUES (?, 'kavralan', 'INCOME', ?, ?, ?, ?)
+            """, (branch_id, sale_total_price, f"Sotuv (Kavralan): {roll['roll_code']} (4x{sold_length}m = {sold_area} m²)", new_balance, created_at))
+            
+        await db.commit()
+        
+    return {
+        "sale_id": sale_id,
+        "debt_id": debt_id,
+        "branch_id": branch_id,
+        "roll_code": roll["roll_code"],
+        "width": width,
+        "sold_length": sold_length,
+        "sold_area": sold_area,
+        "price_per_m2": price_per_m2,
+        "sale_total_price": sale_total_price,
+        "remaining_length": new_length,
+        "is_debt": is_debt,
+        "initial_paid": initial_paid if is_debt else sale_total_price,
+        "remaining_debt": remaining_amount if is_debt else 0.0,
+        "customer_name": customer_name,
+        "created_at": created_at,
+        "new_kavralan_cash_balance": new_balance
+    }
+
 # --- NASIYA (QARZ) FUNKSIYALARI ---
 
 async def pay_debt(debt_id: int, payment_amount: float, branch_id: int, note: str = "") -> dict:
@@ -546,7 +742,7 @@ async def pay_debt(debt_id: int, payment_amount: float, branch_id: int, note: st
         # Tegishli tovar kassasiga kirim qilish
         current_balance = await get_cash_balance(branch_id=debt["branch_id"], category=debt["category"])
         new_balance = round(current_balance + payment_amount, 2)
-        cat_title = "Gilam" if debt["category"] == "carpet" else "Teri"
+        cat_title = "Gilam" if debt["category"] == "carpet" else ("Teri" if debt["category"] == "leather" else "Kavralan")
         await db.execute("""
             INSERT INTO cashbox (branch_id, category, operation_type, amount, note, balance_after, created_at)
             VALUES (?, ?, 'INCOME', ?, ?, ?, ?)
@@ -620,31 +816,34 @@ async def get_debts_summary(branch_id: int | None = None) -> dict:
                     COUNT(*), 
                     COALESCE(SUM(remaining_amount), 0),
                     COALESCE(SUM(CASE WHEN category = 'carpet' THEN remaining_amount ELSE 0 END), 0),
-                    COALESCE(SUM(CASE WHEN category = 'leather' THEN remaining_amount ELSE 0 END), 0)
+                    COALESCE(SUM(CASE WHEN category = 'leather' THEN remaining_amount ELSE 0 END), 0),
+                    COALESCE(SUM(CASE WHEN category = 'kavralan' THEN remaining_amount ELSE 0 END), 0)
                 FROM debts 
                 WHERE branch_id = ? AND status != 'paid' AND remaining_amount > 0
             """, (branch_id,)) as cursor:
-                count, total_rem, carpet_rem, leather_rem = await cursor.fetchone()
+                count, total_rem, carpet_rem, leather_rem, kavralan_rem = await cursor.fetchone()
         else:
             async with db.execute("""
                 SELECT 
                     COUNT(*), 
                     COALESCE(SUM(remaining_amount), 0),
                     COALESCE(SUM(CASE WHEN category = 'carpet' THEN remaining_amount ELSE 0 END), 0),
-                    COALESCE(SUM(CASE WHEN category = 'leather' THEN remaining_amount ELSE 0 END), 0)
+                    COALESCE(SUM(CASE WHEN category = 'leather' THEN remaining_amount ELSE 0 END), 0),
+                    COALESCE(SUM(CASE WHEN category = 'kavralan' THEN remaining_amount ELSE 0 END), 0)
                 FROM debts 
                 WHERE status != 'paid' AND remaining_amount > 0
             """) as cursor:
-                count, total_rem, carpet_rem, leather_rem = await cursor.fetchone()
+                count, total_rem, carpet_rem, leather_rem, kavralan_rem = await cursor.fetchone()
                 
         return {
             "active_count": count,
             "total_rem": round(total_rem, 2),
             "carpet_rem": round(carpet_rem, 2),
-            "leather_rem": round(leather_rem, 2)
+            "leather_rem": round(leather_rem, 2),
+            "kavralan_rem": round(kavralan_rem, 2)
         }
 
-# --- DASHBOARD STATISTIKASI (IKKALA TOIFA VA NASIYALAR ALOHIDA) ---
+# --- DASHBOARD STATISTIKASI (BARCHA TOIFALAR VA NASIYALAR ALOHIDA) ---
 
 async def get_dashboard_stats(branch_id: int | None = None) -> dict:
     today_str = datetime.now().strftime("%Y-%m-%d")
@@ -666,6 +865,14 @@ async def get_dashboard_stats(branch_id: int | None = None) -> dict:
                 today_leather_count, today_leather_qty, today_leather_rev = await cursor.fetchone()
             async with db.execute("SELECT COUNT(*), COALESCE(SUM(quantity), 0), COALESCE(SUM(total_price), 0) FROM leather_sales WHERE branch_id = ?", (branch_id,)) as cursor:
                 all_leather_count, all_leather_qty, all_leather_rev = await cursor.fetchone()
+
+            # 3. Asl Kavralan statistikasi
+            async with db.execute("SELECT COUNT(*), COALESCE(SUM(area_m2), 0), COALESCE(SUM(total_price), 0) FROM kavralan_rolls WHERE branch_id = ? AND status = 'active' AND current_length > 0", (branch_id,)) as cursor:
+                kavralan_rolls_count, kavralan_total_m2, kavralan_total_val = await cursor.fetchone()
+            async with db.execute("SELECT COUNT(*), COALESCE(SUM(area_m2), 0), COALESCE(SUM(total_price), 0) FROM kavralan_sales WHERE branch_id = ? AND created_at LIKE ?", (branch_id, f"{today_str}%")) as cursor:
+                today_kavralan_count, today_kavralan_m2, today_kavralan_rev = await cursor.fetchone()
+            async with db.execute("SELECT COUNT(*), COALESCE(SUM(area_m2), 0), COALESCE(SUM(total_price), 0) FROM kavralan_sales WHERE branch_id = ?", (branch_id,)) as cursor:
+                all_kavralan_count, all_kavralan_m2, all_kavralan_rev = await cursor.fetchone()
         else:
             async with db.execute("SELECT COUNT(*), COALESCE(SUM(area_m2), 0), COALESCE(SUM(total_price), 0) FROM rolls WHERE status = 'active' AND current_length > 0") as cursor:
                 carpet_rolls_count, carpet_total_m2, carpet_total_val = await cursor.fetchone()
@@ -681,8 +888,16 @@ async def get_dashboard_stats(branch_id: int | None = None) -> dict:
             async with db.execute("SELECT COUNT(*), COALESCE(SUM(quantity), 0), COALESCE(SUM(total_price), 0) FROM leather_sales") as cursor:
                 all_leather_count, all_leather_qty, all_leather_rev = await cursor.fetchone()
 
+            async with db.execute("SELECT COUNT(*), COALESCE(SUM(area_m2), 0), COALESCE(SUM(total_price), 0) FROM kavralan_rolls WHERE status = 'active' AND current_length > 0") as cursor:
+                kavralan_rolls_count, kavralan_total_m2, kavralan_total_val = await cursor.fetchone()
+            async with db.execute("SELECT COUNT(*), COALESCE(SUM(area_m2), 0), COALESCE(SUM(total_price), 0) FROM kavralan_sales WHERE created_at LIKE ?", (f"{today_str}%",)) as cursor:
+                today_kavralan_count, today_kavralan_m2, today_kavralan_rev = await cursor.fetchone()
+            async with db.execute("SELECT COUNT(*), COALESCE(SUM(area_m2), 0), COALESCE(SUM(total_price), 0) FROM kavralan_sales") as cursor:
+                all_kavralan_count, all_kavralan_m2, all_kavralan_rev = await cursor.fetchone()
+
     carpet_cash = await get_cash_balance(branch_id=branch_id, category="carpet")
     leather_cash = await get_cash_balance(branch_id=branch_id, category="leather")
+    kavralan_cash = await get_cash_balance(branch_id=branch_id, category="kavralan")
     debts_sum = await get_debts_summary(branch_id=branch_id)
 
     return {
@@ -708,9 +923,21 @@ async def get_dashboard_stats(branch_id: int | None = None) -> dict:
         "all_leather_count": all_leather_count,
         "all_leather_qty": all_leather_qty,
         "all_leather_rev": round(all_leather_rev, 2),
+        # Kavralan
+        "kavralan_rolls_count": kavralan_rolls_count,
+        "kavralan_total_m2": round(kavralan_total_m2, 2),
+        "kavralan_total_val": round(kavralan_total_val, 2),
+        "kavralan_cash": round(kavralan_cash, 2),
+        "today_kavralan_count": today_kavralan_count,
+        "today_kavralan_m2": round(today_kavralan_m2, 2),
+        "today_kavralan_rev": round(today_kavralan_rev, 2),
+        "all_kavralan_count": all_kavralan_count,
+        "all_kavralan_m2": round(all_kavralan_m2, 2),
+        "all_kavralan_rev": round(all_kavralan_rev, 2),
         # Nasiyalar
         "active_debts_count": debts_sum["active_count"],
         "total_debt_rem": debts_sum["total_rem"],
         "carpet_debt_rem": debts_sum["carpet_rem"],
-        "leather_debt_rem": debts_sum["leather_rem"]
+        "leather_debt_rem": debts_sum["leather_rem"],
+        "kavralan_debt_rem": debts_sum["kavralan_rem"]
     }

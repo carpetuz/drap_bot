@@ -39,3 +39,8 @@ LEATHER_COLORS = [
     "Bejiviy",
     "Seriy"
 ]
+
+# 3. Asl Kavralan parametrlari
+KAVRALAN_PRICE = float(os.getenv("KAVRALAN_PRICE", "30.0"))  # 1 m² = $30
+KAVRALAN_WIDTH = 4.0  # Doimiy eni 4 metr (4x)
+
