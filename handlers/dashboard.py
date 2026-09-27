@@ -32,7 +32,11 @@ async def show_dashboard(message: Message):
         f"• Ombordagi teri: *{stats['leather_total_qty']} dona*\n"
         f"• Tovar qiymati: *${stats['leather_total_val']:.2f}*\n"
         f"• Bugungi savdo: *{stats['today_leather_count']} ta* ({stats['today_leather_qty']} dona — ${stats['today_leather_rev']:.2f})\n"
-        f"• 💵 *Teri kassasi qoldig'i:* *${stats['leather_cash']:.2f}*"
+        f"• 💵 *Teri kassasi qoldig'i:* *${stats['leather_cash']:.2f}*\n\n"
+        f"📒 *NASIYALAR (QARZLAR):*\n"
+        f"• Faol qarzdorlar soni: *{stats['active_debts_count']} ta*\n"
+        f"• ⏳ Kutilayotgan umumiy qarz: *${stats['total_debt_rem']:.2f}*\n"
+        f"  (Gilam: ${stats['carpet_debt_rem']:.2f} | Teri: ${stats['leather_debt_rem']:.2f})"
     )
     await message.answer(text, parse_mode="Markdown")
 
@@ -140,7 +144,11 @@ async def superadmin_branch_stats(message: Message):
         f"• Ombordagi tovar: *{stats['leather_total_qty']} dona*\n"
         f"• Tovar qiymati: *${stats['leather_total_val']:.2f}*\n"
         f"• Bugungi savdo: *{stats['today_leather_count']} ta* (${stats['today_leather_rev']:.2f})\n"
-        f"• 💵 *Teri kassasi:* *${stats['leather_cash']:.2f}*"
+        f"• 💵 *Teri kassasi:* *${stats['leather_cash']:.2f}*\n\n"
+        f"📒 *NASIYALAR (QARZLAR):*\n"
+        f"• Faol qarzdorlar soni: *{stats['active_debts_count']} ta*\n"
+        f"• ⏳ Kutilayotgan umumiy qarz: *${stats['total_debt_rem']:.2f}*\n"
+        f"  (Gilam: ${stats['carpet_debt_rem']:.2f} | Teri: ${stats['leather_debt_rem']:.2f})"
     )
     await message.answer(text, parse_mode="Markdown")
 
@@ -162,7 +170,11 @@ async def superadmin_global_stats(message: Message):
         f"• Ombordagi teri: *{stats['leather_total_qty']} dona*\n"
         f"• Tovar qiymati: *${stats['leather_total_val']:.2f}*\n"
         f"• Bugungi savdo: *${stats['today_leather_rev']:.2f}*\n"
-        f"• 💵 *Jami Teri kassalari:* *${stats['leather_cash']:.2f}*"
+        f"• 💵 *Jami Teri kassalari:* *${stats['leather_cash']:.2f}*\n\n"
+        f"📒 *NASIYALAR (QARZLAR) — JAMI:*\n"
+        f"• Barcha faol qarzdorlar: *{stats['active_debts_count']} ta*\n"
+        f"• ⏳ Kutilayotgan umumiy qarz: *${stats['total_debt_rem']:.2f}*\n"
+        f"  (Gilam: ${stats['carpet_debt_rem']:.2f} | Teri: ${stats['leather_debt_rem']:.2f})"
     )
     await message.answer(text, parse_mode="Markdown")
 
@@ -180,7 +192,7 @@ async def superadmin_branch_excel(message: Message):
         doc = FSInputFile(report_path, filename=f"Hisobot_{b_name}_{datetime.now().strftime('%Y-%m-%d')}.xlsx")
         await message.answer_document(
             document=doc,
-            caption=f"📊 *{b_name} hisoboti*\n\n1. Gilam Ombori\n2. Teri Ombori\n3. Gilam Sotuvlari\n4. Teri Sotuvlari\n5. Gilam Kassasi\n6. Teri Kassasi",
+            caption=f"📊 *{b_name} hisoboti*\n\n1. Gilam Ombori\n2. Teri Ombori\n3. Gilam Sotuvlari\n4. Teri Sotuvlari\n5. Gilam Kassasi\n6. Teri Kassasi\n7. Nasiyalar (Qarzlar)",
             parse_mode="Markdown"
         )
         await wait_msg.delete()
@@ -200,7 +212,7 @@ async def superadmin_global_excel(message: Message):
         doc = FSInputFile(report_path, filename=f"CRM_Umumiy_{datetime.now().strftime('%Y-%m-%d')}.xlsx")
         await message.answer_document(
             document=doc,
-            caption="🌐 *Barcha filiallar birlashgan to'liq Excel hisoboti*\n\nUshbu faylda Gilam ombori, Teri ombori, barcha sotuvlar va har bir toifaning alohida kassa harakatlari jamlangan.",
+            caption="🌐 *Barcha filiallar birlashgan to'liq Excel hisoboti*\n\nUshbu faylda Gilam ombori, Teri ombori, barcha sotuvlar, har bir toifaning alohida kassa harakatlari va to'liq Nasiyalar daftari jamlangan.",
             parse_mode="Markdown"
         )
         await wait_msg.delete()

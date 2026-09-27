@@ -9,7 +9,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from config import BOT_TOKEN, SUPER_ADMIN_IDS
 from database.local_db import init_db, DB_PATH
-from handlers import common, import_goods, sales, cashbox, dashboard, leather
+from handlers import common, import_goods, sales, cashbox, dashboard, leather, debts
 from utils.excel_export import generate_excel_report
 
 logging.basicConfig(
@@ -68,7 +68,8 @@ async def main():
 
     # 3. Routerlarni ro'yxatdan o'tkazish
     dp.include_router(common.router)
-    dp.include_router(leather.router)      # Yangi Teri routeri
+    dp.include_router(debts.router)        # Yangi Nasiya (Qarzlar) routeri
+    dp.include_router(leather.router)      # Teri routeri
     dp.include_router(import_goods.router) # Gilam kirim
     dp.include_router(sales.router)        # Gilam sotuv
     dp.include_router(cashbox.router)      # Alohida kassalar

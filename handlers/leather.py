@@ -8,7 +8,8 @@ from keyboards.inline_kb import (
     get_leather_colors_kb,
     get_available_leather_colors_kb,
     get_confirm_leather_import_kb,
-    get_confirm_leather_sale_kb
+    get_confirm_leather_sale_kb,
+    get_confirm_debt_sale_kb
 )
 from utils.states import LeatherImportStates, LeatherSaleStates
 from database.local_db import (
@@ -209,7 +210,7 @@ async def process_leather_sale_qty(message: Message, state: FSMContext):
         f"💵 Donasi: `${LEATHER_PRICE:.2f}`\n"
         f"💰 Jami sotuv summasi: *${total_val:.2f}*\n"
         f"✂️ Omborda qoladi: *{remains} dona*\n\n"
-        f"Sotuvni tasdiqlaysizmi?"
+        f"To'lov turini tanlang yoki sotuvni tasdiqlang:"
     )
     await message.answer(summary, parse_mode="Markdown", reply_markup=get_confirm_leather_sale_kb())
 
@@ -223,7 +224,8 @@ async def retry_leather_sale(callback: CallbackQuery, state: FSMContext):
     await callback.message.edit_text("Sotilayotgan terining rangini tanlang:", reply_markup=get_available_leather_colors_kb(colors_stock))
     await callback.answer()
 
-@router.callback_query(F.data == "confirm_leather_sale", LeatherSaleStates.confirming)
+# 1. NAQD TERI SOTUV
+@router.callback_query(F.data.in_(["confirm_leather_sale", "confirm_leather_sale_cash"]), LeatherSaleStates.confirming)
 async def confirm_leather_sale(callback: CallbackQuery, state: FSMContext):
     role, branch_id = get_user_role(callback.from_user.id)
     if role != "branch":
@@ -232,7 +234,7 @@ async def confirm_leather_sale(callback: CallbackQuery, state: FSMContext):
     color = data["color"]
     quantity = data["quantity"]
     
-    res = await make_leather_sale(color=color, quantity=quantity, branch_id=branch_id)
+    res = await make_leather_sale(color=color, quantity=quantity, branch_id=branch_id, is_debt=False)
     
     await state.clear()
     try:
@@ -242,7 +244,8 @@ async def confirm_leather_sale(callback: CallbackQuery, state: FSMContext):
         
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
     await callback.message.answer(
-        f"✅ *Teri sotuvi muvaffaqiyatli amalga oshirildi! ({b_name})*\n\n"
+        f"✅ *Teri sotuvi muvaffaqiyatli amalga oshirildi! ({b_name})*\n"
+        f"💵 *To'lov turi:* Naqd to'lov\n\n"
         f"🎨 Rangi: *{color}*\n"
         f"🔢 Sotildi: *{quantity} dona*\n"
         f"💰 Sotuv summasi: *${res['sale_total_price']:.2f}*\n"
@@ -253,6 +256,164 @@ async def confirm_leather_sale(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_leather_submenu()
     )
     await callback.answer("Sotildi!")
+
+# 2. NASIYA (QARZ) TERI SOTUV OQIMI
+@router.callback_query(F.data == "leather_debt_start", LeatherSaleStates.confirming)
+async def start_leather_debt_flow(callback: CallbackQuery, state: FSMContext):
+    role, branch_id = get_user_role(callback.from_user.id)
+    if role != "branch":
+        return
+    await state.set_state(LeatherSaleStates.entering_customer_name)
+    await callback.message.edit_text(
+        "📝 *Nasiya (Qarz) rasmiylashtirish:*\n\n"
+        "Mijozning ismini kiriting (Masalan: Alisher aka yoki Rustam):",
+        parse_mode="Markdown"
+    )
+    await callback.answer()
+
+@router.message(LeatherSaleStates.entering_customer_name)
+async def leather_debt_name(message: Message, state: FSMContext):
+    role, branch_id = get_user_role(message.from_user.id)
+    if role != "branch":
+        return
+    name = message.text.strip()
+    if not name:
+        await message.answer("Iltimos, mijoz ismini kiriting:")
+        return
+    await state.update_data(customer_name=name)
+    await state.set_state(LeatherSaleStates.entering_customer_phone)
+    await message.answer(
+        f"Mijoz: *{name}*\n\n"
+        "Telefon raqamini kiriting (Masalan: `+998901234567` yoki telefon bo'lmasa `/otkazish` deb yozing):",
+        parse_mode="Markdown"
+    )
+
+@router.message(LeatherSaleStates.entering_customer_phone)
+async def leather_debt_phone(message: Message, state: FSMContext):
+    role, branch_id = get_user_role(message.from_user.id)
+    if role != "branch":
+        return
+    text = message.text.strip()
+    phone = "" if text.lower() in ["/otkazish", "otkazish", "-", "yoq", "yo'q"] else text
+    await state.update_data(customer_phone=phone)
+    
+    data = await state.get_data()
+    total_val = data["total_val"]
+    
+    await state.set_state(LeatherSaleStates.entering_initial_paid)
+    await message.answer(
+        f"💰 Jami sotuv summasi: *${total_val:.2f}*\n\n"
+        "Mijoz boshlang'ich qisman to'lov qildimi?\n"
+        "To'langan summani kiriting (agar umuman to'lamagan bo'lsa `0` deb yozing):",
+        parse_mode="Markdown"
+    )
+
+@router.message(LeatherSaleStates.entering_initial_paid)
+async def leather_debt_initial(message: Message, state: FSMContext):
+    role, branch_id = get_user_role(message.from_user.id)
+    if role != "branch":
+        return
+    text = message.text.strip().replace(",", ".")
+    try:
+        initial_paid = float(text)
+        if initial_paid < 0:
+            await message.answer("To'lov summasi manfiy bo'lishi mumkin emas. Qaytadan kiriting:")
+            return
+    except ValueError:
+        await message.answer("Iltimos, faqat raqam kiriting (Masalan: `50` yoki `0`):")
+        return
+        
+    data = await state.get_data()
+    total_val = data["total_val"]
+    
+    if initial_paid >= total_val:
+        await message.answer(
+            f"❌ Boshlang'ich to'lov jami summadan (${total_val:.2f}) kam bo'lishi kerak.\n"
+            f"Agar mijoz to'liq to'lagan bo'lsa, 'Naqd to'lov' deb tasdiqlash lozim.\n\n"
+            f"Iltimos, qaytadan boshlang'ich to'lov miqdorini kiriting (yoki 0):"
+        )
+        return
+        
+    remaining_debt = round(total_val - initial_paid, 2)
+    await state.update_data(initial_paid=initial_paid, remaining_debt=remaining_debt)
+    await state.set_state(LeatherSaleStates.confirming_debt)
+    
+    color = data["color"]
+    quantity = data["quantity"]
+    customer_name = data["customer_name"]
+    customer_phone = data["customer_phone"]
+    
+    summary = (
+        f"📋 *Nasiya (Qarz) teri sotuvini tasdiqlang:*\n\n"
+        f"👤 Mijoz: *{customer_name}*\n"
+        f"📞 Telefon: `{customer_phone or 'Kiritilmagan'}`\n"
+        f"🎨 Rangi: *{color}*\n"
+        f"🔢 Sotilmoqda: *{quantity} dona*\n"
+        f"💰 Jami summa: *${total_val:.2f}*\n"
+        f"💵 Boshlang'ich to'lov (kassaga tushadi): *${initial_paid:.2f}*\n"
+        f"⏳ Qolgan qarz (Nasiya): *${remaining_debt:.2f}*\n\n"
+        f"Nasiyani tasdiqlaysizmi?"
+    )
+    await message.answer(summary, parse_mode="Markdown", reply_markup=get_confirm_debt_sale_kb("leather"))
+
+@router.callback_query(F.data == "retry_leather_debt", LeatherSaleStates.confirming_debt)
+async def retry_leather_debt(callback: CallbackQuery, state: FSMContext):
+    role, branch_id = get_user_role(callback.from_user.id)
+    if role != "branch":
+        return
+    await state.set_state(LeatherSaleStates.entering_customer_name)
+    await callback.message.edit_text(
+        "Mijozning ismini qaytadan kiriting:",
+        parse_mode="Markdown"
+    )
+    await callback.answer()
+
+@router.callback_query(F.data == "confirm_leather_debt_final", LeatherSaleStates.confirming_debt)
+async def confirm_leather_debt_final(callback: CallbackQuery, state: FSMContext):
+    role, branch_id = get_user_role(callback.from_user.id)
+    if role != "branch":
+        return
+    data = await state.get_data()
+    color = data["color"]
+    quantity = data["quantity"]
+    customer_name = data["customer_name"]
+    customer_phone = data["customer_phone"]
+    initial_paid = data["initial_paid"]
+    
+    res = await make_leather_sale(
+        color=color, 
+        quantity=quantity, 
+        branch_id=branch_id, 
+        is_debt=True, 
+        customer_name=customer_name, 
+        customer_phone=customer_phone, 
+        initial_paid=initial_paid
+    )
+    
+    await state.clear()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+        
+    b_name = BRANCH_NAMES.get(branch_id, "Filial")
+    await callback.message.answer(
+        f"✅ *Teri nasiyaga (qarzga) sotildi! ({b_name})*\n\n"
+        f"🆔 Nasiya ID: *#D-{res['debt_id']}*\n"
+        f"👤 Mijoz: *{customer_name}* ({customer_phone or 'Tel yo\\'q'})\n"
+        f"🎨 Rangi: *{color}*\n"
+        f"🔢 Miqdori: *{quantity} dona*\n"
+        f"💰 Jami sotuv: *${res['sale_total_price']:.2f}*\n"
+        f"💵 Boshlang'ich to'lov: *${res['initial_paid']:.2f}*\n"
+        f"⏳ Qolgan qarz: *${res['remaining_debt']:.2f}*\n"
+        f"✂️ Ombordagi qoldiq: {res['remaining_quantity']} dona\n\n"
+        f"💵 *Teri kassasiga qo'shildi:* +${res['initial_paid']:.2f}\n"
+        f"💰 *Joriy Teri kassa balansi:* ${res['new_leather_cash_balance']:.2f}",
+        parse_mode="Markdown",
+        reply_markup=get_leather_submenu()
+    )
+    await callback.answer("Nasiyaga sotildi!")
+
 
 # --- TERI OMBOR QOLDIG'I ---
 

@@ -79,10 +79,13 @@ def get_rolls_selection_kb(rolls: list[dict]):
 def get_confirm_sale_kb():
     buttons = [
         [
-            InlineKeyboardButton(text="✅ Sotuvni tasdiqlash", callback_data="confirm_sale"),
-            InlineKeyboardButton(text="✏️ O'zgartirish", callback_data="retry_sale")
+            InlineKeyboardButton(text="💵 Naqd to'lov", callback_data="confirm_sale_cash"),
+            InlineKeyboardButton(text="📝 Nasiya (Qarz)", callback_data="sale_debt_start")
         ],
-        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_action")]
+        [
+            InlineKeyboardButton(text="✏️ O'zgartirish", callback_data="retry_sale"),
+            InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_action")
+        ]
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -116,10 +119,52 @@ def get_confirm_leather_import_kb():
 def get_confirm_leather_sale_kb():
     buttons = [
         [
-            InlineKeyboardButton(text="✅ Sotuvni tasdiqlash", callback_data="confirm_leather_sale"),
-            InlineKeyboardButton(text="✏️ O'zgartirish", callback_data="retry_leather_sale")
+            InlineKeyboardButton(text="💵 Naqd to'lov", callback_data="confirm_leather_sale_cash"),
+            InlineKeyboardButton(text="📝 Nasiya (Qarz)", callback_data="leather_debt_start")
+        ],
+        [
+            InlineKeyboardButton(text="✏️ O'zgartirish", callback_data="retry_leather_sale"),
+            InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_action")
+        ]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+# --- NASIYA (QARZ) TUGMALARI ---
+def get_confirm_debt_sale_kb(category="carpet"):
+    prefix = "carpet" if category == "carpet" else "leather"
+    buttons = [
+        [
+            InlineKeyboardButton(text="✅ Nasiyani tasdiqlash", callback_data=f"confirm_{prefix}_debt_final"),
+            InlineKeyboardButton(text="✏️ Qayta kiritish", callback_data=f"retry_{prefix}_debt")
         ],
         [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_action")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def get_debts_main_kb(is_superadmin=False):
+    buttons = [
+        [InlineKeyboardButton(text="📋 Faol Nasiyalar ro'yxati", callback_data="debts_active_list")],
+        [InlineKeyboardButton(text="💰 Qarz to'lovini qabul qilish", callback_data="debts_pay_start")],
+        [InlineKeyboardButton(text="📜 Yopilgan qarzlar tarixi", callback_data="debts_history")],
+        [InlineKeyboardButton(text="🔙 Bosh menyu", callback_data="back_to_main")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def get_debts_selection_kb(debts: list[dict]):
+    buttons = []
+    for d in debts:
+        cat_emoji = "🌀" if d["category"] == "carpet" else "🐑"
+        label = f"{cat_emoji} {d['customer_name']} (${d['remaining_amount']:.2f} qarz)"
+        buttons.append([InlineKeyboardButton(text=label, callback_data=f"debt_pay_select:{d['id']}")])
+    buttons.append([InlineKeyboardButton(text="🔙 Ortga", callback_data="debts_menu")])
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def get_confirm_pay_debt_kb(debt_id: int):
+    buttons = [
+        [
+            InlineKeyboardButton(text="✅ To'lovni tasdiqlash", callback_data=f"confirm_pay_debt:{debt_id}"),
+            InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_action")
+        ]
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
@@ -140,3 +185,4 @@ def get_confirm_withdraw_kb():
         ]
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
+

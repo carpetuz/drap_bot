@@ -77,8 +77,41 @@ async def init_db():
             )
         """)
         
+        # 6. Nasiya (Qarz) daftari
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS debts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                branch_id INTEGER NOT NULL DEFAULT 1,
+                category TEXT NOT NULL,
+                customer_name TEXT NOT NULL,
+                customer_phone TEXT,
+                item_details TEXT NOT NULL,
+                total_amount REAL NOT NULL,
+                initial_paid REAL NOT NULL DEFAULT 0.0,
+                paid_amount REAL NOT NULL DEFAULT 0.0,
+                remaining_amount REAL NOT NULL,
+                status TEXT NOT NULL DEFAULT 'unpaid',
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
+        
+        # 7. Qarz to'lovlari tarixi
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS debt_payments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                debt_id INTEGER NOT NULL,
+                branch_id INTEGER NOT NULL,
+                category TEXT NOT NULL,
+                amount REAL NOT NULL,
+                note TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (debt_id) REFERENCES debts (id)
+            )
+        """)
+        
         # Xavfsiz avtomatik migratsiyalar
-        for tbl in ["rolls", "sales", "cashbox"]:
+        for tbl in ["rolls", "sales", "cashbox", "debts"]:
             try:
                 async with db.execute(f"PRAGMA table_info({tbl})") as cur:
                     cols = [row[1] for row in await cur.fetchall()]
@@ -234,7 +267,16 @@ async def get_roll_by_id(roll_id: int) -> dict | None:
             row = await cursor.fetchone()
             return dict(row) if row else None
 
-async def make_sale(roll_id: int, sold_length: float, branch_id: int = 1, price_per_m2: float = PRICE_PER_M2) -> dict:
+async def make_sale(
+    roll_id: int, 
+    sold_length: float, 
+    branch_id: int = 1, 
+    price_per_m2: float = PRICE_PER_M2,
+    is_debt: bool = False,
+    customer_name: str = "",
+    customer_phone: str = "",
+    initial_paid: float = 0.0
+) -> dict:
     created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     
     async with aiosqlite.connect(DB_PATH) as db:
@@ -267,18 +309,47 @@ async def make_sale(roll_id: int, sold_length: float, branch_id: int = 1, price_
         """, (branch_id, roll_id, roll["roll_code"], roll["width"], roll["color"], sold_length, sold_area, price_per_m2, sale_total_price, created_at)) as cursor:
             sale_id = cursor.lastrowid
         
-        # Gilam kassasiga tushum
-        current_balance = await get_cash_balance(branch_id=branch_id, category="carpet")
-        new_balance = round(current_balance + sale_total_price, 2)
-        await db.execute("""
-            INSERT INTO cashbox (branch_id, category, operation_type, amount, note, balance_after, created_at)
-            VALUES (?, 'carpet', 'INCOME', ?, ?, ?, ?)
-        """, (branch_id, sale_total_price, f"Sotuv (Gilam): {roll['roll_code']} ({roll['width']}x{sold_length}m - {roll['color']})", new_balance, created_at))
+        debt_id = None
+        if is_debt:
+            initial_paid = round(float(initial_paid), 2)
+            remaining_amount = round(sale_total_price - initial_paid, 2)
+            debt_status = "partial" if initial_paid > 0 else "unpaid"
+            
+            item_desc = f"{roll['roll_code']} ({roll['width']:g}x{sold_length}m - {roll['color']})"
+            async with db.execute("""
+                INSERT INTO debts (branch_id, category, customer_name, customer_phone, item_details, total_amount, initial_paid, paid_amount, remaining_amount, status, created_at, updated_at)
+                VALUES (?, 'carpet', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (branch_id, customer_name, customer_phone, item_desc, sale_total_price, initial_paid, initial_paid, remaining_amount, debt_status, created_at, created_at)) as cursor:
+                debt_id = cursor.lastrowid
+                
+            current_balance = await get_cash_balance(branch_id=branch_id, category="carpet")
+            if initial_paid > 0:
+                new_balance = round(current_balance + initial_paid, 2)
+                await db.execute("""
+                    INSERT INTO cashbox (branch_id, category, operation_type, amount, note, balance_after, created_at)
+                    VALUES (?, 'carpet', 'INCOME', ?, ?, ?, ?)
+                """, (branch_id, initial_paid, f"Nasiya boshlang'ich to'lov (Gilam): {customer_name} (#{debt_id})", new_balance, created_at))
+                
+                await db.execute("""
+                    INSERT INTO debt_payments (debt_id, branch_id, category, amount, note, created_at)
+                    VALUES (?, ?, 'carpet', ?, ?, ?)
+                """, (debt_id, branch_id, initial_paid, "Boshlang'ich to'lov", created_at))
+            else:
+                new_balance = current_balance
+        else:
+            # Gilam kassasiga tushum
+            current_balance = await get_cash_balance(branch_id=branch_id, category="carpet")
+            new_balance = round(current_balance + sale_total_price, 2)
+            await db.execute("""
+                INSERT INTO cashbox (branch_id, category, operation_type, amount, note, balance_after, created_at)
+                VALUES (?, 'carpet', 'INCOME', ?, ?, ?, ?)
+            """, (branch_id, sale_total_price, f"Sotuv (Gilam): {roll['roll_code']} ({roll['width']:g}x{sold_length}m - {roll['color']})", new_balance, created_at))
         
         await db.commit()
         
         return {
             "sale_id": sale_id,
+            "debt_id": debt_id,
             "branch_id": branch_id,
             "roll_code": roll["roll_code"],
             "width": roll["width"],
@@ -288,6 +359,10 @@ async def make_sale(roll_id: int, sold_length: float, branch_id: int = 1, price_
             "price_per_m2": price_per_m2,
             "sale_total_price": sale_total_price,
             "remaining_length": new_length,
+            "is_debt": is_debt,
+            "initial_paid": initial_paid if is_debt else sale_total_price,
+            "remaining_debt": remaining_amount if is_debt else 0.0,
+            "customer_name": customer_name,
             "created_at": created_at,
             "new_cash_balance": new_balance
         }
@@ -345,7 +420,16 @@ async def get_available_leather_colors(branch_id: int = 1) -> list[dict]:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]
 
-async def make_leather_sale(color: str, quantity: int, branch_id: int = 1, price_per_item: float = LEATHER_PRICE) -> dict:
+async def make_leather_sale(
+    color: str, 
+    quantity: int, 
+    branch_id: int = 1, 
+    price_per_item: float = LEATHER_PRICE,
+    is_debt: bool = False,
+    customer_name: str = "",
+    customer_phone: str = "",
+    initial_paid: float = 0.0
+) -> dict:
     created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -369,29 +453,198 @@ async def make_leather_sale(color: str, quantity: int, branch_id: int = 1, price
         """, (branch_id, color, quantity, price_per_item, sale_total_price, created_at)) as cursor:
             sale_id = cursor.lastrowid
             
-        # Teri kassasiga tushum
-        current_balance = await get_cash_balance(branch_id=branch_id, category="leather")
-        new_balance = round(current_balance + sale_total_price, 2)
-        await db.execute("""
-            INSERT INTO cashbox (branch_id, category, operation_type, amount, note, balance_after, created_at)
-            VALUES (?, 'leather', 'INCOME', ?, ?, ?, ?)
-        """, (branch_id, sale_total_price, f"Sotuv (Teri): {quantity} dona - {color}", new_balance, created_at))
-        
+        debt_id = None
+        if is_debt:
+            initial_paid = round(float(initial_paid), 2)
+            remaining_amount = round(sale_total_price - initial_paid, 2)
+            debt_status = "partial" if initial_paid > 0 else "unpaid"
+            
+            item_desc = f"Teri - {color} ({quantity} dona)"
+            async with db.execute("""
+                INSERT INTO debts (branch_id, category, customer_name, customer_phone, item_details, total_amount, initial_paid, paid_amount, remaining_amount, status, created_at, updated_at)
+                VALUES (?, 'leather', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (branch_id, customer_name, customer_phone, item_desc, sale_total_price, initial_paid, initial_paid, remaining_amount, debt_status, created_at, created_at)) as cursor:
+                debt_id = cursor.lastrowid
+                
+            current_balance = await get_cash_balance(branch_id=branch_id, category="leather")
+            if initial_paid > 0:
+                new_balance = round(current_balance + initial_paid, 2)
+                await db.execute("""
+                    INSERT INTO cashbox (branch_id, category, operation_type, amount, note, balance_after, created_at)
+                    VALUES (?, 'leather', 'INCOME', ?, ?, ?, ?)
+                """, (branch_id, initial_paid, f"Nasiya boshlang'ich to'lov (Teri): {customer_name} (#{debt_id})", new_balance, created_at))
+                
+                await db.execute("""
+                    INSERT INTO debt_payments (debt_id, branch_id, category, amount, note, created_at)
+                    VALUES (?, ?, 'leather', ?, ?, ?)
+                """, (debt_id, branch_id, initial_paid, "Boshlang'ich to'lov", created_at))
+            else:
+                new_balance = current_balance
+        else:
+            # Teri kassasiga to'liq naqd tushum
+            current_balance = await get_cash_balance(branch_id=branch_id, category="leather")
+            new_balance = round(current_balance + sale_total_price, 2)
+            await db.execute("""
+                INSERT INTO cashbox (branch_id, category, operation_type, amount, note, balance_after, created_at)
+                VALUES (?, 'leather', 'INCOME', ?, ?, ?, ?)
+            """, (branch_id, sale_total_price, f"Sotuv (Teri): {quantity} dona - {color}", new_balance, created_at))
+            
         await db.commit()
         
     return {
         "sale_id": sale_id,
+        "debt_id": debt_id,
         "branch_id": branch_id,
         "color": color,
         "sold_quantity": quantity,
         "price_per_item": price_per_item,
         "sale_total_price": sale_total_price,
         "remaining_quantity": new_qty,
+        "is_debt": is_debt,
+        "initial_paid": initial_paid if is_debt else sale_total_price,
+        "remaining_debt": remaining_amount if is_debt else 0.0,
+        "customer_name": customer_name,
         "created_at": created_at,
         "new_leather_cash_balance": new_balance
     }
 
-# --- DASHBOARD STATISTIKASI (IKKALA TOIFA ALOHIDA) ---
+# --- NASIYA (QARZ) FUNKSIYALARI ---
+
+async def pay_debt(debt_id: int, payment_amount: float, branch_id: int, note: str = "") -> dict:
+    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM debts WHERE id = ?", (debt_id,)) as cursor:
+            debt = await cursor.fetchone()
+            if not debt:
+                raise ValueError("Nasiya yozuvi topilmadi!")
+                
+        payment_amount = round(payment_amount, 2)
+        if payment_amount <= 0:
+            raise ValueError("To'lov summasi 0 dan katta bo'lishi kerak!")
+            
+        remaining_now = round(debt["remaining_amount"], 2)
+        if payment_amount > remaining_now:
+            raise ValueError(f"To'lov summasi mavjud qarzdan (${remaining_now:.2f}) ko'p bo'lishi mumkin emas!")
+            
+        new_paid = round(debt["paid_amount"] + payment_amount, 2)
+        new_remaining = round(remaining_now - payment_amount, 2)
+        new_status = "paid" if new_remaining <= 0.001 else "partial"
+        
+        await db.execute("""
+            UPDATE debts 
+            SET paid_amount = ?, remaining_amount = ?, status = ?, updated_at = ?
+            WHERE id = ?
+        """, (new_paid, new_remaining, new_status, created_at, debt_id))
+        
+        # Qarz to'lovlari tarixiga kiritish
+        await db.execute("""
+            INSERT INTO debt_payments (debt_id, branch_id, category, amount, note, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (debt_id, debt["branch_id"], debt["category"], payment_amount, note or "Qarz to'lovi", created_at))
+        
+        # Tegishli tovar kassasiga kirim qilish
+        current_balance = await get_cash_balance(branch_id=debt["branch_id"], category=debt["category"])
+        new_balance = round(current_balance + payment_amount, 2)
+        cat_title = "Gilam" if debt["category"] == "carpet" else "Teri"
+        await db.execute("""
+            INSERT INTO cashbox (branch_id, category, operation_type, amount, note, balance_after, created_at)
+            VALUES (?, ?, 'INCOME', ?, ?, ?, ?)
+        """, (debt["branch_id"], debt["category"], payment_amount, f"Qarz to'lovi ({cat_title}): {debt['customer_name']} (#{debt_id})", new_balance, created_at))
+        
+        await db.commit()
+        
+        return {
+            "debt_id": debt_id,
+            "customer_name": debt["customer_name"],
+            "customer_phone": debt["customer_phone"],
+            "item_details": debt["item_details"],
+            "category": debt["category"],
+            "branch_id": debt["branch_id"],
+            "payment_amount": payment_amount,
+            "remaining_amount": new_remaining,
+            "status": new_status,
+            "new_cash_balance": new_balance,
+            "created_at": created_at
+        }
+
+async def get_active_debts(branch_id: int | None = None, category: str | None = None) -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        conditions = ["status != 'paid'", "remaining_amount > 0"]
+        params = []
+        if branch_id is not None:
+            conditions.append("branch_id = ?")
+            params.append(branch_id)
+        if category is not None:
+            conditions.append("category = ?")
+            params.append(category)
+        where_clause = " AND ".join(conditions)
+        query = f"SELECT * FROM debts WHERE {where_clause} ORDER BY id DESC"
+        async with db.execute(query, tuple(params)) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+async def get_debt_by_id(debt_id: int) -> dict | None:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM debts WHERE id = ?", (debt_id,)) as cursor:
+            row = await cursor.fetchone()
+            return dict(row) if row else None
+
+async def get_debt_payments(debt_id: int) -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM debt_payments WHERE debt_id = ? ORDER BY id DESC", (debt_id,)) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+async def get_closed_debts(branch_id: int | None = None, limit: int = 20) -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        if branch_id is not None:
+            q = "SELECT * FROM debts WHERE branch_id = ? AND status = 'paid' ORDER BY updated_at DESC LIMIT ?"
+            p = (branch_id, limit)
+        else:
+            q = "SELECT * FROM debts WHERE status = 'paid' ORDER BY updated_at DESC LIMIT ?"
+            p = (limit,)
+        async with db.execute(q, p) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]
+
+async def get_debts_summary(branch_id: int | None = None) -> dict:
+    async with aiosqlite.connect(DB_PATH) as db:
+        if branch_id is not None:
+            async with db.execute("""
+                SELECT 
+                    COUNT(*), 
+                    COALESCE(SUM(remaining_amount), 0),
+                    COALESCE(SUM(CASE WHEN category = 'carpet' THEN remaining_amount ELSE 0 END), 0),
+                    COALESCE(SUM(CASE WHEN category = 'leather' THEN remaining_amount ELSE 0 END), 0)
+                FROM debts 
+                WHERE branch_id = ? AND status != 'paid' AND remaining_amount > 0
+            """, (branch_id,)) as cursor:
+                count, total_rem, carpet_rem, leather_rem = await cursor.fetchone()
+        else:
+            async with db.execute("""
+                SELECT 
+                    COUNT(*), 
+                    COALESCE(SUM(remaining_amount), 0),
+                    COALESCE(SUM(CASE WHEN category = 'carpet' THEN remaining_amount ELSE 0 END), 0),
+                    COALESCE(SUM(CASE WHEN category = 'leather' THEN remaining_amount ELSE 0 END), 0)
+                FROM debts 
+                WHERE status != 'paid' AND remaining_amount > 0
+            """) as cursor:
+                count, total_rem, carpet_rem, leather_rem = await cursor.fetchone()
+                
+        return {
+            "active_count": count,
+            "total_rem": round(total_rem, 2),
+            "carpet_rem": round(carpet_rem, 2),
+            "leather_rem": round(leather_rem, 2)
+        }
+
+# --- DASHBOARD STATISTIKASI (IKKALA TOIFA VA NASIYALAR ALOHIDA) ---
 
 async def get_dashboard_stats(branch_id: int | None = None) -> dict:
     today_str = datetime.now().strftime("%Y-%m-%d")
@@ -430,6 +683,7 @@ async def get_dashboard_stats(branch_id: int | None = None) -> dict:
 
     carpet_cash = await get_cash_balance(branch_id=branch_id, category="carpet")
     leather_cash = await get_cash_balance(branch_id=branch_id, category="leather")
+    debts_sum = await get_debts_summary(branch_id=branch_id)
 
     return {
         "branch_id": branch_id,
@@ -453,5 +707,10 @@ async def get_dashboard_stats(branch_id: int | None = None) -> dict:
         "today_leather_rev": round(today_leather_rev, 2),
         "all_leather_count": all_leather_count,
         "all_leather_qty": all_leather_qty,
-        "all_leather_rev": round(all_leather_rev, 2)
+        "all_leather_rev": round(all_leather_rev, 2),
+        # Nasiyalar
+        "active_debts_count": debts_sum["active_count"],
+        "total_debt_rem": debts_sum["total_rem"],
+        "carpet_debt_rem": debts_sum["carpet_rem"],
+        "leather_debt_rem": debts_sum["leather_rem"]
     }

@@ -13,6 +13,7 @@ async def generate_excel_report(file_path: str = "CRM_Hisobot.xlsx", branch_id: 
     carpet_fill = PatternFill(start_color="1F497D", end_color="1F497D", fill_type="solid") # Moviy
     leather_fill = PatternFill(start_color="804000", end_color="804000", fill_type="solid") # Jigarrang
     cash_fill = PatternFill(start_color="274E13", end_color="274E13", fill_type="solid")    # Yashil
+    debt_fill = PatternFill(start_color="5B2C6F", end_color="5B2C6F", fill_type="solid")    # To'q binafsha
     
     thin_border = Border(
         left=Side(style="thin", color="D9D9D9"), right=Side(style="thin", color="D9D9D9"),
@@ -88,6 +89,32 @@ async def generate_excel_report(file_path: str = "CRM_Hisobot.xlsx", branch_id: 
                 b_name = BRANCH_NAMES.get(c["branch_id"], f"Filial-{c['branch_id']}")
                 ws_l_cash.append([b_name, c["created_at"], "Kirim (Sotuv)" if c["operation_type"] == "INCOME" else "Chiqim (Topshirildi)", c["amount"], c["note"], c["balance_after"]])
 
+        # 7. Nasiyalar (Qarzlar) Daftari
+        ws_debts = wb.create_sheet(title="Nasiyalar (Qarzlar)")
+        headers_debts = ["Filial", "Nasiya ID", "Mijoz Ismi", "Telefon", "Tovar turi", "Mahsulot tavsifi", "Jami summa ($)", "Boshlang'ich ($)", "To'langan ($)", "Qarz qoldig'i ($)", "Holati", "Berilgan sana", "Oxirgi yangilanish"]
+        ws_debts.append(headers_debts)
+        q = "SELECT * FROM debts WHERE branch_id = ? ORDER BY id DESC" if branch_id else "SELECT * FROM debts ORDER BY branch_id ASC, id DESC"
+        async with db.execute(q, p) as cursor:
+            for d in await cursor.fetchall():
+                b_name = BRANCH_NAMES.get(d["branch_id"], f"Filial-{d['branch_id']}")
+                cat_name = "Gilam" if d["category"] == "carpet" else "Teri"
+                status_text = "To'liq yopilgan" if d["status"] == "paid" else ("Qisman to'langan" if d["status"] == "partial" else "To'lanmagan")
+                ws_debts.append([
+                    b_name,
+                    f"#D-{d['id']}",
+                    d["customer_name"],
+                    d["customer_phone"] or "-",
+                    cat_name,
+                    d["item_details"],
+                    d["total_amount"],
+                    d["initial_paid"],
+                    d["paid_amount"],
+                    d["remaining_amount"],
+                    status_text,
+                    d["created_at"],
+                    d["updated_at"]
+                ])
+
     # Stillar va formatlash
     sheet_configs = [
         (ws_c_ombor, carpet_fill),
@@ -95,7 +122,8 @@ async def generate_excel_report(file_path: str = "CRM_Hisobot.xlsx", branch_id: 
         (ws_c_sales, carpet_fill),
         (ws_l_sales, leather_fill),
         (ws_c_cash, cash_fill),
-        (ws_l_cash, cash_fill)
+        (ws_l_cash, cash_fill),
+        (ws_debts, debt_fill)
     ]
     for ws, fill in sheet_configs:
         for col_num in range(1, ws.max_column + 1):

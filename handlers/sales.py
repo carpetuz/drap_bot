@@ -8,7 +8,8 @@ from keyboards.inline_kb import (
     get_available_widths_kb, 
     get_available_colors_kb, 
     get_rolls_selection_kb, 
-    get_confirm_sale_kb
+    get_confirm_sale_kb,
+    get_confirm_debt_sale_kb
 )
 from utils.states import SaleStates
 from database.local_db import (
@@ -179,7 +180,7 @@ async def sale_process_length(message: Message, state: FSMContext):
         f"💵 Narxi ($8/m²): `${PRICE_PER_M2:.2f}`\n"
         f"💰 Jami summa: *${total_price:.2f}*\n"
         f"✂️ Rulonda qoladi: `{remaining_length} metr`\n\n"
-        f"Sotuvni tasdiqlaysizmi?"
+        f"To'lov turini tanlang yoki sotuvni tasdiqlang:"
     )
     await message.answer(summary, parse_mode="Markdown", reply_markup=get_confirm_sale_kb())
 
@@ -198,7 +199,8 @@ async def retry_sale(callback: CallbackQuery, state: FSMContext):
     )
     await callback.answer()
 
-@router.callback_query(F.data == "confirm_sale", SaleStates.confirming)
+# 1. NAQD SOTUV
+@router.callback_query(F.data.in_(["confirm_sale", "confirm_sale_cash"]), SaleStates.confirming)
 async def confirm_sale(callback: CallbackQuery, state: FSMContext):
     role, branch_id = get_user_role(callback.from_user.id)
     if role != "branch":
@@ -207,7 +209,7 @@ async def confirm_sale(callback: CallbackQuery, state: FSMContext):
     roll_id = data["roll_id"]
     sold_length = data["sold_length"]
     
-    result = await make_sale(roll_id=roll_id, sold_length=sold_length, branch_id=branch_id)
+    result = await make_sale(roll_id=roll_id, sold_length=sold_length, branch_id=branch_id, is_debt=False)
     
     await state.clear()
     try:
@@ -217,7 +219,8 @@ async def confirm_sale(callback: CallbackQuery, state: FSMContext):
     
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
     await callback.message.answer(
-        f"✅ *Gilam sotuvi muvaffaqiyatli amalga oshirildi! ({b_name})*\n\n"
+        f"✅ *Gilam sotuvi muvaffaqiyatli amalga oshirildi! ({b_name})*\n"
+        f"💵 *To'lov turi:* Naqd to'lov\n\n"
         f"📦 Mahsulot: {result['width']:g}x{result['sold_length']}m - {result['color']}\n"
         f"📐 Maydoni: {result['sold_area']} m²\n"
         f"💰 Sotuv summasi: *${result['sale_total_price']:.2f}*\n"
@@ -228,3 +231,160 @@ async def confirm_sale(callback: CallbackQuery, state: FSMContext):
         reply_markup=get_carpet_submenu()
     )
     await callback.answer("Sotildi!")
+
+# 2. NASIYA (QARZ) SOTUV OQIMI
+@router.callback_query(F.data == "sale_debt_start", SaleStates.confirming)
+async def start_carpet_debt_flow(callback: CallbackQuery, state: FSMContext):
+    role, branch_id = get_user_role(callback.from_user.id)
+    if role != "branch":
+        return
+    await state.set_state(SaleStates.entering_customer_name)
+    await callback.message.edit_text(
+        "📝 *Nasiya (Qarz) rasmiylashtirish:*\n\n"
+        "Mijozning ismini kiriting (Masalan: Alisher aka yoki Rustam):",
+        parse_mode="Markdown"
+    )
+    await callback.answer()
+
+@router.message(SaleStates.entering_customer_name)
+async def carpet_debt_name(message: Message, state: FSMContext):
+    role, branch_id = get_user_role(message.from_user.id)
+    if role != "branch":
+        return
+    name = message.text.strip()
+    if not name:
+        await message.answer("Iltimos, mijoz ismini kiriting:")
+        return
+    await state.update_data(customer_name=name)
+    await state.set_state(SaleStates.entering_customer_phone)
+    await message.answer(
+        f"Mijoz: *{name}*\n\n"
+        "Telefon raqamini kiriting (Masalan: `+998901234567` yoki telefon bo'lmasa `/otkazish` deb yozing):",
+        parse_mode="Markdown"
+    )
+
+@router.message(SaleStates.entering_customer_phone)
+async def carpet_debt_phone(message: Message, state: FSMContext):
+    role, branch_id = get_user_role(message.from_user.id)
+    if role != "branch":
+        return
+    text = message.text.strip()
+    phone = "" if text.lower() in ["/otkazish", "otkazish", "-", "yoq", "yo'q"] else text
+    await state.update_data(customer_phone=phone)
+    
+    data = await state.get_data()
+    total_price = data["total_price"]
+    
+    await state.set_state(SaleStates.entering_initial_paid)
+    await message.answer(
+        f"💰 Jami sotuv summasi: *${total_price:.2f}*\n\n"
+        "Mijoz boshlang'ich qisman to'lov qildimi?\n"
+        "To'langan summani kiriting (agar umuman to'lamagan bo'lsa `0` deb yozing):",
+        parse_mode="Markdown"
+    )
+
+@router.message(SaleStates.entering_initial_paid)
+async def carpet_debt_initial(message: Message, state: FSMContext):
+    role, branch_id = get_user_role(message.from_user.id)
+    if role != "branch":
+        return
+    text = message.text.strip().replace(",", ".")
+    try:
+        initial_paid = float(text)
+        if initial_paid < 0:
+            await message.answer("To'lov summasi manfiy bo'lishi mumkin emas. Qaytadan kiriting:")
+            return
+    except ValueError:
+        await message.answer("Iltimos, faqat raqam kiriting (Masalan: `50` yoki `0`):")
+        return
+        
+    data = await state.get_data()
+    total_price = data["total_price"]
+    
+    if initial_paid >= total_price:
+        await message.answer(
+            f"❌ Boshlang'ich to'lov jami summadan (${total_price:.2f}) kam bo'lishi kerak.\n"
+            f"Agar mijoz to'liq to'lagan bo'lsa, 'Naqd to'lov' deb tasdiqlash lozim.\n\n"
+            f"Iltimos, qaytadan boshlang'ich to'lov miqdorini kiriting (yoki 0):"
+        )
+        return
+        
+    remaining_debt = round(total_price - initial_paid, 2)
+    await state.update_data(initial_paid=initial_paid, remaining_debt=remaining_debt)
+    await state.set_state(SaleStates.confirming_debt)
+    
+    roll = data["roll"]
+    sold_length = data["sold_length"]
+    customer_name = data["customer_name"]
+    customer_phone = data["customer_phone"]
+    
+    summary = (
+        f"📋 *Nasiya (Qarz) sotuvini tasdiqlang:*\n\n"
+        f"👤 Mijoz: *{customer_name}*\n"
+        f"📞 Telefon: `{customer_phone or 'Kiritilmagan'}`\n"
+        f"🆔 Rulon: *{roll['roll_code']}*\n"
+        f"📦 Mahsulot: `{roll['width']:g}x{sold_length}m - {roll['color']}`\n"
+        f"💰 Jami summa: *${total_price:.2f}*\n"
+        f"💵 Boshlang'ich to'lov (kassaga tushadi): *${initial_paid:.2f}*\n"
+        f"⏳ Qolgan qarz (Nasiya): *${remaining_debt:.2f}*\n\n"
+        f"Nasiyani tasdiqlaysizmi?"
+    )
+    await message.answer(summary, parse_mode="Markdown", reply_markup=get_confirm_debt_sale_kb("carpet"))
+
+@router.callback_query(F.data == "retry_carpet_debt", SaleStates.confirming_debt)
+async def retry_carpet_debt(callback: CallbackQuery, state: FSMContext):
+    role, branch_id = get_user_role(callback.from_user.id)
+    if role != "branch":
+        return
+    await state.set_state(SaleStates.entering_customer_name)
+    await callback.message.edit_text(
+        "Mijozning ismini qaytadan kiriting:",
+        parse_mode="Markdown"
+    )
+    await callback.answer()
+
+@router.callback_query(F.data == "confirm_carpet_debt_final", SaleStates.confirming_debt)
+async def confirm_carpet_debt_final(callback: CallbackQuery, state: FSMContext):
+    role, branch_id = get_user_role(callback.from_user.id)
+    if role != "branch":
+        return
+    data = await state.get_data()
+    roll_id = data["roll_id"]
+    sold_length = data["sold_length"]
+    customer_name = data["customer_name"]
+    customer_phone = data["customer_phone"]
+    initial_paid = data["initial_paid"]
+    
+    result = await make_sale(
+        roll_id=roll_id, 
+        sold_length=sold_length, 
+        branch_id=branch_id, 
+        is_debt=True, 
+        customer_name=customer_name, 
+        customer_phone=customer_phone, 
+        initial_paid=initial_paid
+    )
+    
+    await state.clear()
+    try:
+        await callback.message.delete()
+    except Exception:
+        pass
+        
+    b_name = BRANCH_NAMES.get(branch_id, "Filial")
+    await callback.message.answer(
+        f"✅ *Gilam nasiyaga (qarzga) sotildi! ({b_name})*\n\n"
+        f"🆔 Nasiya ID: *#D-{result['debt_id']}*\n"
+        f"👤 Mijoz: *{customer_name}* ({customer_phone or 'Tel yo\\'q'})\n"
+        f"📦 Mahsulot: {result['width']:g}x{result['sold_length']}m - {result['color']}\n"
+        f"💰 Jami sotuv: *${result['sale_total_price']:.2f}*\n"
+        f"💵 Boshlang'ich to'lov: *${result['initial_paid']:.2f}*\n"
+        f"⏳ Qolgan qarz: *${result['remaining_debt']:.2f}*\n"
+        f"✂️ Rulondagi qoldiq: {result['remaining_length']} metr\n\n"
+        f"💵 *Gilam kassasiga qo'shildi:* +${result['initial_paid']:.2f}\n"
+        f"💰 *Joriy Gilam kassa balansi:* ${result['new_cash_balance']:.2f}",
+        parse_mode="Markdown",
+        reply_markup=get_carpet_submenu()
+    )
+    await callback.answer("Nasiyaga sotildi!")
+
