@@ -372,10 +372,11 @@ async def confirm_carpet_debt_final(callback: CallbackQuery, state: FSMContext):
         pass
         
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
+    phone_display = customer_phone if customer_phone else "Kiritilmagan"
     await callback.message.answer(
         f"✅ *Gilam nasiyaga (qarzga) sotildi! ({b_name})*\n\n"
         f"🆔 Nasiya ID: *#D-{result['debt_id']}*\n"
-        f"👤 Mijoz: *{customer_name}* ({customer_phone or 'Tel yo\\'q'})\n"
+        f"👤 Mijoz: *{customer_name}* ({phone_display})\n"
         f"📦 Mahsulot: {result['width']:g}x{result['sold_length']}m - {result['color']}\n"
         f"💰 Jami sotuv: *${result['sale_total_price']:.2f}*\n"
         f"💵 Boshlang'ich to'lov: *${result['initial_paid']:.2f}*\n"

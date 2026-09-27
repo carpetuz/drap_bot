@@ -221,14 +221,14 @@ async def process_debt_payment_amount(message: Message, state: FSMContext):
     await state.set_state(DebtPaymentStates.confirming_payment)
     
     cat_name = "Gilam" if debt["category"] == "carpet" else "Teri"
+    status_hint = "🎉 Qarz to'liq yopiladi" if new_rem <= 0.001 else "Qisman to'lanadi"
     
     summary = (
         f"📝 *Qarz to'lovini tasdiqlang:*\n\n"
         f"👤 Mijoz: *{debt['customer_name']}*\n"
         f"💵 Qabul qilinayotgan summa: *+${amount:.2f}*\n"
         f"📥 Tushum kassasi: *{cat_name} kassasi*\n"
-        f"⏳ To'lovdan so'ng qarz: *${new_rem:.2f}* "
-        f"({'🎉 Qarz to\\'liq yopiladi' if new_rem <= 0.001 else 'Qisman to\\'lanadi'})\n\n"
+        f"⏳ To'lovdan so'ng qarz: *${new_rem:.2f}* ({status_hint})\n\n"
         f"To'lovni tasdiqlaysizmi?"
     )
     await message.answer(summary, parse_mode="Markdown", reply_markup=get_confirm_pay_debt_kb(debt["id"]))

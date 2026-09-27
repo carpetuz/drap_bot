@@ -397,10 +397,11 @@ async def confirm_leather_debt_final(callback: CallbackQuery, state: FSMContext)
         pass
         
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
+    phone_display = customer_phone if customer_phone else "Kiritilmagan"
     await callback.message.answer(
         f"✅ *Teri nasiyaga (qarzga) sotildi! ({b_name})*\n\n"
         f"🆔 Nasiya ID: *#D-{res['debt_id']}*\n"
-        f"👤 Mijoz: *{customer_name}* ({customer_phone or 'Tel yo\\'q'})\n"
+        f"👤 Mijoz: *{customer_name}* ({phone_display})\n"
         f"🎨 Rangi: *{color}*\n"
         f"🔢 Miqdori: *{quantity} dona*\n"
         f"💰 Jami sotuv: *${res['sale_total_price']:.2f}*\n"
