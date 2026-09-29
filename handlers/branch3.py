@@ -35,26 +35,39 @@ async def start_branch3_sale(message: Message, state: FSMContext):
         reply_markup=get_branch3_collections_kb()
     )
 
-@router.callback_query(F.data.startswith("b3_coll:"), Branch3SaleStates.choosing_collection)
+@router.callback_query(F.data.startswith("b3_coll:"))
 async def process_branch3_collection(callback: CallbackQuery, state: FSMContext):
+    try:
+        await callback.answer()
+    except Exception:
+        pass
+
     role, branch_id = get_user_role(callback.from_user.id)
     if role != "branch" or branch_id != 3:
         return
+
     collection_name = callback.data.split(":")[1]
     if collection_name not in BRANCH3_COLLECTIONS:
-        await callback.answer("Noto'g'ri tanlov!", show_alert=True)
         return
+
     price = BRANCH3_COLLECTIONS[collection_name]
     await state.update_data(collection_name=collection_name, price=price)
     await state.set_state(Branch3SaleStates.entering_length)
 
-    await callback.message.edit_text(
-        f"Tanlandi: *{collection_name}* (${price:g}/m²)\n\n"
-        "Uzunligini metrda kiriting:\n"
-        "(Masalan: `5` yoki `3.5`):",
-        parse_mode="Markdown"
-    )
-    await callback.answer()
+    try:
+        await callback.message.edit_text(
+            f"Tanlandi: *{collection_name}* (${price:g}/m²)\n\n"
+            "Uzunligini metrda kiriting:\n"
+            "(Masalan: `5` yoki `3.5`):",
+            parse_mode="Markdown"
+        )
+    except Exception:
+        await callback.message.answer(
+            f"Tanlandi: *{collection_name}* (${price:g}/m²)\n\n"
+            "Uzunligini metrda kiriting:\n"
+            "(Masalan: `5` yoki `3.5`):",
+            parse_mode="Markdown"
+        )
 
 @router.message(Branch3SaleStates.entering_length)
 async def process_branch3_length(message: Message, state: FSMContext):
@@ -73,8 +86,12 @@ async def process_branch3_length(message: Message, state: FSMContext):
 
     length = round(length, 2)
     data = await state.get_data()
-    collection_name = data["collection_name"]
-    price = data["price"]
+    collection_name = data.get("collection_name")
+    price = data.get("price")
+    if not collection_name or not price:
+        await state.clear()
+        await message.answer("Sotuvni boshlash uchun '🛒 Sotuv' tugmasini bosing.", reply_markup=get_branch3_menu())
+        return
 
     area_m2 = round(BRANCH3_WIDTH * length, 2)
     total_price = round(area_m2 * price, 2)
@@ -93,27 +110,46 @@ async def process_branch3_length(message: Message, state: FSMContext):
     )
     await message.answer(chek, parse_mode="Markdown", reply_markup=get_branch3_confirm_sale_kb())
 
-@router.callback_query(F.data == "b3_retry_sale", Branch3SaleStates.confirming)
+@router.callback_query(F.data == "b3_retry_sale")
 async def retry_branch3_sale(callback: CallbackQuery, state: FSMContext):
+    try:
+        await callback.answer()
+    except Exception:
+        pass
     role, branch_id = get_user_role(callback.from_user.id)
     if role != "branch" or branch_id != 3:
         return
     await state.set_state(Branch3SaleStates.choosing_collection)
-    await callback.message.edit_text(
-        "🛒 *Mahsulotni tanlang:*",
-        parse_mode="Markdown",
-        reply_markup=get_branch3_collections_kb()
-    )
-    await callback.answer()
+    try:
+        await callback.message.edit_text(
+            "🛒 *Mahsulotni tanlang:*",
+            parse_mode="Markdown",
+            reply_markup=get_branch3_collections_kb()
+        )
+    except Exception:
+        await callback.message.answer(
+            "🛒 *Mahsulotni tanlang:*",
+            parse_mode="Markdown",
+            reply_markup=get_branch3_collections_kb()
+        )
 
-@router.callback_query(F.data == "b3_confirm_sale", Branch3SaleStates.confirming)
+@router.callback_query(F.data == "b3_confirm_sale")
 async def confirm_branch3_sale(callback: CallbackQuery, state: FSMContext):
+    try:
+        await callback.answer("Saqlandi!")
+    except Exception:
+        pass
     role, branch_id = get_user_role(callback.from_user.id)
     if role != "branch" or branch_id != 3:
         return
     data = await state.get_data()
-    collection_name = data["collection_name"]
-    length = data["length"]
+    collection_name = data.get("collection_name")
+    length = data.get("length")
+
+    if not collection_name or not length:
+        await state.clear()
+        await callback.message.answer("Sotuv ma'lumotlari topilmadi. Qaytadan '🛒 Sotuv' orqali boshlang.", reply_markup=get_branch3_menu())
+        return
 
     res = await make_branch3_sale(collection_name=collection_name, length=length, branch_id=3)
 
@@ -131,7 +167,6 @@ async def confirm_branch3_sale(callback: CallbackQuery, state: FSMContext):
         parse_mode="Markdown",
         reply_markup=get_branch3_menu()
     )
-    await callback.answer("Saqlandi!")
 
 # --- HISOBOT VA TARIX ---
 
@@ -164,13 +199,16 @@ async def show_branch3_report(message: Message, state: FSMContext):
 
 @router.callback_query(F.data == "b3_history")
 async def show_branch3_history(callback: CallbackQuery):
+    try:
+        await callback.answer()
+    except Exception:
+        pass
     role, branch_id = get_user_role(callback.from_user.id)
     if role != "branch" or branch_id != 3:
         return
     history = await get_branch3_sales_history(branch_id=3, limit=15)
     if not history:
         await callback.message.answer("Hozircha sotuvlar tarixi mavjud emas.")
-        await callback.answer()
         return
 
     lines = ["📜 *OXIRGI SOTUVLAR TARIXI:*\n"]
@@ -182,4 +220,3 @@ async def show_branch3_history(callback: CallbackQuery):
         )
 
     await callback.message.answer("\n".join(lines), parse_mode="Markdown")
-    await callback.answer()

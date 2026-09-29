@@ -222,9 +222,9 @@ def get_confirm_withdraw_kb():
 # --- 3-FILIAL TUGMALARI ---
 def get_branch3_collections_kb():
     buttons = [
-        [InlineKeyboardButton(text="💎 Laughton ($30 / m²)", callback_data="b3_coll:Laughton")],
-        [InlineKeyboardButton(text="✨ Craft ($45 / m²)", callback_data="b3_coll:Craft")],
-        [InlineKeyboardButton(text="🌸 Pretty ($38 / m²)", callback_data="b3_coll:Pretty")],
+        [InlineKeyboardButton(text="Laughton ($30 / m²)", callback_data="b3_coll:Laughton")],
+        [InlineKeyboardButton(text="Craft ($45 / m²)", callback_data="b3_coll:Craft")],
+        [InlineKeyboardButton(text="Pretty ($38 / m²)", callback_data="b3_coll:Pretty")],
         [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_action")]
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
