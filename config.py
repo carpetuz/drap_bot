@@ -12,7 +12,8 @@ SUPER_ADMIN_IDS = [8525787653]
 BRANCH_USERS = {
     8350493371: 1,  # 1-Filial xodimi
     317633066: 2,   # 2-Filial xodimi
-    5539220491: 3   # 3-Filial xodimi
+    5539220491: 3,  # 3-Filial xodimi (qo'shimcha)
+    909420: 3       # 3-Filial xodimi (asosiy)
 }
 
 BRANCH_NAMES = {
