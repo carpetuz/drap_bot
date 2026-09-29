@@ -31,12 +31,19 @@ def get_kavralan_submenu():
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
 
+def get_branch3_menu():
+    kb = [
+        [KeyboardButton(text="🛒 Sotuv"), KeyboardButton(text="📊 Hisobot")]
+    ]
+    return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
+
 def get_superadmin_menu():
     kb = [
         [KeyboardButton(text="🏢 1-Filial hisoboti"), KeyboardButton(text="🏢 2-Filial hisoboti")],
-        [KeyboardButton(text="🌐 Barcha filiallar statistikasi"), KeyboardButton(text="📒 Nasiya / Qarzlar")],
+        [KeyboardButton(text="🏢 3-Filial hisoboti"), KeyboardButton(text="🌐 Barcha filiallar statistikasi")],
+        [KeyboardButton(text="📒 Nasiya / Qarzlar"), KeyboardButton(text="📊 Umumiy Birlashgan Excel")],
         [KeyboardButton(text="📑 1-Filial Excel"), KeyboardButton(text="📑 2-Filial Excel")],
-        [KeyboardButton(text="📊 Umumiy Birlashgan Excel")]
+        [KeyboardButton(text="📑 3-Filial Excel")]
     ]
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 

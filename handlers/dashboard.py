@@ -4,7 +4,13 @@ from datetime import datetime
 from aiogram import Router, F
 from aiogram.types import Message, FSInputFile
 from config import BRANCH_NAMES
-from database.local_db import get_dashboard_stats, get_all_active_rolls, get_leather_stock, get_all_active_kavralan_rolls
+from database.local_db import (
+    get_dashboard_stats, 
+    get_all_active_rolls, 
+    get_leather_stock, 
+    get_all_active_kavralan_rolls,
+    get_branch3_stats
+)
 from utils.excel_export import generate_excel_report
 from handlers.common import get_user_role
 
@@ -176,6 +182,30 @@ async def superadmin_branch_stats(message: Message):
     )
     await message.answer(text, parse_mode="Markdown")
 
+@router.message(F.text == "🏢 3-Filial hisoboti")
+async def superadmin_branch3_stats(message: Message):
+    role, _ = get_user_role(message.from_user.id)
+    if role != "superadmin":
+        return
+    stats = await get_branch3_stats(branch_id=3)
+    coll_lines = []
+    for coll, d in stats["by_collection"].items():
+        coll_lines.append(f"  • {coll}: {d['m2']} m² (${d['rev']:.2f})")
+    coll_text = "\n".join(coll_lines) if coll_lines else "  • Hozircha savdo yo'q"
+
+    text = (
+        "🏢 *3-Filial Statistikasi (Bosh Admin uchun)*\n\n"
+        f"💵 *KASSA BALANSI:* *${stats['cash_balance']:.2f}*\n"
+        f"📐 *Jami sotilgan maydon:* *{stats['total_m2']:.2f} m²*\n"
+        f"🛒 *Jami sotuvlar soni:* *{stats['total_count']} ta*\n\n"
+        f"📅 *Bugungi savdo:*\n"
+        f"• Sotilgan maydon: *{stats['today_m2']:.2f} m²*\n"
+        f"• Tushum: *${stats['today_rev']:.2f}* ({stats['today_count']} ta)\n\n"
+        f"📦 *Kolleksiyalar bo'yicha:*\n"
+        f"{coll_text}"
+    )
+    await message.answer(text, parse_mode="Markdown")
+
 @router.message(F.text == "🌐 Barcha filiallar statistikasi")
 async def superadmin_global_stats(message: Message):
     role, _ = get_user_role(message.from_user.id)
@@ -200,6 +230,10 @@ async def superadmin_global_stats(message: Message):
         f"• Tovar qiymati: *${stats['kavralan_total_val']:.2f}*\n"
         f"• Bugungi savdo: *${stats['today_kavralan_rev']:.2f}*\n"
         f"• 💵 *Jami Kavralan kassalari:* *${stats['kavralan_cash']:.2f}*\n\n"
+        f"💎 *3-FILIAL MAHSULOTLARI (Jami):*\n"
+        f"• Jami sotuvlar: *{stats['all_b3_count']} ta* ({stats['all_b3_m2']} m² — ${stats['all_b3_rev']:.2f})\n"
+        f"• Bugungi savdo: *{stats['today_b3_count']} ta* ({stats['today_b3_m2']} m² — ${stats['today_b3_rev']:.2f})\n"
+        f"• 💵 *Jami 3-Filial kassasi:* *${stats['branch3_cash']:.2f}*\n\n"
         f"📒 *NASIYALAR (QARZLAR) — JAMI:*\n"
         f"• Barcha faol qarzdorlar: *{stats['active_debts_count']} ta*\n"
         f"• ⏳ Kutilayotgan umumiy qarz: *${stats['total_debt_rem']:.2f}*\n"
@@ -207,21 +241,27 @@ async def superadmin_global_stats(message: Message):
     )
     await message.answer(text, parse_mode="Markdown")
 
-@router.message(F.text.in_(["📑 1-Filial Excel", "📑 2-Filial Excel"]))
+@router.message(F.text.in_(["📑 1-Filial Excel", "📑 2-Filial Excel", "📑 3-Filial Excel"]))
 async def superadmin_branch_excel(message: Message):
     role, _ = get_user_role(message.from_user.id)
     if role != "superadmin":
         return
-    branch_id = 1 if "1-Filial" in message.text else 2
+    if "1-Filial" in message.text:
+        branch_id = 1
+    elif "2-Filial" in message.text:
+        branch_id = 2
+    else:
+        branch_id = 3
     b_name = BRANCH_NAMES.get(branch_id, f"Filial-{branch_id}")
     wait_msg = await message.answer(f"⏳ {b_name} Excel hisoboti tayyorlanmoqda...")
     try:
         report_path = f"CRM_{b_name}.xlsx"
         await generate_excel_report(report_path, branch_id=branch_id)
         doc = FSInputFile(report_path, filename=f"Hisobot_{b_name}_{datetime.now().strftime('%Y-%m-%d')}.xlsx")
+        caption = f"📊 *{b_name} hisoboti*\n\n1. 3-Filial Sotuvlari\n2. 3-Filial Kassasi" if branch_id == 3 else f"📊 *{b_name} hisoboti*\n\n1. Gilam Ombori\n2. Teri Ombori\n3. Kavralan Ombori\n4. Sotuvlar (Gilam, Teri, Kavralan)\n5. Kassalar (Gilam, Teri, Kavralan)\n6. Nasiyalar (Qarzlar)"
         await message.answer_document(
             document=doc,
-            caption=f"📊 *{b_name} hisoboti*\n\n1. Gilam Ombori\n2. Teri Ombori\n3. Kavralan Ombori\n4. Sotuvlar (Gilam, Teri, Kavralan)\n5. Kassalar (Gilam, Teri, Kavralan)\n6. Nasiyalar (Qarzlar)",
+            caption=caption,
             parse_mode="Markdown"
         )
         await wait_msg.delete()
@@ -241,7 +281,7 @@ async def superadmin_global_excel(message: Message):
         doc = FSInputFile(report_path, filename=f"CRM_Umumiy_{datetime.now().strftime('%Y-%m-%d')}.xlsx")
         await message.answer_document(
             document=doc,
-            caption="🌐 *Barcha filiallar birlashgan to'liq Excel hisoboti*\n\nUshbu faylda Gilam, Teri va Asl Kavralan omborlari, barcha sotuvlar, har bir toifaning alohida kassa harakatlari hamda to'liq Nasiyalar daftari jamlangan.",
+            caption="🌐 *Barcha filiallar birlashgan to'liq Excel hisoboti*\n\nUshbu faylda Gilam, Teri, Asl Kavralan va 3-Filial sotuvlari, omborlar, alohida kassa harakatlari hamda to'liq Nasiyalar daftari jamlangan.",
             parse_mode="Markdown"
         )
         await wait_msg.delete()

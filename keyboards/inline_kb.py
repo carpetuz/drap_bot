@@ -219,3 +219,30 @@ def get_confirm_withdraw_kb():
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
+# --- 3-FILIAL TUGMALARI ---
+def get_branch3_collections_kb():
+    buttons = [
+        [InlineKeyboardButton(text="💎 Laughton ($30 / m²)", callback_data="b3_coll:Laughton")],
+        [InlineKeyboardButton(text="✨ Craft ($45 / m²)", callback_data="b3_coll:Craft")],
+        [InlineKeyboardButton(text="🌸 Pretty ($38 / m²)", callback_data="b3_coll:Pretty")],
+        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_action")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def get_branch3_confirm_sale_kb():
+    buttons = [
+        [
+            InlineKeyboardButton(text="✅ Tasdiqlash", callback_data="b3_confirm_sale"),
+            InlineKeyboardButton(text="✏️ Qayta kiritish", callback_data="b3_retry_sale")
+        ],
+        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_action")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+def get_branch3_report_kb():
+    buttons = [
+        [InlineKeyboardButton(text="📜 Sotuvlar tarixi", callback_data="b3_history")]
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=buttons)
+
+

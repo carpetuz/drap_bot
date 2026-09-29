@@ -1,6 +1,6 @@
 import aiosqlite
 from datetime import datetime
-from config import PRICE_PER_M2, LEATHER_PRICE, BRANCH_NAMES, LEATHER_COLORS, KAVRALAN_PRICE, KAVRALAN_WIDTH
+from config import PRICE_PER_M2, LEATHER_PRICE, BRANCH_NAMES, LEATHER_COLORS, KAVRALAN_PRICE, KAVRALAN_WIDTH, BRANCH3_WIDTH, BRANCH3_COLLECTIONS
 
 DB_PATH = "data.db"
 
@@ -143,8 +143,24 @@ async def init_db():
             )
         """)
         
+        # 10. 3-Filial sotuvlari (Omborsiz)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS branch3_sales (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                branch_id INTEGER NOT NULL DEFAULT 3,
+                collection_name TEXT NOT NULL,
+                width REAL NOT NULL DEFAULT 4.0,
+                length REAL NOT NULL,
+                area_m2 REAL NOT NULL,
+                price_per_m2 REAL NOT NULL,
+                total_price REAL NOT NULL,
+                payment_type TEXT NOT NULL DEFAULT 'cash',
+                created_at TEXT NOT NULL
+            )
+        """)
+        
         # Xavfsiz avtomatik migratsiyalar
-        for tbl in ["rolls", "sales", "cashbox", "debts", "kavralan_rolls", "kavralan_sales"]:
+        for tbl in ["rolls", "sales", "cashbox", "debts", "kavralan_rolls", "kavralan_sales", "branch3_sales"]:
             try:
                 async with db.execute(f"PRAGMA table_info({tbl})") as cur:
                     cols = [row[1] for row in await cur.fetchall()]
@@ -194,7 +210,7 @@ async def withdraw_cash(amount: float, branch_id: int = 1, category: str = "carp
     if amount <= 0:
         raise ValueError("Chiqim summasi 0 dan katta bo'lishi kerak!")
     if amount > current_balance:
-        cat_name = "Gilam" if category == "carpet" else ("Teri" if category == "leather" else "Kavralan")
+        cat_name = "Gilam" if category == "carpet" else ("Teri" if category == "leather" else ("Kavralan" if category == "kavralan" else "3-Filial"))
         raise ValueError(f"{cat_name} kassasida yetarli mablag' yo'q! Mavjud: ${current_balance:.2f}")
         
     new_balance = round(current_balance - amount, 2)
@@ -895,9 +911,15 @@ async def get_dashboard_stats(branch_id: int | None = None) -> dict:
             async with db.execute("SELECT COUNT(*), COALESCE(SUM(area_m2), 0), COALESCE(SUM(total_price), 0) FROM kavralan_sales") as cursor:
                 all_kavralan_count, all_kavralan_m2, all_kavralan_rev = await cursor.fetchone()
 
+            async with db.execute("SELECT COUNT(*), COALESCE(SUM(area_m2), 0), COALESCE(SUM(total_price), 0) FROM branch3_sales WHERE created_at LIKE ?", (f"{today_str}%",)) as cursor:
+                today_b3_count, today_b3_m2, today_b3_rev = await cursor.fetchone()
+            async with db.execute("SELECT COUNT(*), COALESCE(SUM(area_m2), 0), COALESCE(SUM(total_price), 0) FROM branch3_sales") as cursor:
+                all_b3_count, all_b3_m2, all_b3_rev = await cursor.fetchone()
+
     carpet_cash = await get_cash_balance(branch_id=branch_id, category="carpet")
     leather_cash = await get_cash_balance(branch_id=branch_id, category="leather")
     kavralan_cash = await get_cash_balance(branch_id=branch_id, category="kavralan")
+    branch3_cash = await get_cash_balance(branch_id=3, category="branch3")
     debts_sum = await get_debts_summary(branch_id=branch_id)
 
     return {
@@ -934,6 +956,14 @@ async def get_dashboard_stats(branch_id: int | None = None) -> dict:
         "all_kavralan_count": all_kavralan_count,
         "all_kavralan_m2": round(all_kavralan_m2, 2),
         "all_kavralan_rev": round(all_kavralan_rev, 2),
+        # 3-Filial
+        "branch3_cash": round(branch3_cash, 2),
+        "today_b3_count": today_b3_count if branch_id is None else 0,
+        "today_b3_m2": round(today_b3_m2, 2) if branch_id is None else 0.0,
+        "today_b3_rev": round(today_b3_rev, 2) if branch_id is None else 0.0,
+        "all_b3_count": all_b3_count if branch_id is None else 0,
+        "all_b3_m2": round(all_b3_m2, 2) if branch_id is None else 0.0,
+        "all_b3_rev": round(all_b3_rev, 2) if branch_id is None else 0.0,
         # Nasiyalar
         "active_debts_count": debts_sum["active_count"],
         "total_debt_rem": debts_sum["total_rem"],
@@ -941,3 +971,110 @@ async def get_dashboard_stats(branch_id: int | None = None) -> dict:
         "leather_debt_rem": debts_sum["leather_rem"],
         "kavralan_debt_rem": debts_sum["kavralan_rem"]
     }
+
+# --- 3-FILIAL FUNKSIYALARI (OMBORSIZ SOTUV) ---
+
+async def make_branch3_sale(collection_name: str, length: float, branch_id: int = 3) -> dict:
+    if collection_name not in BRANCH3_COLLECTIONS:
+        raise ValueError(f"Noto'g'ri mahsulot tanlandi: {collection_name}")
+    length = round(float(length), 2)
+    if length <= 0:
+        raise ValueError("Uzunlik 0 dan katta bo'lishi kerak!")
+
+    price_per_m2 = BRANCH3_COLLECTIONS[collection_name]
+    width = BRANCH3_WIDTH
+    area_m2 = round(width * length, 2)
+    total_price = round(area_m2 * price_per_m2, 2)
+    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute("""
+            INSERT INTO branch3_sales (branch_id, collection_name, width, length, area_m2, price_per_m2, total_price, payment_type, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'cash', ?)
+        """, (branch_id, collection_name, width, length, area_m2, price_per_m2, total_price, created_at)) as cursor:
+            sale_id = cursor.lastrowid
+
+        current_balance = await get_cash_balance(branch_id=branch_id, category="branch3")
+        new_balance = round(current_balance + total_price, 2)
+        await db.execute("""
+            INSERT INTO cashbox (branch_id, category, operation_type, amount, note, balance_after, created_at)
+            VALUES (?, 'branch3', 'INCOME', ?, ?, ?, ?)
+        """, (branch_id, total_price, f"Sotuv (3-Filial): {collection_name} 4x{length}m ({area_m2} m²)", new_balance, created_at))
+        await db.commit()
+
+    return {
+        "sale_id": sale_id,
+        "branch_id": branch_id,
+        "collection_name": collection_name,
+        "width": width,
+        "length": length,
+        "area_m2": area_m2,
+        "price_per_m2": price_per_m2,
+        "total_price": total_price,
+        "created_at": created_at,
+        "new_cash_balance": new_balance
+    }
+
+async def get_branch3_stats(branch_id: int = 3) -> dict:
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT 
+                COUNT(*) as total_count,
+                COALESCE(SUM(area_m2), 0) as total_m2,
+                COALESCE(SUM(total_price), 0) as total_rev
+            FROM branch3_sales WHERE branch_id = ?
+        """, (branch_id,)) as cursor:
+            tot = await cursor.fetchone()
+
+        async with db.execute("""
+            SELECT 
+                COUNT(*) as today_count,
+                COALESCE(SUM(area_m2), 0) as today_m2,
+                COALESCE(SUM(total_price), 0) as today_rev
+            FROM branch3_sales WHERE branch_id = ? AND created_at LIKE ?
+        """, (branch_id, f"{today_str}%")) as cursor:
+            td = await cursor.fetchone()
+
+        async with db.execute("""
+            SELECT 
+                collection_name,
+                COUNT(*) as count,
+                COALESCE(SUM(area_m2), 0) as m2,
+                COALESCE(SUM(total_price), 0) as rev
+            FROM branch3_sales WHERE branch_id = ?
+            GROUP BY collection_name
+        """, (branch_id,)) as cursor:
+            coll_rows = await cursor.fetchall()
+            by_coll = {
+                row["collection_name"]: {
+                    "count": row["count"], 
+                    "m2": round(row["m2"], 2), 
+                    "rev": round(row["rev"], 2)
+                } for row in coll_rows
+            }
+
+    cash_bal = await get_cash_balance(branch_id=branch_id, category="branch3")
+    return {
+        "branch_id": branch_id,
+        "cash_balance": cash_bal,
+        "total_count": tot["total_count"],
+        "total_m2": round(tot["total_m2"], 2),
+        "total_rev": round(tot["total_rev"], 2),
+        "today_count": td["today_count"],
+        "today_m2": round(td["today_m2"], 2),
+        "today_rev": round(td["today_rev"], 2),
+        "by_collection": by_coll
+    }
+
+async def get_branch3_sales_history(branch_id: int = 3, limit: int = 15) -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT * FROM branch3_sales 
+            WHERE branch_id = ? 
+            ORDER BY id DESC LIMIT ?
+        """, (branch_id, limit)) as cursor:
+            rows = await cursor.fetchall()
+            return [dict(r) for r in rows]

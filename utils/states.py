@@ -54,3 +54,9 @@ class KavralanSaleStates(StatesGroup):
     entering_initial_paid = State()
     confirming_debt = State()
 
+class Branch3SaleStates(StatesGroup):
+    choosing_collection = State()
+    entering_length = State()
+    confirming = State()
+
+
