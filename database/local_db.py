@@ -36,6 +36,8 @@ async def init_db():
                 area_m2 REAL NOT NULL,
                 price_per_m2 REAL NOT NULL,
                 total_price REAL NOT NULL,
+                cost_price REAL DEFAULT 0.0,
+                profit REAL DEFAULT 0.0,
                 created_at TEXT NOT NULL,
                 FOREIGN KEY (roll_id) REFERENCES rolls (id)
             )
@@ -61,6 +63,8 @@ async def init_db():
                 quantity INTEGER NOT NULL,
                 price_per_item REAL NOT NULL,
                 total_price REAL NOT NULL,
+                cost_price REAL DEFAULT 0.0,
+                profit REAL DEFAULT 0.0,
                 created_at TEXT NOT NULL
             )
         """)
@@ -139,6 +143,8 @@ async def init_db():
                 area_m2 REAL NOT NULL,
                 price_per_m2 REAL NOT NULL DEFAULT 30.0,
                 total_price REAL NOT NULL,
+                cost_price REAL DEFAULT 0.0,
+                profit REAL DEFAULT 0.0,
                 created_at TEXT NOT NULL,
                 FOREIGN KEY (roll_id) REFERENCES kavralan_rolls (id)
             )
@@ -155,6 +161,8 @@ async def init_db():
                 area_m2 REAL NOT NULL,
                 price_per_m2 REAL NOT NULL,
                 total_price REAL NOT NULL,
+                cost_price REAL DEFAULT 0.0,
+                profit REAL DEFAULT 0.0,
                 payment_type TEXT NOT NULL DEFAULT 'cash',
                 created_at TEXT NOT NULL
             )
@@ -186,6 +194,17 @@ async def init_db():
             except Exception:
                 pass
 
+        for tbl in ["sales", "leather_sales", "kavralan_sales", "branch3_sales"]:
+            try:
+                async with db.execute(f"PRAGMA table_info({tbl})") as cur:
+                    cols = [row[1] for row in await cur.fetchall()]
+                    if "cost_price" not in cols:
+                        await db.execute(f"ALTER TABLE {tbl} ADD COLUMN cost_price REAL DEFAULT 0.0")
+                    if "profit" not in cols:
+                        await db.execute(f"ALTER TABLE {tbl} ADD COLUMN profit REAL DEFAULT 0.0")
+            except Exception:
+                pass
+
         try:
             async with db.execute("PRAGMA table_info(cashbox)") as cur:
                 cols = [row[1] for row in await cur.fetchall()]
@@ -199,6 +218,43 @@ async def init_db():
                 cols = [row[1] for row in await cur.fetchall()]
                 if "price_per_m2" not in cols:
                     await db.execute("ALTER TABLE rolls ADD COLUMN price_per_m2 REAL NOT NULL DEFAULT 8.0")
+        except Exception:
+            pass
+
+        # Tarixiy sotuvlar uchun tannarx va foydani to'ldirish (agar 0 bo'lsa)
+        try:
+            await db.execute("""
+                UPDATE sales
+                SET cost_price = ROUND(area_m2 * (
+                    SELECT COALESCE(rolls.price_per_m2, 8.0) FROM rolls WHERE rolls.id = sales.roll_id
+                ), 2)
+                WHERE cost_price IS NULL OR cost_price = 0.0
+            """)
+            await db.execute("""
+                UPDATE sales
+                SET profit = ROUND(total_price - cost_price, 2)
+                WHERE profit IS NULL OR profit = 0.0
+            """)
+            await db.execute("""
+                UPDATE leather_sales
+                SET cost_price = ROUND(quantity * 50.0, 2)
+                WHERE cost_price IS NULL OR cost_price = 0.0
+            """)
+            await db.execute("""
+                UPDATE leather_sales
+                SET profit = ROUND(total_price - cost_price, 2)
+                WHERE profit IS NULL OR profit = 0.0
+            """)
+            await db.execute("""
+                UPDATE kavralan_sales
+                SET cost_price = ROUND(area_m2 * 30.0, 2)
+                WHERE cost_price IS NULL OR cost_price = 0.0
+            """)
+            await db.execute("""
+                UPDATE kavralan_sales
+                SET profit = ROUND(total_price - cost_price, 2)
+                WHERE profit IS NULL OR profit = 0.0
+            """)
         except Exception:
             pass
             
@@ -473,6 +529,7 @@ async def make_sale(
     sold_length: float, 
     branch_id: int = 1, 
     price_per_m2: float = PRICE_PER_M2,
+    custom_total_price: float | None = None,
     is_debt: bool = False,
     customer_name: str = "",
     customer_phone: str = "",
@@ -490,10 +547,10 @@ async def make_sale(
             if sold_length > roll["current_length"]:
                 raise ValueError(f"Rulonda yetarli uzunlik yo'q! Mavjud qoldiq: {roll['current_length']} m")
         
-        roll_price = float(roll["price_per_m2"]) if ("price_per_m2" in roll.keys() and roll["price_per_m2"]) else price_per_m2
+        roll_cost_price = float(roll["price_per_m2"]) if ("price_per_m2" in roll.keys() and roll["price_per_m2"]) else 8.0
         new_length = round(roll["current_length"] - sold_length, 2)
         new_area = round(roll["width"] * new_length, 2)
-        new_total_price = round(new_area * roll_price, 2)
+        new_total_price = round(new_area * roll_cost_price, 2)
         new_status = "finished" if new_length <= 0 else "active"
         
         await db.execute("""
@@ -503,12 +560,22 @@ async def make_sale(
         """, (new_length, new_area, new_total_price, new_status, roll_id))
         
         sold_area = round(roll["width"] * sold_length, 2)
-        sale_total_price = round(sold_area * price_per_m2, 2)
+        
+        # Agar foydalanuvchi umumiy summa kiritgan bo'lsa
+        if custom_total_price is not None and float(custom_total_price) > 0:
+            sale_total_price = round(float(custom_total_price), 2)
+            actual_price_per_m2 = round(sale_total_price / sold_area, 2) if sold_area > 0 else price_per_m2
+        else:
+            actual_price_per_m2 = price_per_m2
+            sale_total_price = round(sold_area * actual_price_per_m2, 2)
+            
+        cost_price = round(sold_area * roll_cost_price, 2)
+        profit = round(sale_total_price - cost_price, 2)
         
         async with db.execute("""
-            INSERT INTO sales (branch_id, roll_id, roll_code, width, color, sold_length, area_m2, price_per_m2, total_price, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (branch_id, roll_id, roll["roll_code"], roll["width"], roll["color"], sold_length, sold_area, price_per_m2, sale_total_price, created_at)) as cursor:
+            INSERT INTO sales (branch_id, roll_id, roll_code, width, color, sold_length, area_m2, price_per_m2, total_price, cost_price, profit, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (branch_id, roll_id, roll["roll_code"], roll["width"], roll["color"], sold_length, sold_area, actual_price_per_m2, sale_total_price, cost_price, profit, created_at)) as cursor:
             sale_id = cursor.lastrowid
         
         debt_id = None
@@ -558,8 +625,10 @@ async def make_sale(
             "color": roll["color"],
             "sold_length": sold_length,
             "sold_area": sold_area,
-            "price_per_m2": price_per_m2,
+            "price_per_m2": actual_price_per_m2,
             "sale_total_price": sale_total_price,
+            "cost_price": cost_price,
+            "profit": profit,
             "remaining_length": new_length,
             "is_debt": is_debt,
             "initial_paid": initial_paid if is_debt else sale_total_price,
@@ -627,6 +696,7 @@ async def make_leather_sale(
     quantity: int, 
     branch_id: int = 1, 
     price_per_item: float = LEATHER_PRICE,
+    custom_total_price: float | None = None,
     is_debt: bool = False,
     customer_name: str = "",
     customer_phone: str = "",
@@ -648,11 +718,20 @@ async def make_leather_sale(
             WHERE branch_id = ? AND color = ?
         """, (new_qty, created_at, branch_id, color))
         
-        sale_total_price = round(quantity * price_per_item, 2)
+        if custom_total_price is not None and float(custom_total_price) > 0:
+            sale_total_price = round(float(custom_total_price), 2)
+            actual_price_per_item = round(sale_total_price / quantity, 2) if quantity > 0 else price_per_item
+        else:
+            actual_price_per_item = price_per_item
+            sale_total_price = round(quantity * actual_price_per_item, 2)
+            
+        cost_price = round(quantity * LEATHER_PRICE, 2)
+        profit = round(sale_total_price - cost_price, 2)
+        
         async with db.execute("""
-            INSERT INTO leather_sales (branch_id, color, quantity, price_per_item, total_price, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (branch_id, color, quantity, price_per_item, sale_total_price, created_at)) as cursor:
+            INSERT INTO leather_sales (branch_id, color, quantity, price_per_item, total_price, cost_price, profit, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (branch_id, color, quantity, actual_price_per_item, sale_total_price, cost_price, profit, created_at)) as cursor:
             sale_id = cursor.lastrowid
             
         debt_id = None
@@ -699,8 +778,10 @@ async def make_leather_sale(
         "branch_id": branch_id,
         "color": color,
         "sold_quantity": quantity,
-        "price_per_item": price_per_item,
+        "price_per_item": actual_price_per_item,
         "sale_total_price": sale_total_price,
+        "cost_price": cost_price,
+        "profit": profit,
         "remaining_quantity": new_qty,
         "is_debt": is_debt,
         "initial_paid": initial_paid if is_debt else sale_total_price,
@@ -779,6 +860,7 @@ async def make_kavralan_sale(
     sold_length: float, 
     branch_id: int = 1, 
     price_per_m2: float = KAVRALAN_PRICE,
+    custom_total_price: float | None = None,
     is_debt: bool = False,
     customer_name: str = "",
     customer_phone: str = "",
@@ -808,12 +890,20 @@ async def make_kavralan_sale(
         """, (new_length, new_area, new_total_price, new_status, roll_id))
         
         sold_area = round(width * sold_length, 2)
-        sale_total_price = round(sold_area * price_per_m2, 2)
+        if custom_total_price is not None and float(custom_total_price) > 0:
+            sale_total_price = round(float(custom_total_price), 2)
+            actual_price_per_m2 = round(sale_total_price / sold_area, 2) if sold_area > 0 else price_per_m2
+        else:
+            actual_price_per_m2 = price_per_m2
+            sale_total_price = round(sold_area * actual_price_per_m2, 2)
+            
+        cost_price = round(sold_area * KAVRALAN_PRICE, 2)
+        profit = round(sale_total_price - cost_price, 2)
         
         async with db.execute("""
-            INSERT INTO kavralan_sales (branch_id, roll_id, roll_code, width, sold_length, area_m2, price_per_m2, total_price, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (branch_id, roll_id, roll["roll_code"], width, sold_length, sold_area, price_per_m2, sale_total_price, created_at)) as cursor:
+            INSERT INTO kavralan_sales (branch_id, roll_id, roll_code, width, sold_length, area_m2, price_per_m2, total_price, cost_price, profit, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (branch_id, roll_id, roll["roll_code"], width, sold_length, sold_area, actual_price_per_m2, sale_total_price, cost_price, profit, created_at)) as cursor:
             sale_id = cursor.lastrowid
             
         debt_id = None
@@ -862,8 +952,10 @@ async def make_kavralan_sale(
         "width": width,
         "sold_length": sold_length,
         "sold_area": sold_area,
-        "price_per_m2": price_per_m2,
+        "price_per_m2": actual_price_per_m2,
         "sale_total_price": sale_total_price,
+        "cost_price": cost_price,
+        "profit": profit,
         "remaining_length": new_length,
         "is_debt": is_debt,
         "initial_paid": initial_paid if is_debt else sale_total_price,
@@ -1231,3 +1323,147 @@ async def get_branch3_sales_history(branch_id: int = 3, limit: int = 15) -> list
         """, (branch_id, limit)) as cursor:
             rows = await cursor.fetchall()
             return [dict(r) for r in rows]
+
+# --- FOYDA VA ZARAR HISOBOTI (P&L) ---
+
+async def get_profit_loss_report(
+    branch_id: int | None = None,
+    period: str = "today",
+    date_from: str | None = None,
+    date_to: str | None = None
+) -> dict:
+    """
+    period: 'today', 'week', 'month', 'all', 'custom'
+    branch_id: None for all branches (SuperAdmin) or specific branch ID (1=Labzak, 2=Kartal, 3=3-Filial)
+    """
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        
+        # Sana sharti
+        date_cond = ""
+        date_params = []
+        if period == "today":
+            date_cond = "date(created_at) = date('now', 'localtime')"
+        elif period == "week":
+            date_cond = "date(created_at) >= date('now', 'localtime', '-6 days')"
+        elif period == "month":
+            date_cond = "date(created_at) >= date('now', 'localtime', '-29 days')"
+        elif period == "custom" and date_from:
+            if date_to:
+                date_cond = "created_at >= ? AND created_at <= ?"
+                date_params = [f"{date_from} 00:00:00", f"{date_to} 23:59:59"]
+            else:
+                date_cond = "created_at >= ?"
+                date_params = [f"{date_from} 00:00:00"]
+        else:
+            # 'all'
+            date_cond = "1=1"
+
+        # Filial sharti
+        branch_cond = ""
+        branch_params = []
+        if branch_id is not None:
+            branch_cond = "branch_id = ?"
+            branch_params = [branch_id]
+        else:
+            branch_cond = "1=1"
+
+        where_clause = f"WHERE ({date_cond}) AND ({branch_cond})"
+        all_params = date_params + branch_params
+
+        # 1. Barcha sotuvlar ro'yxati (Gilam, Teri, Kavralan, 3-Filial)
+        sales_query = f"""
+            SELECT * FROM (
+                SELECT 
+                    id, branch_id, 'carpet' as category, ('Rezinka Gilam ' || roll_code || ' (' || color || ')') as title,
+                    sold_length, area_m2, price_per_m2, total_price, 
+                    COALESCE(cost_price, 0.0) as cost_price, 
+                    COALESCE(profit, (total_price - COALESCE(cost_price, 0.0))) as profit,
+                    created_at
+                FROM sales
+                UNION ALL
+                SELECT
+                    id, branch_id, 'leather' as category, ('Teri (' || color || ')') as title,
+                    quantity as sold_length, quantity as area_m2, price_per_item as price_per_m2, total_price,
+                    COALESCE(cost_price, 0.0) as cost_price,
+                    COALESCE(profit, (total_price - COALESCE(cost_price, 0.0))) as profit,
+                    created_at
+                FROM leather_sales
+                UNION ALL
+                SELECT
+                    id, branch_id, 'kavralan' as category, ('Asl Kavralan ' || roll_code) as title,
+                    sold_length, area_m2, price_per_m2, total_price,
+                    COALESCE(cost_price, 0.0) as cost_price,
+                    COALESCE(profit, (total_price - COALESCE(cost_price, 0.0))) as profit,
+                    created_at
+                FROM kavralan_sales
+                UNION ALL
+                SELECT
+                    id, branch_id, 'branch3' as category, ('3-Filial ' || collection_name) as title,
+                    length as sold_length, area_m2, price_per_m2, total_price,
+                    COALESCE(cost_price, 0.0) as cost_price,
+                    COALESCE(profit, (total_price - COALESCE(cost_price, 0.0))) as profit,
+                    created_at
+                FROM branch3_sales
+            ) AS combined_sales
+            {where_clause}
+            ORDER BY created_at DESC
+        """
+
+        async with db.execute(sales_query, all_params) as cur:
+            sales_rows = [dict(r) for r in await cur.fetchall()]
+
+        # 2. Xarajatlar (Rasxod)
+        expenses_query = f"""
+            SELECT id, branch_id, category, operation_type, amount, note, balance_after, created_at
+            FROM cashbox
+            WHERE operation_type = 'EXPENSE' AND ({date_cond}) AND ({branch_cond})
+            ORDER BY created_at DESC
+        """
+        async with db.execute(expenses_query, all_params) as cur:
+            expenses_rows = [dict(r) for r in await cur.fetchall()]
+
+        # KPI Hisoblash
+        total_revenue = round(sum(s["total_price"] for s in sales_rows), 2)
+        total_cost = round(sum(s["cost_price"] for s in sales_rows), 2)
+        gross_profit = round(sum(s["profit"] for s in sales_rows), 2)
+        total_expenses = round(sum(e["amount"] for e in expenses_rows), 2)
+        net_profit = round(gross_profit - total_expenses, 2)
+        
+        # Filiallar bo'yicha guruhlash (SuperAdmin uchun)
+        by_branch = {}
+        for bid, bname in BRANCH_NAMES.items():
+            b_sales = [s for s in sales_rows if s["branch_id"] == bid]
+            b_expenses = [e for e in expenses_rows if e["branch_id"] == bid]
+            b_rev = round(sum(s["total_price"] for s in b_sales), 2)
+            b_cost = round(sum(s["cost_price"] for s in b_sales), 2)
+            b_gross = round(sum(s["profit"] for s in b_sales), 2)
+            b_exp = round(sum(e["amount"] for e in b_expenses), 2)
+            b_net = round(b_gross - b_exp, 2)
+            by_branch[bid] = {
+                "branch_name": bname,
+                "revenue": b_rev,
+                "cost": b_cost,
+                "gross_profit": b_gross,
+                "expenses": b_exp,
+                "net_profit": b_net,
+                "sales_count": len(b_sales)
+            }
+
+        return {
+            "period": period,
+            "branch_id": branch_id,
+            "summary": {
+                "total_revenue": total_revenue,
+                "total_cost": total_cost,
+                "gross_profit": gross_profit,
+                "total_expenses": total_expenses,
+                "net_profit": net_profit,
+                "sales_count": len(sales_rows),
+                "expenses_count": len(expenses_rows)
+            },
+            "by_branch": by_branch,
+            "sales": sales_rows,
+            "expenses": expenses_rows
+        }
+

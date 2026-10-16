@@ -18,8 +18,8 @@ BRANCH_USERS = {
 }
 
 BRANCH_NAMES = {
-    1: "1-Filial",
-    2: "2-Filial",
+    1: "Labzak",
+    2: "Kartal",
     3: "3-Filial"
 }
 

@@ -144,8 +144,8 @@
       <div class="flex items-center gap-3">
         <!-- SuperAdmin Branch Selector -->
         <div id="admin-branch-switcher" class="hidden items-center gap-1 bg-neutral-100 p-0.5 rounded-lg border border-neutral-200 text-xs">
-          <button onclick="switchBranch(1)" data-branch="1" class="branch-pill px-2.5 py-1 rounded-md transition text-neutral-600 font-medium">1-Filial</button>
-          <button onclick="switchBranch(2)" data-branch="2" class="branch-pill px-2.5 py-1 rounded-md transition text-neutral-600 font-medium">2-Filial</button>
+          <button onclick="switchBranch(1)" data-branch="1" class="branch-pill px-2.5 py-1 rounded-md transition text-neutral-600 font-medium">Labzak</button>
+          <button onclick="switchBranch(2)" data-branch="2" class="branch-pill px-2.5 py-1 rounded-md transition text-neutral-600 font-medium">Kartal</button>
           <button onclick="switchBranch(3)" data-branch="3" class="branch-pill px-2.5 py-1 rounded-md transition text-neutral-600 font-medium">3-Filial</button>
         </div>
 
@@ -161,7 +161,7 @@
     <!-- MAIN BODY: LEFT SIDEBAR + RIGHT CONTENT -->
     <div class="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-6 flex flex-col md:flex-row gap-8">
       
-      <!-- LEFT GHOST SIDEBAR WITH 2 DISTINCT BLOCKS -->
+      <!-- LEFT GHOST SIDEBAR WITH 3 DISTINCT BLOCKS -->
       <aside class="w-full md:w-56 shrink-0 md:sticky md:top-20 self-start space-y-6">
         
         <!-- 1-CHI BLOK: Sotuv, Qarz, Transfer, Rasxod, Kassa -->
@@ -181,6 +181,16 @@
           </div>
           <nav id="sidebar-block-2" class="ghost-nav-border flex md:flex-col gap-0.5 overflow-x-auto pb-1 md:pb-0 text-sm">
             <!-- Dynamically filled based on branch -->
+          </nav>
+        </div>
+
+        <!-- 3-CHI BLOK: Hisobot -->
+        <div class="bg-white/70 md:bg-transparent border md:border-0 border-ghostBorder rounded-2xl p-4 md:p-0">
+          <div class="text-[11px] font-semibold uppercase tracking-wider text-ghostMuted mb-2 px-1">
+            Hisobot
+          </div>
+          <nav id="sidebar-block-3" class="ghost-nav-border flex md:flex-col gap-0.5 overflow-x-auto pb-1 md:pb-0 text-sm">
+            <!-- Dynamically filled: 📈 Foyda va Zarar -->
           </nav>
         </div>
 
@@ -496,35 +506,43 @@
                   </select>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label class="block text-xs font-medium text-neutral-600 mb-1">Sotiladigan uzunlik (m):</label>
-                    <input type="number" step="0.1" id="sale-length" oninput="calcCarpetSaleTotal()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                    <input type="number" step="0.01" id="sale-length" oninput="calcCarpetSaleByLength()" placeholder="0.0" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-600 mb-1">Jami sotuv summasi ($):</label>
+                    <input type="number" step="0.01" id="sale-total-price" oninput="calcCarpetSaleByTotal()" placeholder="$0.00" class="w-full bg-ghostBg border border-neutral-300 font-semibold text-neutral-900 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
                   </div>
                   <div>
                     <label class="block text-xs font-medium text-neutral-600 mb-1">1 m² narxi ($):</label>
-                    <input type="number" step="0.5" id="sale-price" oninput="calcCarpetSaleTotal()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                    <input type="number" step="0.1" id="sale-price" oninput="calcCarpetSaleByPrice()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
                   </div>
                 </div>
               </div>
 
               <!-- LEATHER SALE FIELDS -->
               <div id="sale-leather-fields" class="hidden space-y-4">
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label class="block text-xs font-medium text-neutral-600 mb-1">Teri rangi:</label>
-                    <select id="sale-leather-color" onchange="calcLeatherSaleTotal()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                    <select id="sale-leather-color" onchange="calcLeatherSaleByQty()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
                       <option value="">Tanlang...</option>
                     </select>
                   </div>
                   <div>
                     <label class="block text-xs font-medium text-neutral-600 mb-1">Soni (dona):</label>
-                    <input type="number" id="sale-leather-qty" oninput="calcLeatherSaleTotal()" min="1" placeholder="1" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                    <input type="number" id="sale-leather-qty" oninput="calcLeatherSaleByQty()" min="1" placeholder="1" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-600 mb-1">Jami sotuv summasi ($):</label>
+                    <input type="number" step="0.01" id="sale-leather-total-price" oninput="calcLeatherSaleByTotal()" placeholder="$0.00" class="w-full bg-ghostBg border border-neutral-300 font-semibold text-neutral-900 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
                   </div>
                 </div>
                 <div>
                   <label class="block text-xs font-medium text-neutral-600 mb-1">1 dona narxi ($):</label>
-                  <input type="number" step="0.5" id="sale-leather-price" value="50" oninput="calcLeatherSaleTotal()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                  <input type="number" step="0.5" id="sale-leather-price" value="50" oninput="calcLeatherSaleByPrice()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
                 </div>
               </div>
 
@@ -537,22 +555,35 @@
                   </select>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label class="block text-xs font-medium text-neutral-600 mb-1">Sotiladigan uzunlik (m):</label>
-                    <input type="number" step="0.1" id="sale-kavralan-length" oninput="calcKavralanSaleTotal()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                    <input type="number" step="0.01" id="sale-kavralan-length" oninput="calcKavralanSaleByLength()" placeholder="0.0" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-600 mb-1">Jami sotuv summasi ($):</label>
+                    <input type="number" step="0.01" id="sale-kavralan-total-price" oninput="calcKavralanSaleByTotal()" placeholder="$0.00" class="w-full bg-ghostBg border border-neutral-300 font-semibold text-neutral-900 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
                   </div>
                   <div>
                     <label class="block text-xs font-medium text-neutral-600 mb-1">1 m² narxi ($):</label>
-                    <input type="number" step="0.5" id="sale-kavralan-price" value="30" oninput="calcKavralanSaleTotal()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                    <input type="number" step="0.5" id="sale-kavralan-price" value="30" oninput="calcKavralanSaleByPrice()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
                   </div>
                 </div>
               </div>
 
-              <!-- Calculation Preview -->
-              <div class="bg-ghostBg border border-ghostBorder rounded-xl p-3 flex justify-between items-center text-xs">
-                <span id="carpet-calc-text" class="text-ghostMuted">Hisob: -</span>
-                <span id="carpet-calc-total" class="font-bold text-neutral-900 text-sm">$0.00</span>
+              <!-- Calculation & Profit Preview -->
+              <div id="sale-calc-box" class="bg-neutral-50 border border-ghostBorder rounded-xl p-3.5 space-y-2 text-xs">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                  <span id="carpet-calc-text" class="text-neutral-600">Hisob: Rulon va uzunlikni tanlang</span>
+                  <div class="flex items-center gap-2">
+                    <span class="text-ghostMuted">Jami summa:</span>
+                    <span id="carpet-calc-total" class="font-bold text-neutral-900 text-sm">$0.00</span>
+                  </div>
+                </div>
+                <div id="carpet-calc-pnl-row" class="hidden pt-1.5 border-t border-ghostBorder flex items-center justify-between">
+                  <span id="carpet-calc-cost" class="text-neutral-500">Tannarx: $0.00</span>
+                  <span id="carpet-calc-profit" class="font-semibold px-2 py-0.5 rounded text-[11px]"></span>
+                </div>
               </div>
 
               <!-- Payment Type Toggle -->
@@ -786,6 +817,146 @@
                 </thead>
                 <tbody id="expenses-tbody" class="divide-y divide-ghostBorder">
                   <!-- Dynamic expenses -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== TAB: HISOBOT (FOYDA VA ZARAR) ==================== -->
+        <section id="view-reports" class="hidden space-y-6">
+          <!-- Title & Filters Bar -->
+          <div class="bg-white border border-ghostBorder rounded-2xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 class="text-base font-semibold text-neutral-900 tracking-tight flex items-center gap-2">
+                <span>📈</span> Foyda va Zarar Hisoboti
+              </h2>
+              <p class="text-xs text-ghostMuted mt-0.5">Savdo tushumi, tovar tannarxi, rasxodlar va sof moliyaviy natija</p>
+            </div>
+
+            <!-- Filters -->
+            <div class="flex flex-wrap items-center gap-2.5">
+              <!-- Period Buttons -->
+              <div class="inline-flex p-1 bg-neutral-100 rounded-xl text-xs font-medium">
+                <button type="button" onclick="setReportsPeriod('today')" id="rep-period-today" class="rep-period-btn px-3 py-1.5 rounded-lg bg-white shadow-xs text-neutral-900 font-semibold transition">Bugun</button>
+                <button type="button" onclick="setReportsPeriod('week')" id="rep-period-week" class="rep-period-btn px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition">Haftalik</button>
+                <button type="button" onclick="setReportsPeriod('month')" id="rep-period-month" class="rep-period-btn px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition">Oylik</button>
+                <button type="button" onclick="setReportsPeriod('all')" id="rep-period-all" class="rep-period-btn px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition">Barchasi</button>
+              </div>
+
+              <!-- Custom Date Range -->
+              <div class="flex items-center gap-1.5 bg-neutral-50 border border-ghostBorder rounded-xl px-2.5 py-1 text-xs">
+                <input type="date" id="rep-date-from" title="Boshlanish sanasi" class="bg-transparent text-xs text-neutral-700 focus:outline-none">
+                <span class="text-neutral-400">—</span>
+                <input type="date" id="rep-date-to" title="Tugash sanasi" class="bg-transparent text-xs text-neutral-700 focus:outline-none">
+                <button type="button" onclick="applyCustomReportsDate()" class="ml-1 px-2.5 py-1 bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg text-[11px] font-medium transition">Filtr</button>
+              </div>
+
+              <!-- SuperAdmin Branch Select -->
+              <select id="rep-branch-select" onchange="onReportsBranchChange()" class="hidden bg-white border border-ghostBorder rounded-xl px-3 py-1.5 text-xs text-neutral-700 focus:outline-none font-medium">
+                <option value="all">Barcha filiallar</option>
+                <option value="1">Labzak</option>
+                <option value="2">Kartal</option>
+                <option value="3">3-Filial</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- 4 KPI Summary Cards -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- 1. Jami Savdo -->
+            <div class="bg-white border border-ghostBorder rounded-2xl p-5 shadow-xs">
+              <div class="flex items-center justify-between text-xs text-ghostMuted mb-2">
+                <span class="font-medium">Jami Savdo</span>
+                <span class="text-base">💰</span>
+              </div>
+              <div id="kpi-revenue" class="text-2xl font-bold tracking-tight text-neutral-900">$0.00</div>
+              <div id="kpi-sales-count" class="text-[11px] text-neutral-500 mt-1.5">0 ta muvaffaqiyatli sotuv</div>
+            </div>
+
+            <!-- 2. Tovar Tannarxi -->
+            <div class="bg-white border border-ghostBorder rounded-2xl p-5 shadow-xs">
+              <div class="flex items-center justify-between text-xs text-ghostMuted mb-2">
+                <span class="font-medium">Tovar Tannarxi</span>
+                <span class="text-base">📦</span>
+              </div>
+              <div id="kpi-cost" class="text-2xl font-bold tracking-tight text-neutral-700">$0.00</div>
+              <div class="text-[11px] text-neutral-500 mt-1.5">Ombordagi kirim narxi</div>
+            </div>
+
+            <!-- 3. Rasxod -->
+            <div class="bg-white border border-ghostBorder rounded-2xl p-5 shadow-xs">
+              <div class="flex items-center justify-between text-xs text-ghostMuted mb-2">
+                <span class="font-medium">Rasxod (Chiqimlar)</span>
+                <span class="text-base">💸</span>
+              </div>
+              <div id="kpi-expenses" class="text-2xl font-bold tracking-tight text-rose-600">$0.00</div>
+              <div id="kpi-expenses-count" class="text-[11px] text-neutral-500 mt-1.5">0 ta xarajat qayd etilgan</div>
+            </div>
+
+            <!-- 4. Sof Foyda / Zarar -->
+            <div class="bg-white border border-ghostBorder rounded-2xl p-5 shadow-xs">
+              <div class="flex items-center justify-between text-xs text-ghostMuted mb-2">
+                <span class="font-medium">Sof Foyda / Zarar</span>
+                <span id="kpi-profit-icon" class="text-base">📈</span>
+              </div>
+              <div id="kpi-net-profit" class="text-2xl font-bold tracking-tight text-emerald-600">$0.00</div>
+              <div id="kpi-gross-profit" class="text-[11px] text-neutral-500 mt-1.5">Savdo foydasi: $0.00</div>
+            </div>
+          </div>
+
+          <!-- Filiallar bo'yicha taqsimot (SuperAdmin uchun) -->
+          <div id="rep-branch-breakdown-card" class="hidden bg-white border border-ghostBorder rounded-2xl p-5 shadow-xs">
+            <h3 class="text-xs font-semibold uppercase tracking-wider text-ghostMuted mb-3">Filiallar kesimida taqsimot</h3>
+            <div id="rep-branch-breakdown-grid" class="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+
+          <!-- Detailed Transactions: Sales & Expenses -->
+          <div class="bg-white border border-ghostBorder rounded-2xl p-5 shadow-xs space-y-4">
+            <div class="flex items-center justify-between border-b border-ghostBorder pb-3">
+              <div class="inline-flex p-1 bg-neutral-100 rounded-xl text-xs font-medium">
+                <button type="button" onclick="setReportsTableTab('sales')" id="rep-tab-sales" class="px-3 py-1.5 rounded-lg bg-white shadow-xs text-neutral-900 font-semibold transition">🛒 Sotuvlar (Foyda/Zarar)</button>
+                <button type="button" onclick="setReportsTableTab('expenses')" id="rep-tab-expenses" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition">💸 Rasxodlar</button>
+              </div>
+              <span id="rep-table-count" class="text-xs text-ghostMuted font-medium">0 ta yozuv</span>
+            </div>
+
+            <!-- Sales Table -->
+            <div id="rep-sales-table-wrap" class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="border-b border-ghostBorder text-ghostMuted font-medium">
+                    <th class="py-2.5 px-3">Sana</th>
+                    <th class="py-2.5 px-3">Filial</th>
+                    <th class="py-2.5 px-3">Tovar / Nomi</th>
+                    <th class="py-2.5 px-3">Hajm</th>
+                    <th class="py-2.5 px-3">Tannarx</th>
+                    <th class="py-2.5 px-3">Sotuv summasi</th>
+                    <th class="py-2.5 px-3 text-right">Foyda / Zarar</th>
+                  </tr>
+                </thead>
+                <tbody id="rep-sales-tbody" class="divide-y divide-ghostBorder text-neutral-800">
+                  <!-- Dynamically populated -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Expenses Table -->
+            <div id="rep-expenses-table-wrap" class="hidden overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="border-b border-ghostBorder text-ghostMuted font-medium">
+                    <th class="py-2.5 px-3">Sana</th>
+                    <th class="py-2.5 px-3">Filial</th>
+                    <th class="py-2.5 px-3">Kategoriya</th>
+                    <th class="py-2.5 px-3">Izoh / Tafsilot</th>
+                    <th class="py-2.5 px-3 text-right">Summa ($)</th>
+                  </tr>
+                </thead>
+                <tbody id="rep-expenses-tbody" class="divide-y divide-ghostBorder text-neutral-800">
+                  <!-- Dynamically populated -->
                 </tbody>
               </table>
             </div>
@@ -1052,13 +1223,22 @@
       const badge = document.getElementById('header-branch-badge');
       const b1 = document.getElementById('sidebar-block-1');
       const b2 = document.getElementById('sidebar-block-2');
-      badge.innerText = `${ACTIVE_BRANCH}-Filial`;
+      const b3 = document.getElementById('sidebar-block-3');
+      badge.innerText = BRANCH_NAMES[ACTIVE_BRANCH] || `${ACTIVE_BRANCH}-Filial`;
 
       b1.innerHTML = '';
       b2.innerHTML = '';
+      if (b3) b3.innerHTML = '';
+
+      // 3-chi blok: Hisobot (barcha filiallar uchun)
+      if (b3) {
+        b3.innerHTML = `
+          <button onclick="switchView('reports')" id="nav-reports" class="nav-item text-left py-1.5">📈 Foyda va Zarar</button>
+        `;
+      }
 
       if (ACTIVE_BRANCH === 3) {
-        // 3-Filial: 1-blok: Sotuv, Qarz, Rasxod, Kassa; 2-blok: Tarix / Hisobot
+        // 3-Filial: 1-blok: Sotuv, Qarz, Rasxod, Kassa; 2-blok: Tarix / Ombor qoldig'i
         b1.innerHTML = `
           <button onclick="switchView('b3-sale')" id="nav-b3-sale" class="nav-item text-left py-1.5 active">🛒 Sotuv</button>
           <button onclick="switchView('debts')" id="nav-debts" class="nav-item text-left py-1.5">📒 Qarz</button>
@@ -1075,7 +1255,7 @@
         loadExpensesData();
         switchView('b3-sale');
       } else {
-        // 1- and 2-Filial: Exactly as requested in 2 distinct blocks with emojis!
+        // 1- (Labzak) va 2- (Kartal) Filial:
         // 1-chi blok: Sotuv, Qarz, Transfer, Rasxod, Kassa
         b1.innerHTML = `
           <button onclick="switchView('sale')" id="nav-sale" class="nav-item text-left py-1.5 active">🛒 Sotuv</button>
@@ -1089,7 +1269,7 @@
           <button onclick="switchView('import')" id="nav-import" class="nav-item text-left py-1.5">📥 Kirim qilish</button>
           <button onclick="switchView('stock')" id="nav-stock" class="nav-item text-left py-1.5">📦 Ombor qoldig'i</button>
         `;
-        // Show product tabs for 1-Filial (Gilam, Teri, Kavralan), hide for 2-Filial (only Gilam) and user 317633066
+        // Show product tabs for 1-Filial (Labzak), hide for 2-Filial (Kartal - only Gilam) and user 317633066
         const isRezinkaOnly = (ACTIVE_BRANCH === 2 || (CURRENT_USER && CURRENT_USER.user_id === 317633066));
         const isBranch1 = (ACTIVE_BRANCH === 1 && !isRezinkaOnly);
         const stockTabs = document.getElementById('stock-product-tabs');
@@ -1127,6 +1307,7 @@
       document.getElementById('view-debts').classList.add('hidden');
       document.getElementById('view-transfer').classList.add('hidden');
       document.getElementById('view-expenses').classList.add('hidden');
+      document.getElementById('view-reports').classList.add('hidden');
 
       if (viewId === 'b3-sale' || viewId === 'b3-history') {
         document.getElementById('view-branch3').classList.remove('hidden');
@@ -1152,6 +1333,9 @@
       } else if (viewId === 'expenses') {
         document.getElementById('view-expenses').classList.remove('hidden');
         loadExpensesData();
+      } else if (viewId === 'reports') {
+        document.getElementById('view-reports').classList.remove('hidden');
+        loadReportsData();
       }
     }
 
@@ -1512,7 +1696,7 @@
       const opt = select.options[select.selectedIndex];
       if (opt && opt.value) {
         document.getElementById('sale-price').value = opt.dataset.price || 8;
-        calcCarpetSaleTotal();
+        calcCarpetSaleByLength();
       }
     }
 
@@ -1521,60 +1705,193 @@
       const opt = select.options[select.selectedIndex];
       if (opt && opt.value) {
         document.getElementById('sale-kavralan-price').value = opt.dataset.price || 30;
-        calcKavralanSaleTotal();
+        calcKavralanSaleByLength();
       }
     }
 
-    function calcCarpetSaleTotal() {
+    // --- GILAM SOTUV HISOBLARI ---
+    function calcCarpetSaleByLength() {
       const select = document.getElementById('sale-roll-select');
       const opt = select ? select.options[select.selectedIndex] : null;
       if (!opt || !opt.value) {
-        document.getElementById('carpet-calc-text').innerText = "Rulon tanlanmagan";
-        document.getElementById('carpet-calc-total').innerText = "$0.00";
+        updateSaleCalcPreview(0, 0, 0, 0, "Rulon tanlanmagan");
         return;
       }
-
       const width = parseFloat(opt.dataset.width) || 1.2;
       const len = parseFloat(document.getElementById('sale-length').value) || 0;
-      const price = parseFloat(document.getElementById('sale-price').value) || 8;
+      const costPerM2 = parseFloat(opt.dataset.price) || 8.0;
+      const price = parseFloat(document.getElementById('sale-price').value) || costPerM2;
       const area = Math.round(width * len * 100) / 100;
       const total = Math.round(area * price * 100) / 100;
-
-      document.getElementById('carpet-calc-text').innerText = `Rezinka: ${opt.dataset.color} (${width}x${len}m = ${area} m²)`;
-      document.getElementById('carpet-calc-total').innerText = `$${total.toFixed(2)}`;
+      const totalInput = document.getElementById('sale-total-price');
+      if (totalInput && len > 0) totalInput.value = total.toFixed(2);
+      const cost = Math.round(area * costPerM2 * 100) / 100;
+      updateSaleCalcPreview(area, total, cost, len, `Rezinka: ${opt.dataset.color} (${width}m × ${len}m = ${area} m²)`);
     }
 
-    function calcLeatherSaleTotal() {
+    function calcCarpetSaleByTotal() {
+      const select = document.getElementById('sale-roll-select');
+      const opt = select ? select.options[select.selectedIndex] : null;
+      if (!opt || !opt.value) return;
+      const width = parseFloat(opt.dataset.width) || 1.2;
+      const len = parseFloat(document.getElementById('sale-length').value) || 0;
+      const total = parseFloat(document.getElementById('sale-total-price').value) || 0;
+      const area = Math.round(width * len * 100) / 100;
+      if (area > 0 && total > 0) {
+        const derivedPrice = Math.round((total / area) * 100) / 100;
+        document.getElementById('sale-price').value = derivedPrice;
+      }
+      const costPerM2 = parseFloat(opt.dataset.price) || 8.0;
+      const cost = Math.round(area * costPerM2 * 100) / 100;
+      updateSaleCalcPreview(area, total, cost, len, `Rezinka: ${opt.dataset.color} (${width}m × ${len}m = ${area} m²)`);
+    }
+
+    function calcCarpetSaleByPrice() {
+      const select = document.getElementById('sale-roll-select');
+      const opt = select ? select.options[select.selectedIndex] : null;
+      if (!opt || !opt.value) return;
+      const width = parseFloat(opt.dataset.width) || 1.2;
+      const len = parseFloat(document.getElementById('sale-length').value) || 0;
+      const price = parseFloat(document.getElementById('sale-price').value) || 0;
+      const area = Math.round(width * len * 100) / 100;
+      const total = Math.round(area * price * 100) / 100;
+      const totalInput = document.getElementById('sale-total-price');
+      if (totalInput && len > 0) totalInput.value = total.toFixed(2);
+      const costPerM2 = parseFloat(opt.dataset.price) || 8.0;
+      const cost = Math.round(area * costPerM2 * 100) / 100;
+      updateSaleCalcPreview(area, total, cost, len, `Rezinka: ${opt.dataset.color} (${width}m × ${len}m = ${area} m²)`);
+    }
+
+    // --- TERI SOTUV HISOBLARI ---
+    function calcLeatherSaleByQty() {
       const select = document.getElementById('sale-leather-color');
       const opt = select ? select.options[select.selectedIndex] : null;
       if (!opt || !opt.value) {
-        document.getElementById('carpet-calc-text').innerText = "Teri rangi tanlanmagan";
-        document.getElementById('carpet-calc-total').innerText = "$0.00";
+        updateSaleCalcPreview(0, 0, 0, 0, "Teri rangi tanlanmagan");
         return;
       }
       const qty = parseInt(document.getElementById('sale-leather-qty').value) || 0;
-      const price = parseFloat(document.getElementById('sale-leather-price').value) || 50;
+      const costPerItem = parseFloat(opt.dataset.price) || 50.0;
+      const price = parseFloat(document.getElementById('sale-leather-price').value) || costPerItem;
       const total = Math.round(qty * price * 100) / 100;
-
-      document.getElementById('carpet-calc-text').innerText = `Teri: ${opt.value} (${qty} dona × $${price})`;
-      document.getElementById('carpet-calc-total').innerText = `$${total.toFixed(2)}`;
+      const totalInput = document.getElementById('sale-leather-total-price');
+      if (totalInput && qty > 0) totalInput.value = total.toFixed(2);
+      const cost = Math.round(qty * costPerItem * 100) / 100;
+      updateSaleCalcPreview(qty, total, cost, qty, `Teri: ${opt.value} (${qty} dona × $${price})`);
     }
 
-    function calcKavralanSaleTotal() {
+    function calcLeatherSaleByTotal() {
+      const select = document.getElementById('sale-leather-color');
+      const opt = select ? select.options[select.selectedIndex] : null;
+      if (!opt || !opt.value) return;
+      const qty = parseInt(document.getElementById('sale-leather-qty').value) || 0;
+      const total = parseFloat(document.getElementById('sale-leather-total-price').value) || 0;
+      if (qty > 0 && total > 0) {
+        const derivedPrice = Math.round((total / qty) * 100) / 100;
+        document.getElementById('sale-leather-price').value = derivedPrice;
+      }
+      const costPerItem = parseFloat(opt.dataset.price) || 50.0;
+      const cost = Math.round(qty * costPerItem * 100) / 100;
+      updateSaleCalcPreview(qty, total, cost, qty, `Teri: ${opt.value} (${qty} dona × $${(total/qty || 0).toFixed(2)})`);
+    }
+
+    function calcLeatherSaleByPrice() {
+      const select = document.getElementById('sale-leather-color');
+      const opt = select ? select.options[select.selectedIndex] : null;
+      if (!opt || !opt.value) return;
+      const qty = parseInt(document.getElementById('sale-leather-qty').value) || 0;
+      const price = parseFloat(document.getElementById('sale-leather-price').value) || 0;
+      const total = Math.round(qty * price * 100) / 100;
+      const totalInput = document.getElementById('sale-leather-total-price');
+      if (totalInput && qty > 0) totalInput.value = total.toFixed(2);
+      const costPerItem = parseFloat(opt.dataset.price) || 50.0;
+      const cost = Math.round(qty * costPerItem * 100) / 100;
+      updateSaleCalcPreview(qty, total, cost, qty, `Teri: ${opt.value} (${qty} dona × $${price})`);
+    }
+
+    // --- KAVRALAN SOTUV HISOBLARI ---
+    function calcKavralanSaleByLength() {
       const select = document.getElementById('sale-kavralan-select');
       const opt = select ? select.options[select.selectedIndex] : null;
       if (!opt || !opt.value) {
-        document.getElementById('carpet-calc-text').innerText = "Kavralan ruloni tanlanmagan";
-        document.getElementById('carpet-calc-total').innerText = "$0.00";
+        updateSaleCalcPreview(0, 0, 0, 0, "Kavralan tanlanmagan");
         return;
       }
       const len = parseFloat(document.getElementById('sale-kavralan-length').value) || 0;
-      const price = parseFloat(document.getElementById('sale-kavralan-price').value) || 30;
+      const costPerM2 = parseFloat(opt.dataset.price) || 30.0;
+      const price = parseFloat(document.getElementById('sale-kavralan-price').value) || costPerM2;
       const area = Math.round(4.0 * len * 100) / 100;
       const total = Math.round(area * price * 100) / 100;
+      const totalInput = document.getElementById('sale-kavralan-total-price');
+      if (totalInput && len > 0) totalInput.value = total.toFixed(2);
+      const cost = Math.round(area * costPerM2 * 100) / 100;
+      updateSaleCalcPreview(area, total, cost, len, `Asl Kavralan: 4.0m × ${len}m (${area} m² × $${price})`);
+    }
 
-      document.getElementById('carpet-calc-text').innerText = `Asl Kavralan: 4.0x${len}m (${area} m² × $${price})`;
-      document.getElementById('carpet-calc-total').innerText = `$${total.toFixed(2)}`;
+    function calcKavralanSaleByTotal() {
+      const select = document.getElementById('sale-kavralan-select');
+      const opt = select ? select.options[select.selectedIndex] : null;
+      if (!opt || !opt.value) return;
+      const len = parseFloat(document.getElementById('sale-kavralan-length').value) || 0;
+      const total = parseFloat(document.getElementById('sale-kavralan-total-price').value) || 0;
+      const area = Math.round(4.0 * len * 100) / 100;
+      if (area > 0 && total > 0) {
+        const derivedPrice = Math.round((total / area) * 100) / 100;
+        document.getElementById('sale-kavralan-price').value = derivedPrice;
+      }
+      const costPerM2 = parseFloat(opt.dataset.price) || 30.0;
+      const cost = Math.round(area * costPerM2 * 100) / 100;
+      updateSaleCalcPreview(area, total, cost, len, `Asl Kavralan: 4.0m × ${len}m (${area} m² × $${(total/area || 0).toFixed(2)})`);
+    }
+
+    function calcKavralanSaleByPrice() {
+      const select = document.getElementById('sale-kavralan-select');
+      const opt = select ? select.options[select.selectedIndex] : null;
+      if (!opt || !opt.value) return;
+      const len = parseFloat(document.getElementById('sale-kavralan-length').value) || 0;
+      const price = parseFloat(document.getElementById('sale-kavralan-price').value) || 0;
+      const area = Math.round(4.0 * len * 100) / 100;
+      const total = Math.round(area * price * 100) / 100;
+      const totalInput = document.getElementById('sale-kavralan-total-price');
+      if (totalInput && len > 0) totalInput.value = total.toFixed(2);
+      const costPerM2 = parseFloat(opt.dataset.price) || 30.0;
+      const cost = Math.round(area * costPerM2 * 100) / 100;
+      updateSaleCalcPreview(area, total, cost, len, `Asl Kavralan: 4.0m × ${len}m (${area} m² × $${price})`);
+    }
+
+    function updateSaleCalcPreview(areaOrQty, total, cost, activeVal, desc) {
+      const textEl = document.getElementById('carpet-calc-text');
+      const totalEl = document.getElementById('carpet-calc-total');
+      const pnlRow = document.getElementById('carpet-calc-pnl-row');
+      const costEl = document.getElementById('carpet-calc-cost');
+      const profitEl = document.getElementById('carpet-calc-profit');
+
+      if (!textEl) return;
+      textEl.innerText = desc || "Hisob: -";
+      totalEl.innerText = `$${total.toFixed(2)}`;
+
+      if (activeVal > 0) {
+        if (pnlRow) {
+          pnlRow.classList.remove('hidden');
+          pnlRow.classList.add('flex');
+        }
+        if (costEl) costEl.innerText = `Tannarx: $${cost.toFixed(2)}`;
+        const diff = Math.round((total - cost) * 100) / 100;
+        if (profitEl) {
+          if (diff > 0) {
+            profitEl.className = "font-semibold px-2 py-0.5 rounded text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-200";
+            profitEl.innerText = `📈 Foyda: +$${diff.toFixed(2)}`;
+          } else if (diff < 0) {
+            profitEl.className = "font-semibold px-2 py-0.5 rounded text-[11px] text-rose-700 bg-rose-50 border border-rose-200";
+            profitEl.innerText = `📉 Zarar: -$${Math.abs(diff).toFixed(2)}`;
+          } else {
+            profitEl.className = "font-semibold px-2 py-0.5 rounded text-[11px] text-neutral-600 bg-neutral-100";
+            profitEl.innerText = `Tannarxida ($0.00)`;
+          }
+        }
+      } else {
+        if (pnlRow) pnlRow.classList.add('hidden');
+      }
     }
 
     function toggleDebtFields(show) {
@@ -1602,6 +1919,7 @@
         const rollId = document.getElementById('sale-roll-select').value;
         const len = parseFloat(document.getElementById('sale-length').value);
         const pr = parseFloat(document.getElementById('sale-price').value);
+        const tot = parseFloat(document.getElementById('sale-total-price').value);
         if (!rollId || !len) {
           showToast("Rulon va uzunlikni kiriting!", true);
           return;
@@ -1609,10 +1927,12 @@
         body.roll_id = parseInt(rollId);
         body.sold_length = len;
         body.price_per_m2 = pr;
+        if (tot && tot > 0) body.total_price = tot;
       } else if (CURRENT_SALE_PRODUCT === 'leather') {
         const color = document.getElementById('sale-leather-color').value;
         const qty = parseInt(document.getElementById('sale-leather-qty').value);
         const pr = parseFloat(document.getElementById('sale-leather-price').value);
+        const tot = parseFloat(document.getElementById('sale-leather-total-price').value);
         if (!color || !qty) {
           showToast("Teri rangi va sonini kiriting!", true);
           return;
@@ -1620,10 +1940,12 @@
         body.color = color;
         body.quantity = qty;
         body.price_per_item = pr;
+        if (tot && tot > 0) body.total_price = tot;
       } else if (CURRENT_SALE_PRODUCT === 'kavralan') {
         const rollId = document.getElementById('sale-kavralan-select').value;
         const len = parseFloat(document.getElementById('sale-kavralan-length').value);
         const pr = parseFloat(document.getElementById('sale-kavralan-price').value);
+        const tot = parseFloat(document.getElementById('sale-kavralan-total-price').value);
         if (!rollId || !len) {
           showToast("Kavralan ruloni va uzunlikni kiriting!", true);
           return;
@@ -1631,13 +1953,14 @@
         body.roll_id = parseInt(rollId);
         body.sold_length = len;
         body.price_per_m2 = pr;
+        if (tot && tot > 0) body.total_price = tot;
       }
 
       const res = await apiRequest('/api/sales', 'POST', body);
       if (res && res.success) {
         showToast("Sotuv muvaffaqiyatli saqlandi!");
         e.target.reset();
-        calcCarpetSaleTotal();
+        calcCarpetSaleByLength();
         loadStockData();
         loadCashboxData();
       }
@@ -1780,7 +2103,7 @@
           if (bId !== ACTIVE_BRANCH) {
             const opt = document.createElement('option');
             opt.value = bId;
-            opt.innerText = `${bId}-Filial`;
+            opt.innerText = BRANCH_NAMES[bId] || `${bId}-Filial`;
             toSelect.appendChild(opt);
           }
         });
@@ -1797,11 +2120,13 @@
           thRes.transfers.forEach(t => {
             const tr = document.createElement('tr');
             tr.className = "hover:bg-neutral-50 transition";
+            const fromName = BRANCH_NAMES[t.from_branch] || `${t.from_branch}-Filial`;
+            const toName = BRANCH_NAMES[t.to_branch] || `${t.to_branch}-Filial`;
             tr.innerHTML = `
               <td class="py-2.5 text-neutral-500 whitespace-nowrap">${t.created_at || ''}</td>
               <td class="py-2.5 font-semibold text-neutral-900">${t.roll_code}</td>
-              <td class="py-2.5 text-neutral-700">${t.from_branch}-Filial</td>
-              <td class="py-2.5 font-medium text-emerald-700">${t.to_branch}-Filial</td>
+              <td class="py-2.5 text-neutral-700">${fromName}</td>
+              <td class="py-2.5 font-medium text-emerald-700">${toName}</td>
               <td class="py-2.5 text-neutral-600">${t.width}m x ${t.length}m (${t.color})</td>
               <td class="py-2.5 text-neutral-500">${t.note || '-'}</td>
             `;
@@ -1873,6 +2198,199 @@
         loadExpensesData();
         loadCashboxData();
       }
+    }
+
+    // ==================== HISOBOT (FOYDA VA ZARAR) LOGIC ====================
+    let REPORTS_PERIOD = 'today';
+    let REPORTS_BRANCH = 'all';
+    let REPORTS_DATE_FROM = null;
+    let REPORTS_DATE_TO = null;
+    let REPORTS_DATA = null;
+    let REPORTS_TABLE_TAB = 'sales';
+
+    function setReportsPeriod(period) {
+      REPORTS_PERIOD = period;
+      document.querySelectorAll('.rep-period-btn').forEach(btn => {
+        btn.className = "rep-period-btn px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition";
+      });
+      const activeBtn = document.getElementById(`rep-period-${period}`);
+      if (activeBtn) {
+        activeBtn.className = "rep-period-btn px-3 py-1.5 rounded-lg bg-white shadow-xs text-neutral-900 font-semibold transition";
+      }
+      loadReportsData();
+    }
+
+    function applyCustomReportsDate() {
+      const from = document.getElementById('rep-date-from').value;
+      const to = document.getElementById('rep-date-to').value;
+      if (!from) {
+        showToast("Boshlanish sanasini kiriting!", true);
+        return;
+      }
+      REPORTS_PERIOD = 'custom';
+      REPORTS_DATE_FROM = from;
+      REPORTS_DATE_TO = to || from;
+      document.querySelectorAll('.rep-period-btn').forEach(btn => {
+        btn.className = "rep-period-btn px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition";
+      });
+      loadReportsData();
+    }
+
+    function onReportsBranchChange() {
+      const sel = document.getElementById('rep-branch-select');
+      REPORTS_BRANCH = sel.value;
+      loadReportsData();
+    }
+
+    function setReportsTableTab(tab) {
+      REPORTS_TABLE_TAB = tab;
+      const salesWrap = document.getElementById('rep-sales-table-wrap');
+      const expWrap = document.getElementById('rep-expenses-table-wrap');
+      const tabSales = document.getElementById('rep-tab-sales');
+      const tabExp = document.getElementById('rep-tab-expenses');
+
+      if (tab === 'sales') {
+        salesWrap.classList.remove('hidden');
+        expWrap.classList.add('hidden');
+        tabSales.className = "px-3 py-1.5 rounded-lg bg-white shadow-xs text-neutral-900 font-semibold transition";
+        tabExp.className = "px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition";
+        if (REPORTS_DATA && REPORTS_DATA.sales) {
+          document.getElementById('rep-table-count').innerText = `${REPORTS_DATA.sales.length} ta sotuv`;
+        }
+      } else {
+        salesWrap.classList.add('hidden');
+        expWrap.classList.remove('hidden');
+        tabSales.className = "px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition";
+        tabExp.className = "px-3 py-1.5 rounded-lg bg-white shadow-xs text-neutral-900 font-semibold transition";
+        if (REPORTS_DATA && REPORTS_DATA.expenses) {
+          document.getElementById('rep-table-count').innerText = `${REPORTS_DATA.expenses.length} ta rasxod`;
+        }
+      }
+    }
+
+    async function loadReportsData() {
+      const isAdmin = (CURRENT_USER && CURRENT_USER.role === 'superadmin');
+      const branchSel = document.getElementById('rep-branch-select');
+      if (branchSel) {
+        branchSel.classList.toggle('hidden', !isAdmin);
+      }
+
+      let branchParam = isAdmin ? REPORTS_BRANCH : ACTIVE_BRANCH;
+      let url = `/api/reports/profit-loss?period=${REPORTS_PERIOD}&branch_id=${branchParam}`;
+      if (REPORTS_PERIOD === 'custom' && REPORTS_DATE_FROM) {
+        url += `&date_from=${REPORTS_DATE_FROM}`;
+        if (REPORTS_DATE_TO) url += `&date_to=${REPORTS_DATE_TO}`;
+      }
+
+      const res = await apiRequest(url);
+      if (!res || !res.summary) return;
+      REPORTS_DATA = res;
+
+      // Update KPI Cards
+      const s = res.summary;
+      document.getElementById('kpi-revenue').innerText = `$${s.total_revenue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('kpi-cost').innerText = `$${s.total_cost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('kpi-expenses').innerText = `$${s.total_expenses.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      document.getElementById('kpi-sales-count').innerText = `${s.sales_count} ta muvaffaqiyatli sotuv`;
+      document.getElementById('kpi-expenses-count').innerText = `${s.expenses_count} ta xarajat qayd etilgan`;
+
+      const netEl = document.getElementById('kpi-net-profit');
+      const grossEl = document.getElementById('kpi-gross-profit');
+      const pIcon = document.getElementById('kpi-profit-icon');
+
+      grossEl.innerText = `Savdo foydasi: $${s.gross_profit.toFixed(2)}`;
+      if (s.net_profit >= 0) {
+        netEl.className = "text-2xl font-bold tracking-tight text-emerald-600";
+        netEl.innerText = `+$${s.net_profit.toFixed(2)}`;
+        pIcon.innerText = "📈";
+      } else {
+        netEl.className = "text-2xl font-bold tracking-tight text-rose-600";
+        netEl.innerText = `-$${Math.abs(s.net_profit).toFixed(2)}`;
+        pIcon.innerText = "📉";
+      }
+
+      // Branch breakdown cards
+      const brCard = document.getElementById('rep-branch-breakdown-card');
+      const brGrid = document.getElementById('rep-branch-breakdown-grid');
+      if (isAdmin && REPORTS_BRANCH === 'all' && res.by_branch) {
+        brCard.classList.remove('hidden');
+        brGrid.innerHTML = '';
+        Object.entries(res.by_branch).forEach(([bid, b]) => {
+          const div = document.createElement('div');
+          div.className = "p-3.5 bg-neutral-50 rounded-xl border border-ghostBorder space-y-1 text-xs";
+          const profitColor = b.net_profit >= 0 ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold';
+          const profitSign = b.net_profit >= 0 ? '+' : '-';
+          div.innerHTML = `
+            <div class="flex justify-between items-center">
+              <span class="font-semibold text-neutral-900">${b.branch_name}</span>
+              <span class="${profitColor}">${profitSign}$${Math.abs(b.net_profit).toFixed(2)}</span>
+            </div>
+            <div class="text-[11px] text-ghostMuted flex justify-between">
+              <span>Savdo: $${b.revenue.toFixed(2)} (${b.sales_count} ta)</span>
+              <span>Rasxod: $${b.expenses.toFixed(2)}</span>
+            </div>
+          `;
+          brGrid.appendChild(div);
+        });
+      } else {
+        brCard.classList.add('hidden');
+      }
+
+      // Render Sales Table
+      const salesTbody = document.getElementById('rep-sales-tbody');
+      salesTbody.innerHTML = '';
+      if (!res.sales || res.sales.length === 0) {
+        salesTbody.innerHTML = `<tr><td colspan="7" class="py-4 text-center text-ghostMuted">Ushbu davrda sotuvlar mavjud emas</td></tr>`;
+      } else {
+        res.sales.forEach(s => {
+          const tr = document.createElement('tr');
+          tr.className = "hover:bg-neutral-50 transition";
+          const bName = BRANCH_NAMES[s.branch_id] || `${s.branch_id}-Filial`;
+          const profitNum = parseFloat(s.profit) || 0;
+          let profitBadge = '';
+          if (profitNum > 0) {
+            profitBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200">+$${profitNum.toFixed(2)}</span>`;
+          } else if (profitNum < 0) {
+            profitBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-semibold text-rose-700 bg-rose-50 border border-rose-200">-$${Math.abs(profitNum).toFixed(2)}</span>`;
+          } else {
+            profitBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-medium text-neutral-500 bg-neutral-100">$0.00</span>`;
+          }
+          const unit = s.category === 'leather' ? 'dona' : 'm²';
+          tr.innerHTML = `
+            <td class="py-2.5 px-3 text-neutral-500 whitespace-nowrap">${s.created_at}</td>
+            <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded bg-neutral-100 text-neutral-700 font-medium">${bName}</span></td>
+            <td class="py-2.5 px-3 font-medium text-neutral-900">${s.title}</td>
+            <td class="py-2.5 px-3 text-neutral-600">${s.area_m2} ${unit}</td>
+            <td class="py-2.5 px-3 text-neutral-600">$${(parseFloat(s.cost_price) || 0).toFixed(2)}</td>
+            <td class="py-2.5 px-3 font-bold text-neutral-900">$${(parseFloat(s.total_price) || 0).toFixed(2)}</td>
+            <td class="py-2.5 px-3 text-right">${profitBadge}</td>
+          `;
+          salesTbody.appendChild(tr);
+        });
+      }
+
+      // Render Expenses Table
+      const expTbody = document.getElementById('rep-expenses-tbody');
+      expTbody.innerHTML = '';
+      if (!res.expenses || res.expenses.length === 0) {
+        expTbody.innerHTML = `<tr><td colspan="5" class="py-4 text-center text-ghostMuted">Ushbu davrda rasxodlar mavjud emas</td></tr>`;
+      } else {
+        res.expenses.forEach(e => {
+          const tr = document.createElement('tr');
+          tr.className = "hover:bg-neutral-50 transition";
+          const bName = BRANCH_NAMES[e.branch_id] || `${e.branch_id}-Filial`;
+          tr.innerHTML = `
+            <td class="py-2.5 px-3 text-neutral-500 whitespace-nowrap">${e.created_at}</td>
+            <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded bg-neutral-100 text-neutral-700 font-medium">${bName}</span></td>
+            <td class="py-2.5 px-3 uppercase text-[11px] font-semibold text-neutral-600">${e.category}</td>
+            <td class="py-2.5 px-3 text-neutral-800">${e.note || '-'}</td>
+            <td class="py-2.5 px-3 text-right font-bold text-rose-600">-$${(parseFloat(e.amount) || 0).toFixed(2)}</td>
+          `;
+          expTbody.appendChild(tr);
+        });
+      }
+
+      setReportsTableTab(REPORTS_TABLE_TAB);
     }
 
     // ==================== SUPER ADMIN STOCK EDIT & DELETE LOGIC ====================

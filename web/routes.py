@@ -248,6 +248,9 @@ async def api_make_sale(request: web.Request):
     customer_phone = str(body.get("customer_phone", "")).strip()
     initial_paid = float(body.get("initial_paid", 0.0))
     
+    raw_total = body.get("total_price")
+    custom_total_price = float(raw_total) if raw_total is not None and str(raw_total).strip() != "" and float(raw_total) > 0 else None
+    
     try:
         if product_type == "carpet":
             roll_id = int(body["roll_id"])
@@ -258,6 +261,7 @@ async def api_make_sale(request: web.Request):
                 sold_length=sold_length,
                 branch_id=branch_id,
                 price_per_m2=price_per_m2,
+                custom_total_price=custom_total_price,
                 is_debt=is_debt,
                 customer_name=customer_name,
                 customer_phone=customer_phone,
@@ -273,6 +277,7 @@ async def api_make_sale(request: web.Request):
                 sold_length=sold_length,
                 branch_id=branch_id,
                 price_per_m2=price_per_m2,
+                custom_total_price=custom_total_price,
                 is_debt=is_debt,
                 customer_name=customer_name,
                 customer_phone=customer_phone,
@@ -288,6 +293,7 @@ async def api_make_sale(request: web.Request):
                 quantity=quantity,
                 branch_id=branch_id,
                 price_per_item=price_per_item,
+                custom_total_price=custom_total_price,
                 is_debt=is_debt,
                 customer_name=customer_name,
                 customer_phone=customer_phone,
@@ -298,6 +304,34 @@ async def api_make_sale(request: web.Request):
             return json_response({"error": "Noma'lum tovar turi"}, status=400)
     except Exception as e:
         logger.error(f"Sotuvda xatolik: {e}")
+        return json_response({"error": str(e)}, status=400)
+
+@auth_required
+async def api_get_profit_loss(request: web.Request):
+    user = request["user"]
+    if user["role"] == "superadmin":
+        branch_param = request.query.get("branch_id")
+        if branch_param and branch_param != "all":
+            branch_id = int(branch_param)
+        else:
+            branch_id = None
+    else:
+        branch_id = user["branch_id"]
+        
+    period = request.query.get("period", "today")
+    date_from = request.query.get("date_from")
+    date_to = request.query.get("date_to")
+    
+    try:
+        report = await local_db.get_profit_loss_report(
+            branch_id=branch_id,
+            period=period,
+            date_from=date_from,
+            date_to=date_to
+        )
+        return json_response(report)
+    except Exception as e:
+        logger.error(f"Foyda-zarar hisobotida xatolik: {e}")
         return json_response({"error": str(e)}, status=400)
 
 # --- KASSA VA NASIYA APIS ---

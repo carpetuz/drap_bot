@@ -9,7 +9,8 @@ from web.routes import (
     api_get_cashbox, api_withdraw_cash,
     api_get_debts, api_pay_debt,
     api_transfer_roll, api_get_transfers, api_get_expenses, api_add_expense,
-    api_edit_roll, api_delete_roll, api_edit_leather, api_edit_kavralan, api_delete_kavralan
+    api_edit_roll, api_delete_roll, api_edit_leather, api_edit_kavralan, api_delete_kavralan,
+    api_get_profit_loss
 )
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,9 @@ def setup_web_app(bot: Bot = None) -> web.Application:
     app.router.add_post("/api/stock/edit-leather", api_edit_leather)
     app.router.add_post("/api/stock/edit-kavralan", api_edit_kavralan)
     app.router.add_post("/api/stock/delete-kavralan", api_delete_kavralan)
+
+    # Reports (Hisobot: Foyda va Zarar)
+    app.router.add_get("/api/reports/profit-loss", api_get_profit_loss)
 
     # Static files directory
     static_dir = os.path.join(os.path.dirname(__file__), "static")
