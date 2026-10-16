@@ -339,7 +339,7 @@
                     <th class="pb-2.5">Qoldiq (m)</th>
                     <th class="pb-2.5">Maydon (m²)</th>
                     <th id="th-carpet-price" class="pb-2.5">1 m² narxi</th>
-                    <th class="pb-2.5">Jami qiymati</th>
+                    <th id="th-carpet-total" class="pb-2.5">Jami qiymati</th>
                     <th id="th-carpet-actions" class="pb-2.5 text-right hidden">Amallar</th>
                   </tr>
                 </thead>
@@ -1312,6 +1312,10 @@
         if (thPrice) {
           thPrice.innerText = isKartal ? "Narx (Kelgan / Sotish)" : "1 m² narxi";
         }
+        const thTotal = document.getElementById('th-carpet-total');
+        if (thTotal) {
+          thTotal.innerText = isKartal ? "Jami qiymati (Kelgan / Sotish)" : "Jami qiymati";
+        }
 
         setSaleProduct('carpet');
         setImportProduct('carpet');
@@ -1583,8 +1587,12 @@
           `;
         }
         let priceTd = `<td class="py-2.5 text-neutral-600">$${r.price_per_m2 || 8}</td>`;
-        if (isRezinkaRestricted() && r.cost_price_per_m2 && r.cost_price_per_m2 > 0) {
-          priceTd = `<td class="py-2.5 text-xs leading-snug"><span class="text-neutral-400">Kelgan:</span> <b class="text-emerald-700 font-semibold">$${r.cost_price_per_m2}</b><br><span class="text-neutral-400">Sotish:</span> <b class="text-neutral-900 font-semibold">$${r.price_per_m2 || 8}</b></td>`;
+        let totalTd = `<td class="py-2.5 font-semibold text-neutral-900">$${r.total_price}</td>`;
+        if (isRezinkaRestricted()) {
+          const costVal = (r.cost_price_per_m2 && r.cost_price_per_m2 > 0) ? `$${r.cost_price_per_m2}` : '—';
+          priceTd = `<td class="py-2.5 text-xs leading-snug"><span class="text-neutral-400">Kelgan:</span> <b class="text-emerald-700 font-semibold">${costVal}</b><br><span class="text-neutral-400">Sotish:</span> <b class="text-neutral-900 font-semibold">$${r.price_per_m2 || 8}</b></td>`;
+          const totalCostVal = (r.cost_price_per_m2 && r.cost_price_per_m2 > 0) ? `$${(Math.round(r.area_m2 * r.cost_price_per_m2 * 100) / 100).toFixed(2)}` : '—';
+          totalTd = `<td class="py-2.5 text-xs leading-snug"><span class="text-neutral-400">Kelgan:</span> <b class="text-emerald-700 font-semibold">${totalCostVal}</b><br><span class="text-neutral-400">Sotish:</span> <b class="text-neutral-900 font-semibold">$${r.total_price}</b></td>`;
         }
         tr.innerHTML = `
           <td class="py-2.5 font-semibold text-neutral-900">${r.width} m</td>
@@ -1592,7 +1600,7 @@
           <td class="py-2.5 font-medium text-neutral-900">${r.current_length} m</td>
           <td class="py-2.5 text-neutral-600">${r.area_m2} m²</td>
           ${priceTd}
-          <td class="py-2.5 font-semibold text-neutral-900">$${r.total_price}</td>
+          ${totalTd}
           ${actionsTd}
         `;
         tbody.appendChild(tr);
