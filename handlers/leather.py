@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 @router.message(F.text == "🐑 Teri Bo'limi")
 async def open_leather_menu(message: Message, state: FSMContext):
     role, branch_id = get_user_role(message.from_user.id)
-    if role != "branch" or branch_id in [2, 3]:
+    if role != "branch" or branch_id in [2, 3] or message.from_user.id == 317633066:
         return
     await state.clear()
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
@@ -46,7 +46,7 @@ async def open_leather_menu(message: Message, state: FSMContext):
 @router.message(F.text == "📥 Teri Kirim")
 async def start_leather_import(message: Message, state: FSMContext):
     role, branch_id = get_user_role(message.from_user.id)
-    if role != "branch":
+    if role != "branch" or branch_id in [2, 3] or message.from_user.id == 317633066:
         return
     await state.clear()
     await state.set_state(LeatherImportStates.choosing_color)
@@ -140,7 +140,7 @@ async def confirm_leather_import(callback: CallbackQuery, state: FSMContext):
 @router.message(F.text == "🛒 Teri Sotuv")
 async def start_leather_sale(message: Message, state: FSMContext):
     role, branch_id = get_user_role(message.from_user.id)
-    if role != "branch":
+    if role != "branch" or branch_id in [2, 3] or message.from_user.id == 317633066:
         return
     await state.clear()
     
@@ -421,7 +421,7 @@ async def confirm_leather_debt_final(callback: CallbackQuery, state: FSMContext)
 @router.message(F.text == "📦 Teri Ombori")
 async def show_leather_inventory(message: Message):
     role, branch_id = get_user_role(message.from_user.id)
-    if role != "branch":
+    if role != "branch" or branch_id in [2, 3] or message.from_user.id == 317633066:
         return
     stocks = await get_leather_stock(branch_id=branch_id)
     b_name = BRANCH_NAMES.get(branch_id, "Filial")

@@ -979,8 +979,9 @@
           <button onclick="switchView('import')" id="nav-import" class="nav-item text-left py-1.5">📥 Kirim qilish</button>
           <button onclick="switchView('stock')" id="nav-stock" class="nav-item text-left py-1.5">📦 Ombor qoldig'i</button>
         `;
-        // Show product tabs for 1-Filial (Gilam, Teri, Kavralan), hide for 2-Filial (only Gilam)
-        const isBranch1 = (ACTIVE_BRANCH === 1);
+        // Show product tabs for 1-Filial (Gilam, Teri, Kavralan), hide for 2-Filial (only Gilam) and user 317633066
+        const isRezinkaOnly = (ACTIVE_BRANCH === 2 || (CURRENT_USER && CURRENT_USER.user_id === 317633066));
+        const isBranch1 = (ACTIVE_BRANCH === 1 && !isRezinkaOnly);
         const stockTabs = document.getElementById('stock-product-tabs');
         const importTabs = document.getElementById('import-product-tabs');
         const saleTabs = document.getElementById('sale-product-tabs');
@@ -1142,7 +1143,12 @@
     }
 
     // ==================== MULTI-PRODUCT SWITCHERS ====================
+    function isRezinkaRestricted() {
+      return (ACTIVE_BRANCH === 2 || (CURRENT_USER && CURRENT_USER.user_id === 317633066));
+    }
+
     function setStockTab(type) {
+      if (isRezinkaRestricted()) type = 'carpet';
       CURRENT_STOCK_TAB = type;
       ['carpet', 'leather', 'kavralan'].forEach(t => {
         const tab = document.getElementById(`stock-tab-${t}`);
@@ -1160,6 +1166,7 @@
     }
 
     function setImportProduct(type) {
+      if (isRezinkaRestricted()) type = 'carpet';
       CURRENT_IMPORT_PRODUCT = type;
       ['carpet', 'leather', 'kavralan'].forEach(t => {
         const tab = document.getElementById(`import-tab-${t}`);
@@ -1177,6 +1184,7 @@
     }
 
     function setSaleProduct(type) {
+      if (isRezinkaRestricted()) type = 'carpet';
       CURRENT_SALE_PRODUCT = type;
       ['carpet', 'leather', 'kavralan'].forEach(t => {
         const tab = document.getElementById(`sale-tab-${t}`);

@@ -173,10 +173,11 @@ async def api_branch3_sales(request: web.Request):
 async def api_get_stock(request: web.Request):
     user = request["user"]
     branch_id = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
+    is_rezinka_only = (branch_id == 2 or user.get("user_id") == 317633066)
     
     rolls = await local_db.get_all_active_rolls(branch_id=branch_id)
-    kavralan = await local_db.get_all_active_kavralan_rolls(branch_id=branch_id)
-    leather = await local_db.get_leather_stock(branch_id=branch_id)
+    kavralan = [] if is_rezinka_only else await local_db.get_all_active_kavralan_rolls(branch_id=branch_id)
+    leather = [] if is_rezinka_only else await local_db.get_leather_stock(branch_id=branch_id)
     
     return json_response({
         "branch_id": branch_id,
@@ -187,7 +188,7 @@ async def api_get_stock(request: web.Request):
         "config": {
             "available_widths": AVAILABLE_WIDTHS,
             "available_colors": AVAILABLE_COLORS,
-            "leather_colors": LEATHER_COLORS,
+            "leather_colors": LEATHER_COLORS if not is_rezinka_only else [],
             "kavralan_width": KAVRALAN_WIDTH,
             "branch3_collections": BRANCH3_COLLECTIONS
         }
@@ -197,9 +198,13 @@ async def api_get_stock(request: web.Request):
 async def api_add_roll(request: web.Request):
     user = request["user"]
     branch_id = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
+    is_rezinka_only = (branch_id == 2 or user.get("user_id") == 317633066)
     
     body = await request.json()
     product_type = body.get("product_type", "carpet") # carpet, kavralan, leather
+    
+    if is_rezinka_only and product_type != "carpet":
+        return json_response({"error": "Sizning hisobingizda faqat rezinka gilam qabul qilinadi"}, status=403)
     
     try:
         if product_type == "carpet":
@@ -230,9 +235,14 @@ async def api_add_roll(request: web.Request):
 async def api_make_sale(request: web.Request):
     user = request["user"]
     branch_id = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
+    is_rezinka_only = (branch_id == 2 or user.get("user_id") == 317633066)
     
     body = await request.json()
     product_type = body.get("product_type", "carpet")
+    
+    if is_rezinka_only and product_type != "carpet":
+        return json_response({"error": "Sizning hisobingizda faqat rezinka gilam sotiladi"}, status=403)
+    
     is_debt = bool(body.get("is_debt", False))
     customer_name = str(body.get("customer_name", "")).strip()
     customer_phone = str(body.get("customer_phone", "")).strip()

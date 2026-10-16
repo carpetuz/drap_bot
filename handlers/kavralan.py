@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 @router.message(F.text == "🧶 Asl Kavralan")
 async def open_kavralan_menu(message: Message, state: FSMContext):
     role, branch_id = get_user_role(message.from_user.id)
-    if role != "branch" or branch_id in [2, 3]:
+    if role != "branch" or branch_id in [2, 3] or message.from_user.id == 317633066:
         return
     await state.clear()
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
@@ -45,7 +45,7 @@ async def open_kavralan_menu(message: Message, state: FSMContext):
 @router.message(F.text == "📥 Kavralan Kirim")
 async def start_kavralan_import(message: Message, state: FSMContext):
     role, branch_id = get_user_role(message.from_user.id)
-    if role != "branch":
+    if role != "branch" or branch_id in [2, 3] or message.from_user.id == 317633066:
         return
     await state.clear()
     await state.set_state(KavralanImportStates.entering_length)
@@ -134,7 +134,7 @@ async def confirm_kavralan_import(callback: CallbackQuery, state: FSMContext):
 @router.message(F.text == "🛒 Kavralan Sotuv")
 async def start_kavralan_sale(message: Message, state: FSMContext):
     role, branch_id = get_user_role(message.from_user.id)
-    if role != "branch":
+    if role != "branch" or branch_id in [2, 3] or message.from_user.id == 317633066:
         return
     await state.clear()
 
@@ -443,7 +443,7 @@ async def confirm_kavralan_debt_final(callback: CallbackQuery, state: FSMContext
 @router.message(F.text == "📦 Kavralan Ombori")
 async def show_kavralan_inventory(message: Message):
     role, branch_id = get_user_role(message.from_user.id)
-    if role != "branch":
+    if role != "branch" or branch_id in [2, 3] or message.from_user.id == 317633066:
         return
     rolls = await get_available_kavralan_rolls(branch_id=branch_id)
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
