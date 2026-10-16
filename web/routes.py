@@ -447,8 +447,24 @@ async def api_transfer_roll(request: web.Request):
         return json_response({"error": "O'z filialingizga transfer qilib bo'lmaydi"}, status=400)
     note = body.get("note", "").strip()
     
+    transfer_length_raw = body.get("transfer_length")
+    transfer_length = None
+    if transfer_length_raw is not None and str(transfer_length_raw).strip() != "":
+        try:
+            transfer_length = float(transfer_length_raw)
+            if transfer_length <= 0:
+                return json_response({"error": "O'tkaziladigan miqdor (uzunlik) musbat son bo'lishi kerak"}, status=400)
+        except ValueError:
+            return json_response({"error": "O'tkaziladigan miqdor noto'g'ri kiritildi"}, status=400)
+    
     try:
-        res = await local_db.transfer_roll(roll_id=roll_id, from_branch=from_branch, to_branch=to_branch, note=note)
+        res = await local_db.transfer_roll(
+            roll_id=roll_id, 
+            from_branch=from_branch, 
+            to_branch=to_branch, 
+            transfer_length=transfer_length,
+            note=note
+        )
         
         # Send Telegram notification to destination branch users & super admins
         bot = request.app.get("bot")

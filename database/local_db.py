@@ -351,7 +351,7 @@ async def get_expenses(branch_id: int = 1, limit: int = 50) -> list[dict]:
             rows = await cur.fetchall()
             return [dict(r) for r in rows]
 
-async def transfer_roll(roll_id: int, from_branch: int, to_branch: int, note: str = "") -> dict:
+async def transfer_roll(roll_id: int, from_branch: int, to_branch: int, transfer_length: float | None = None, note: str = "") -> dict:
     created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
@@ -360,20 +360,60 @@ async def transfer_roll(roll_id: int, from_branch: int, to_branch: int, note: st
             if not roll:
                 raise ValueError("Rulon topilmadi yoki ushbu filialga tegishli emas!")
                 
-        await db.execute("UPDATE rolls SET branch_id = ? WHERE id = ?", (to_branch, roll_id))
+        curr_len = float(roll["current_length"])
+        if transfer_length is None or float(transfer_length) <= 0:
+            transfer_length = curr_len
+        else:
+            transfer_length = round(float(transfer_length), 2)
+            
+        if transfer_length > curr_len:
+            raise ValueError(f"O'tkaziladigan miqdor qoldiqdan ({curr_len} m) ko'p bo'lishi mumkin emas!")
+
+        if transfer_length >= curr_len:
+            # Butun rulon to'liq o'tkaziladi
+            await db.execute("UPDATE rolls SET branch_id = ? WHERE id = ?", (to_branch, roll_id))
+            target_roll_id = roll_id
+            target_roll_code = roll["roll_code"]
+        else:
+            # Qisman transfer: manba filialdagi rulon qoldig'i kamaytiriladi
+            new_source_len = round(curr_len - transfer_length, 2)
+            new_source_area = round(float(roll["width"]) * new_source_len, 2)
+            new_source_total = round(new_source_area * float(roll["price_per_m2"]), 2)
+            await db.execute("""
+                UPDATE rolls 
+                SET current_length = ?, area_m2 = ?, total_price = ? 
+                WHERE id = ?
+            """, (new_source_len, new_source_area, new_source_total, roll_id))
+
+            # Qabul qiluvchi filialda yangi rulon ochiladi
+            async with db.execute("SELECT MAX(id) FROM rolls") as cursor:
+                row = await cursor.fetchone()
+                next_id = (row[0] or 0) + 1
+                target_roll_code = f"#F{to_branch}-{1000 + next_id}"
+            
+            target_area = round(float(roll["width"]) * transfer_length, 2)
+            target_total = round(target_area * float(roll["price_per_m2"]), 2)
+            cost_pr = roll["cost_price_per_m2"] if "cost_price_per_m2" in roll.keys() and roll["cost_price_per_m2"] else roll["price_per_m2"]
+            
+            cur_ins = await db.execute("""
+                INSERT INTO rolls (branch_id, roll_code, width, color, initial_length, current_length, area_m2, price_per_m2, cost_price_per_m2, total_price, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
+            """, (to_branch, target_roll_code, roll["width"], roll["color"], transfer_length, transfer_length, target_area, roll["price_per_m2"], cost_pr, target_total, created_at))
+            target_roll_id = cur_ins.lastrowid
+
         await db.execute("""
             INSERT INTO transfers (roll_id, roll_code, from_branch, to_branch, width, color, length, note, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (roll_id, roll["roll_code"], from_branch, to_branch, roll["width"], roll["color"], roll["current_length"], note, created_at))
+        """, (target_roll_id, target_roll_code, from_branch, to_branch, roll["width"], roll["color"], transfer_length, note, created_at))
         await db.commit()
         return {
-            "roll_id": roll_id,
-            "roll_code": roll["roll_code"],
+            "roll_id": target_roll_id,
+            "roll_code": target_roll_code,
             "from_branch": from_branch,
             "to_branch": to_branch,
             "width": roll["width"],
             "color": roll["color"],
-            "current_length": roll["current_length"],
+            "current_length": transfer_length,
             "note": note,
             "created_at": created_at
         }

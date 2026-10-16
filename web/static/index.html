@@ -513,8 +513,12 @@
               <!-- CARPET SALE FIELDS -->
               <div id="sale-carpet-fields" class="space-y-4">
                 <div>
-                  <label class="block text-xs font-medium text-neutral-600 mb-1">Ombordagi faol rulon:</label>
-                  <select id="sale-roll-select" onchange="onRollSelected()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                  <div class="flex items-center justify-between mb-1">
+                    <label class="block text-xs font-medium text-neutral-600">Ombordagi faol rulon:</label>
+                    <span id="sale-roll-count" class="text-[11px] text-ghostMuted"></span>
+                  </div>
+                  <input type="text" id="sale-roll-search" oninput="filterSaleRollDropdown()" placeholder="Filtr: masalan 0.8x seriy yoki 1.2x Bordo..." class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-neutral-900 mb-2">
+                  <select id="sale-roll-select" onchange="onRollSelected()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900 font-medium">
                     <option value="">Rulonni tanlang...</option>
                   </select>
                 </div>
@@ -720,10 +724,23 @@
 
             <form onsubmit="submitRollTransfer(event)" class="space-y-4">
               <div>
-                <label class="block text-xs font-medium text-neutral-600 mb-1">O'tkaziladigan rulon:</label>
-                <select id="transfer-roll-select" required class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block text-xs font-medium text-neutral-600">O'tkaziladigan rulon:</label>
+                  <span id="transfer-roll-count" class="text-[11px] text-ghostMuted"></span>
+                </div>
+                <input type="text" id="transfer-roll-search" oninput="filterTransferRollDropdown()" placeholder="Filtr: masalan 0.8x seriy yoki 1.2x..." class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-neutral-900 mb-2">
+                <select id="transfer-roll-select" onchange="onTransferRollSelected()" required class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900 font-medium">
                   <option value="">Rulonni tanlang...</option>
                 </select>
+              </div>
+
+              <div>
+                <div class="flex items-center justify-between mb-1">
+                  <label class="block text-xs font-medium text-neutral-600">O'tkaziladigan miqdor (uzunlik, metrda):</label>
+                  <span id="transfer-remain-hint" class="text-[11px] text-emerald-700 font-semibold"></span>
+                </div>
+                <input type="number" step="0.01" id="transfer-length" required placeholder="0.0" class="w-full bg-ghostBg border border-neutral-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900 font-semibold text-neutral-900">
+                <p class="text-[11px] text-ghostMuted mt-1">Rulon to'liq o'tishi uchun butun qoldiqni, qisman o'tishi uchun kerakli metrni kiriting.</p>
               </div>
 
               <div>
@@ -755,10 +772,10 @@
                 <thead>
                   <tr class="border-b border-ghostBorder text-ghostMuted font-medium">
                     <th class="pb-2.5">Sana</th>
-                    <th class="pb-2.5">Rulon kodi</th>
                     <th class="pb-2.5">Qayerdan</th>
                     <th class="pb-2.5">Qayerga</th>
-                    <th class="pb-2.5">O'lchami / Rangi</th>
+                    <th class="pb-2.5">Mahsulot</th>
+                    <th class="pb-2.5">O'tkazilgan miqdor</th>
                     <th class="pb-2.5">Izoh</th>
                   </tr>
                 </thead>
@@ -1569,9 +1586,10 @@
       renderLeatherStockTable(ALL_LEATHER);
       renderKavralanStockTable(ALL_KAVRALAN);
 
-      populateSaleRollDropdown(ALL_ROLLS);
+      filterSaleRollDropdown();
       populateLeatherColorDropdown(ALL_LEATHER);
       populateKavralanRollDropdown(ALL_KAVRALAN);
+      if (typeof filterTransferRollDropdown === 'function') filterTransferRollDropdown();
     }
 
     function renderStockTable(rolls) {
@@ -1732,9 +1750,21 @@
       renderKavralanStockTable(filteredKav);
     }
 
+    function filterSaleRollDropdown() {
+      const searchInput = document.getElementById('sale-roll-search');
+      const q = searchInput ? searchInput.value : '';
+      const filtered = ALL_ROLLS.filter(r => matchRollQuery(r, q));
+      populateSaleRollDropdown(filtered);
+    }
+
     function populateSaleRollDropdown(rolls) {
       const select = document.getElementById('sale-roll-select');
       if (!select) return;
+      const prevVal = select.value;
+      const countEl = document.getElementById('sale-roll-count');
+      if (countEl) {
+        countEl.innerText = `${rolls.length} ta rulon`;
+      }
       select.innerHTML = '<option value="">Rulonni tanlang...</option>';
       rolls.forEach(r => {
         const opt = document.createElement('option');
@@ -1745,13 +1775,17 @@
         opt.dataset.price = r.price_per_m2 || 8;
         opt.dataset.costPrice = (r.cost_price_per_m2 && r.cost_price_per_m2 > 0) ? r.cost_price_per_m2 : (r.price_per_m2 || 8);
         opt.dataset.rollCode = r.roll_code;
-        if (isRezinkaRestricted() && r.cost_price_per_m2 && r.cost_price_per_m2 > 0) {
-          opt.innerText = `${r.color} ${r.width}m — Qoldiq: ${r.current_length}m (Kelgan: $${r.cost_price_per_m2} | Sotish: $${r.price_per_m2 || 8}/m²)`;
-        } else {
-          opt.innerText = `${r.color} ${r.width}m — Qoldiq: ${r.current_length}m ($${r.price_per_m2 || 8}/m²)`;
-        }
+        opt.innerText = `${r.width}x - ${r.current_length} ${r.color}`;
         select.appendChild(opt);
       });
+      if (prevVal && rolls.some(r => r.id == prevVal)) {
+        select.value = prevVal;
+      } else if (rolls.length === 1 && document.getElementById('sale-roll-search') && document.getElementById('sale-roll-search').value.trim() !== '') {
+        select.value = rolls[0].id;
+        onRollSelected();
+      } else {
+        onRollSelected();
+      }
     }
 
     function populateLeatherColorDropdown(leathers) {
@@ -2194,18 +2228,68 @@
     }
 
     // ==================== TRANSFER LOGIC ====================
+    let TRANSFER_ROLLS = [];
+
+    function populateTransferRollDropdown(rolls) {
+      const select = document.getElementById('transfer-roll-select');
+      if (!select) return;
+      const prevVal = select.value;
+      const countEl = document.getElementById('transfer-roll-count');
+      if (countEl) {
+        countEl.innerText = `${rolls.length} ta rulon`;
+      }
+      select.innerHTML = '<option value="">Rulonni tanlang...</option>';
+      rolls.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.id;
+        opt.dataset.rollCode = r.roll_code;
+        opt.dataset.remain = r.current_length;
+        opt.dataset.width = r.width;
+        opt.dataset.color = r.color;
+        opt.innerText = `${r.width}x - ${r.current_length} ${r.color}`;
+        select.appendChild(opt);
+      });
+      if (prevVal && rolls.some(r => r.id == prevVal)) {
+        select.value = prevVal;
+      } else if (rolls.length === 1 && document.getElementById('transfer-roll-search') && document.getElementById('transfer-roll-search').value.trim() !== '') {
+        select.value = rolls[0].id;
+        onTransferRollSelected();
+      } else {
+        onTransferRollSelected();
+      }
+    }
+
+    function filterTransferRollDropdown() {
+      const searchInput = document.getElementById('transfer-roll-search');
+      const q = searchInput ? searchInput.value : '';
+      const sourceRolls = (TRANSFER_ROLLS && TRANSFER_ROLLS.length > 0) ? TRANSFER_ROLLS : (ALL_ROLLS || []);
+      const filtered = sourceRolls.filter(r => matchRollQuery(r, q));
+      populateTransferRollDropdown(filtered);
+    }
+
+    function onTransferRollSelected() {
+      const select = document.getElementById('transfer-roll-select');
+      const opt = select.options[select.selectedIndex];
+      const lengthInput = document.getElementById('transfer-length');
+      const hint = document.getElementById('transfer-remain-hint');
+      if (opt && opt.value) {
+        const remain = parseFloat(opt.dataset.remain || 0);
+        if (lengthInput && (!lengthInput.value || parseFloat(lengthInput.value) > remain || parseFloat(lengthInput.value) <= 0)) {
+          lengthInput.value = remain;
+        }
+        if (lengthInput) lengthInput.max = remain;
+        if (hint) hint.innerText = `Omborda mavjud: ${remain} m`;
+      } else {
+        if (lengthInput) lengthInput.value = '';
+        if (hint) hint.innerText = '';
+      }
+    }
+
     async function loadTransferData() {
       const data = await apiRequest('/api/stock');
       if (data) {
-        const select = document.getElementById('transfer-roll-select');
-        select.innerHTML = '<option value="">Rulonni tanlang...</option>';
-        (data.rolls || []).forEach(r => {
-          const opt = document.createElement('option');
-          opt.value = r.id;
-          opt.dataset.rollCode = r.roll_code;
-          opt.innerText = `${r.color} ${r.width}m — Qoldiq: ${r.current_length} m`;
-          select.appendChild(opt);
-        });
+        TRANSFER_ROLLS = data.rolls || [];
+        filterTransferRollDropdown();
 
         const toSelect = document.getElementById('transfer-to-branch');
         toSelect.innerHTML = '';
@@ -2234,10 +2318,10 @@
             const toName = BRANCH_NAMES[t.to_branch] || `${t.to_branch}-Filial`;
             tr.innerHTML = `
               <td class="py-2.5 text-neutral-500 whitespace-nowrap">${t.created_at || ''}</td>
-              <td class="py-2.5 font-semibold text-neutral-900">${t.roll_code}</td>
               <td class="py-2.5 text-neutral-700">${fromName}</td>
               <td class="py-2.5 font-medium text-emerald-700">${toName}</td>
-              <td class="py-2.5 text-neutral-600">${t.width}m x ${t.length}m (${t.color})</td>
+              <td class="py-2.5 font-medium text-neutral-900">${t.width}x ${t.color}</td>
+              <td class="py-2.5 font-semibold text-neutral-900">${t.length} m</td>
               <td class="py-2.5 text-neutral-500">${t.note || '-'}</td>
             `;
             thBody.appendChild(tr);
@@ -2250,19 +2334,34 @@
       e.preventDefault();
       const rollId = parseInt(document.getElementById('transfer-roll-select').value);
       const toBranch = parseInt(document.getElementById('transfer-to-branch').value);
+      const transferLength = parseFloat(document.getElementById('transfer-length').value);
       const note = document.getElementById('transfer-note').value;
       if (!rollId || !toBranch) {
         showToast("Rulon va qabul qiluvchi filialni tanlang!", true);
         return;
       }
+      if (isNaN(transferLength) || transferLength <= 0) {
+        showToast("O'tkaziladigan miqdor (uzunlik)ni to'g'ri kiriting!", true);
+        return;
+      }
+      const select = document.getElementById('transfer-roll-select');
+      const opt = select.options[select.selectedIndex];
+      const maxRemain = parseFloat(opt ? opt.dataset.remain : 0);
+      if (transferLength > maxRemain) {
+        showToast(`O'tkaziladigan miqdor mavjud qoldiqdan (${maxRemain} m) ko'p bo'lishi mumkin emas!`, true);
+        return;
+      }
       const res = await apiRequest('/api/transfer', 'POST', {
         roll_id: rollId,
         to_branch: toBranch,
+        transfer_length: transferLength,
         note: note
       });
       if (res && res.success) {
-        showToast("Rulon muvaffaqiyatli transfer qilindi va filialga xabar yuborildi!");
+        showToast(`${transferLength} metr muvaffaqiyatli transfer qilindi va filialga xabar yuborildi!`);
         e.target.reset();
+        const hint = document.getElementById('transfer-remain-hint');
+        if (hint) hint.innerText = '';
         loadStockData();
         loadTransferData();
       }
