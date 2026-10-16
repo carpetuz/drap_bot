@@ -298,7 +298,7 @@ async def confirm_sale(callback: CallbackQuery, state: FSMContext):
         pass
     
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
-    menu = get_user_menu(role, branch_id) if branch_id == 2 else get_carpet_submenu()
+    menu = get_user_menu(role, branch_id, user_id=callback.from_user.id) if branch_id == 2 else get_carpet_submenu()
     await callback.message.answer(
         f"✅ *Gilam sotuvi muvaffaqiyatli amalga oshirildi! ({b_name})*\n"
         f"💵 *To'lov turi:* Naqd to'lov\n\n"
@@ -455,7 +455,7 @@ async def confirm_carpet_debt_final(callback: CallbackQuery, state: FSMContext):
         pass
         
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
-    menu = get_user_menu(role, branch_id) if branch_id == 2 else get_carpet_submenu()
+    menu = get_user_menu(role, branch_id, user_id=callback.from_user.id) if branch_id == 2 else get_carpet_submenu()
     phone_display = customer_phone if customer_phone else "Kiritilmagan"
     await callback.message.answer(
         f"✅ *Gilam nasiyaga (qarzga) sotildi! ({b_name})*\n\n"

@@ -139,6 +139,6 @@ async def confirm_withdraw(callback: CallbackQuery, state: FSMContext):
         f"📤 Chiqim summasi: *${res['amount']:.2f}*\n"
         f"💰 {cat_name} kassasidagi yangi qoldiq: *${res['new_balance']:.2f}*",
         parse_mode="Markdown",
-        reply_markup=get_user_menu(role, branch_id)
+        reply_markup=get_user_menu(role, branch_id, user_id=callback.from_user.id)
     )
     await callback.answer("Topshirildi!")

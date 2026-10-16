@@ -166,7 +166,7 @@ async def confirm_import(callback: CallbackQuery, state: FSMContext):
         pass
         
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
-    menu = get_user_menu(role, branch_id) if branch_id == 2 else get_carpet_submenu()
+    menu = get_user_menu(role, branch_id, user_id=callback.from_user.id) if branch_id == 2 else get_carpet_submenu()
     await callback.message.answer(
         f"✅ *Rulon omborga saqlandi! ({b_name})*\n\n"
         f"🆔 Rulon kodi: *{created_roll['roll_code']}*\n"
