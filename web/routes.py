@@ -352,3 +352,52 @@ async def api_pay_debt(request: web.Request):
         return json_response({"success": True, "result": res})
     except Exception as e:
         return json_response({"error": str(e)}, status=400)
+
+# --- TRANSFER VA RASXOD (XARAJAT) APIS ---
+
+@auth_required
+async def api_transfer_roll(request: web.Request):
+    user = request["user"]
+    from_branch = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
+    
+    body = await request.json()
+    roll_id = int(body["roll_id"])
+    to_branch = int(body["to_branch"])
+    note = body.get("note", "")
+    
+    try:
+        res = await local_db.transfer_roll(roll_id=roll_id, from_branch=from_branch, to_branch=to_branch, note=note)
+        return json_response({"success": True, "result": res})
+    except Exception as e:
+        return json_response({"error": str(e)}, status=400)
+
+@auth_required
+async def api_get_expenses(request: web.Request):
+    user = request["user"]
+    branch_id = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
+    expenses = await local_db.get_expenses(branch_id=branch_id)
+    return json_response({"expenses": expenses})
+
+@auth_required
+async def api_add_expense(request: web.Request):
+    user = request["user"]
+    branch_id = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
+    
+    body = await request.json()
+    amount = float(body.get("amount", 0))
+    category = body.get("category", "carpet")
+    expense_title = body.get("expense_title", "Xarajat")
+    note = body.get("note", "")
+    
+    try:
+        res = await local_db.add_expense(
+            amount=amount,
+            branch_id=branch_id,
+            category=category,
+            expense_title=expense_title,
+            note=note
+        )
+        return json_response({"success": True, "result": res})
+    except Exception as e:
+        return json_response({"error": str(e)}, status=400)
+

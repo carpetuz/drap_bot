@@ -7,7 +7,8 @@ from web.routes import (
     api_branch3_stats, api_branch3_sales,
     api_get_stock, api_add_roll, api_make_sale,
     api_get_cashbox, api_withdraw_cash,
-    api_get_debts, api_pay_debt
+    api_get_debts, api_pay_debt,
+    api_transfer_roll, api_get_expenses, api_add_expense
 )
 
 logger = logging.getLogger(__name__)
@@ -49,6 +50,11 @@ def setup_web_app(bot: Bot = None) -> web.Application:
     app.router.add_post("/api/cashbox/withdraw", api_withdraw_cash)
     app.router.add_get("/api/debts", api_get_debts)
     app.router.add_post("/api/debts/pay", api_pay_debt)
+
+    # Transfer & Expenses (Rasxod)
+    app.router.add_post("/api/transfer", api_transfer_roll)
+    app.router.add_get("/api/expenses", api_get_expenses)
+    app.router.add_post("/api/expenses", api_add_expense)
 
     # Static files directory
     static_dir = os.path.join(os.path.dirname(__file__), "static")

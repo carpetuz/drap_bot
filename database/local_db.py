@@ -241,6 +241,62 @@ async def withdraw_cash(amount: float, branch_id: int = 1, category: str = "carp
         "created_at": created_at
     }
 
+async def add_expense(amount: float, branch_id: int = 1, category: str = "carpet", expense_title: str = "Xarajat", note: str = "") -> dict:
+    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    current_balance = await get_cash_balance(branch_id=branch_id, category=category)
+    if amount <= 0:
+        raise ValueError("Xarajat summasi 0 dan katta bo'lishi kerak!")
+    if amount > current_balance:
+        raise ValueError(f"Kassada yetarli mablag' yo'q! Mavjud: ${current_balance:.2f}")
+    new_balance = round(current_balance - amount, 2)
+    full_note = f"Rasxod [{expense_title}]: {note}".strip(": ")
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            INSERT INTO cashbox (branch_id, category, operation_type, amount, note, balance_after, created_at)
+            VALUES (?, ?, 'EXPENSE', ?, ?, ?, ?)
+        """, (branch_id, category, amount, full_note, new_balance, created_at))
+        await db.commit()
+    return {
+        "amount": amount,
+        "expense_title": expense_title,
+        "category": category,
+        "new_balance": new_balance,
+        "note": full_note,
+        "created_at": created_at
+    }
+
+async def get_expenses(branch_id: int = 1, limit: int = 50) -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT * FROM cashbox 
+            WHERE branch_id = ? AND operation_type = 'EXPENSE'
+            ORDER BY id DESC LIMIT ?
+        """, (branch_id, limit)) as cur:
+            rows = await cur.fetchall()
+            return [dict(r) for r in rows]
+
+async def transfer_roll(roll_id: int, from_branch: int, to_branch: int, note: str = "") -> dict:
+    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM rolls WHERE id = ? AND branch_id = ?", (roll_id, from_branch)) as cur:
+            roll = await cur.fetchone()
+            if not roll:
+                raise ValueError("Rulon topilmadi yoki ushbu filialga tegishli emas!")
+                
+        await db.execute("UPDATE rolls SET branch_id = ? WHERE id = ?", (to_branch, roll_id))
+        await db.commit()
+        return {
+            "roll_id": roll_id,
+            "roll_code": roll["roll_code"],
+            "from_branch": from_branch,
+            "to_branch": to_branch,
+            "note": note,
+            "created_at": created_at
+        }
+
+
 # --- GILAM FUNKSIYALARI ---
 
 async def add_roll(width: float, color: str, length: float, branch_id: int = 1, price_per_m2: float = PRICE_PER_M2) -> dict:

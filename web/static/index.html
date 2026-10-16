@@ -161,14 +161,29 @@
     <!-- MAIN BODY: LEFT SIDEBAR + RIGHT CONTENT -->
     <div class="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-6 flex flex-col md:flex-row gap-8">
       
-      <!-- LEFT GHOST SIDEBAR -->
-      <aside class="w-full md:w-56 shrink-0 md:sticky md:top-20 self-start">
-        <div class="text-[11px] font-semibold uppercase tracking-wider text-ghostMuted mb-3 px-1">
-          Bo'limlar
+      <!-- LEFT GHOST SIDEBAR WITH 2 DISTINCT BLOCKS -->
+      <aside class="w-full md:w-56 shrink-0 md:sticky md:top-20 self-start space-y-6">
+        
+        <!-- 1-CHI BLOK: Sotuv, Qarz, Transfer, Rasxod, Kassa -->
+        <div class="bg-white/70 md:bg-transparent border md:border-0 border-ghostBorder rounded-2xl p-4 md:p-0">
+          <div class="text-[11px] font-semibold uppercase tracking-wider text-ghostMuted mb-2 px-1">
+            Amallar va Kassa
+          </div>
+          <nav id="sidebar-block-1" class="ghost-nav-border flex md:flex-col gap-0.5 overflow-x-auto pb-1 md:pb-0 text-sm">
+            <!-- Dynamically filled based on branch -->
+          </nav>
         </div>
-        <nav id="sidebar-nav" class="ghost-nav-border flex md:flex-col gap-1 overflow-x-auto pb-2 md:pb-0 text-sm">
-          <!-- Dynamically filled based on branch -->
-        </nav>
+
+        <!-- 2-CHI BLOK: Kirim qilish, Ombor qoldig'i -->
+        <div class="bg-white/70 md:bg-transparent border md:border-0 border-ghostBorder rounded-2xl p-4 md:p-0">
+          <div class="text-[11px] font-semibold uppercase tracking-wider text-ghostMuted mb-2 px-1">
+            Omborxona
+          </div>
+          <nav id="sidebar-block-2" class="ghost-nav-border flex md:flex-col gap-0.5 overflow-x-auto pb-1 md:pb-0 text-sm">
+            <!-- Dynamically filled based on branch -->
+          </nav>
+        </div>
+
       </aside>
 
       <!-- RIGHT WORKSPACE CONTENT -->
@@ -509,6 +524,109 @@
           </div>
         </section>
 
+        <!-- TAB: TRANSFER (FILIALLARARO O'TKAZISH) -->
+        <section id="view-transfer" class="hidden space-y-6">
+          <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-sm max-w-xl">
+            <h2 class="text-base font-semibold text-neutral-900">Filiallararo tovar transferi</h2>
+            <p class="text-xs text-ghostMuted mb-5">Rulonni tanlang va qaysi filialga o'tkazishni belgilang</p>
+
+            <form onsubmit="submitRollTransfer(event)" class="space-y-4">
+              <div>
+                <label class="block text-xs font-medium text-neutral-600 mb-1">O'tkaziladigan rulon:</label>
+                <select id="transfer-roll-select" required class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                  <option value="">Rulonni tanlang...</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-neutral-600 mb-1">Qaysi filialga o'tkaziladi:</label>
+                <select id="transfer-to-branch" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                  <option value="1">1-Filial</option>
+                  <option value="2">2-Filial</option>
+                  <option value="3">3-Filial</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-neutral-600 mb-1">Izoh (ixtiyoriy):</label>
+                <input type="text" id="transfer-note" placeholder="Masalan: 2-filial so'rovi bo'yicha" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+              </div>
+
+              <button type="submit" class="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-medium text-sm py-3 px-4 rounded-xl transition duration-150">
+                Transferni tasdiqlash
+              </button>
+            </form>
+          </div>
+        </section>
+
+        <!-- TAB: RASXOD (XARAJATLAR) -->
+        <section id="view-expenses" class="hidden space-y-6">
+          <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-sm max-w-xl">
+            <h2 class="text-base font-semibold text-neutral-900">Rasxod (Chiqim / Xarajat kiritish)</h2>
+            <p class="text-xs text-ghostMuted mb-5">Do'kon yoki filial xarajatlarini kassadan chiqim qilish</p>
+
+            <form onsubmit="submitExpenseForm(event)" class="space-y-4">
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-medium text-neutral-600 mb-1">Xarajat turi:</label>
+                  <select id="expense-title-select" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                    <option value="Ijara">Ijara to'lovi</option>
+                    <option value="Oylik">Xodimlar oyligi</option>
+                    <option value="Transport">Transport / Dostavka</option>
+                    <option value="Tushlik">Tushlik / Xo'jalik</option>
+                    <option value="Soliq">Soliq / Kommunal</option>
+                    <option value="Boshqa">Boshqa xarajat</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-neutral-600 mb-1">Qaysi kassadan:</label>
+                  <select id="expense-category-select" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                    <option value="carpet">Rezinka Gilam kassasi</option>
+                    <option value="leather">Teri kassasi</option>
+                    <option value="kavralan">Asl Kavralan kassasi</option>
+                    <option value="branch3">3-Filial kassasi</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-neutral-600 mb-1">Summasi ($):</label>
+                <input type="number" step="0.5" id="expense-amount" required placeholder="Masalan: 50" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-neutral-600 mb-1">Qo'shimcha izoh:</label>
+                <input type="text" id="expense-note" placeholder="Masalan: May oyi uchun ijara to'landi" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+              </div>
+
+              <button type="submit" class="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-medium text-sm py-3 px-4 rounded-xl transition duration-150">
+                Rasxodni saqlash
+              </button>
+            </form>
+          </div>
+
+          <!-- Expenses History Table -->
+          <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-sm">
+            <h3 class="text-sm font-semibold text-neutral-900 mb-4">Oxirgi qilingan xarajatlar</h3>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="border-b border-ghostBorder text-ghostMuted font-medium">
+                    <th class="pb-2.5">Sana</th>
+                    <th class="pb-2.5">Kassa</th>
+                    <th class="pb-2.5">Xarajat nomi</th>
+                    <th class="pb-2.5">Summasi</th>
+                    <th class="pb-2.5">Kassadagi qoldiq</th>
+                  </tr>
+                </thead>
+                <tbody id="expenses-tbody" class="divide-y divide-ghostBorder">
+                  <!-- Dynamic expenses -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
       </main>
     </div>
 
@@ -679,32 +797,49 @@
     // Render navigation & view according to active branch
     function renderBranchLayout() {
       const badge = document.getElementById('header-branch-badge');
-      const nav = document.getElementById('sidebar-nav');
+      const b1 = document.getElementById('sidebar-block-1');
+      const b2 = document.getElementById('sidebar-block-2');
       badge.innerText = `${ACTIVE_BRANCH}-Filial`;
 
-      nav.innerHTML = '';
+      b1.innerHTML = '';
+      b2.innerHTML = '';
 
       if (ACTIVE_BRANCH === 3) {
-        // 3-Filial: minimal 2 items (Ghost.ai style)
-        nav.innerHTML = `
-          <button onclick="switchView('b3-sale')" id="nav-b3-sale" class="nav-item text-left py-1.5 active">🛒 Sotuv (Kassa)</button>
-          <button onclick="switchView('b3-history')" id="nav-b3-history" class="nav-item text-left py-1.5">📊 Hisobot va Tarix</button>
+        // 3-Filial: 1-blok: Sotuv, Qarz, Rasxod, Kassa; 2-blok: Tarix / Hisobot
+        b1.innerHTML = `
+          <button onclick="switchView('b3-sale')" id="nav-b3-sale" class="nav-item text-left py-1.5 active">Sotuv</button>
+          <button onclick="switchView('debts')" id="nav-debts" class="nav-item text-left py-1.5">Qarz</button>
+          <button onclick="switchView('expenses')" id="nav-expenses" class="nav-item text-left py-1.5">Rasxod</button>
+          <button onclick="switchView('cashbox')" id="nav-cashbox" class="nav-item text-left py-1.5">Kassa</button>
+        `;
+        b2.innerHTML = `
+          <button onclick="switchView('b3-history')" id="nav-b3-history" class="nav-item text-left py-1.5">Ombor qoldig'i (Tarix)</button>
         `;
         selectB3Coll('Craft', 45);
         loadBranch3Data();
+        loadCashboxData();
+        loadDebtsData();
+        loadExpensesData();
         switchView('b3-sale');
       } else {
-        // 1- and 2-Filial
-        nav.innerHTML = `
-          <button onclick="switchView('sale')" id="nav-sale" class="nav-item text-left py-1.5 active">🛒 Sotuv</button>
-          <button onclick="switchView('stock')" id="nav-stock" class="nav-item text-left py-1.5">📦 Ombor qoldiqlari</button>
-          <button onclick="switchView('import')" id="nav-import" class="nav-item text-left py-1.5">📥 Kirim qilish</button>
-          <button onclick="switchView('cashbox')" id="nav-cashbox" class="nav-item text-left py-1.5">💵 Kassa</button>
-          <button onclick="switchView('debts')" id="nav-debts" class="nav-item text-left py-1.5">📒 Nasiyalar</button>
+        // 1- and 2-Filial: Exactly as requested in 2 distinct blocks!
+        // 1-chi blok: Sotuv, Qarz, Transfer, Rasxod, Kassa
+        b1.innerHTML = `
+          <button onclick="switchView('sale')" id="nav-sale" class="nav-item text-left py-1.5 active">Sotuv</button>
+          <button onclick="switchView('debts')" id="nav-debts" class="nav-item text-left py-1.5">Qarz</button>
+          <button onclick="switchView('transfer')" id="nav-transfer" class="nav-item text-left py-1.5">Transfer</button>
+          <button onclick="switchView('expenses')" id="nav-expenses" class="nav-item text-left py-1.5">Rasxod</button>
+          <button onclick="switchView('cashbox')" id="nav-cashbox" class="nav-item text-left py-1.5">Kassa</button>
+        `;
+        // 2-chi blok: Kirim qilish, Ombor qoldig'i
+        b2.innerHTML = `
+          <button onclick="switchView('import')" id="nav-import" class="nav-item text-left py-1.5">Kirim qilish</button>
+          <button onclick="switchView('stock')" id="nav-stock" class="nav-item text-left py-1.5">Ombor qoldig'i</button>
         `;
         loadStockData();
         loadCashboxData();
         loadDebtsData();
+        loadExpensesData();
         switchView('sale');
       }
     }
@@ -723,6 +858,8 @@
       document.getElementById('view-sale').classList.add('hidden');
       document.getElementById('view-cashbox').classList.add('hidden');
       document.getElementById('view-debts').classList.add('hidden');
+      document.getElementById('view-transfer').classList.add('hidden');
+      document.getElementById('view-expenses').classList.add('hidden');
 
       if (viewId === 'b3-sale' || viewId === 'b3-history') {
         document.getElementById('view-branch3').classList.remove('hidden');
@@ -731,14 +868,23 @@
         }
       } else if (viewId === 'stock') {
         document.getElementById('view-stock').classList.remove('hidden');
+        loadStockData();
       } else if (viewId === 'import') {
         document.getElementById('view-import').classList.remove('hidden');
       } else if (viewId === 'sale') {
         document.getElementById('view-sale').classList.remove('hidden');
       } else if (viewId === 'cashbox') {
         document.getElementById('view-cashbox').classList.remove('hidden');
+        loadCashboxData();
       } else if (viewId === 'debts') {
         document.getElementById('view-debts').classList.remove('hidden');
+        loadDebtsData();
+      } else if (viewId === 'transfer') {
+        document.getElementById('view-transfer').classList.remove('hidden');
+        loadTransferData();
+      } else if (viewId === 'expenses') {
+        document.getElementById('view-expenses').classList.remove('hidden');
+        loadExpensesData();
       }
     }
 
@@ -1043,6 +1189,95 @@
       if (res && res.success) {
         showToast("Qarz to'lovi qabul qilindi!");
         loadDebtsData();
+        loadCashboxData();
+      }
+    }
+
+    // ==================== TRANSFER LOGIC ====================
+    async function loadTransferData() {
+      const data = await apiRequest('/api/stock');
+      if (!data) return;
+      const select = document.getElementById('transfer-roll-select');
+      select.innerHTML = '<option value="">Rulonni tanlang...</option>';
+      (data.rolls || []).forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.id;
+        opt.innerText = `${r.roll_code} — ${r.color} ${r.width}m (${r.current_length} m qoldiq)`;
+        select.appendChild(opt);
+      });
+
+      const toSelect = document.getElementById('transfer-to-branch');
+      toSelect.innerHTML = '';
+      [1, 2, 3].forEach(bId => {
+        if (bId !== ACTIVE_BRANCH) {
+          const opt = document.createElement('option');
+          opt.value = bId;
+          opt.innerText = `${bId}-Filial`;
+          toSelect.appendChild(opt);
+        }
+      });
+    }
+
+    async function submitRollTransfer(e) {
+      e.preventDefault();
+      const rollId = parseInt(document.getElementById('transfer-roll-select').value);
+      const toBranch = parseInt(document.getElementById('transfer-to-branch').value);
+      const note = document.getElementById('transfer-note').value;
+      if (!rollId || !toBranch) {
+        showToast("Rulon va qabul qiluvchi filialni tanlang!", true);
+        return;
+      }
+      const res = await apiRequest('/api/transfer', 'POST', {
+        roll_id: rollId,
+        to_branch: toBranch,
+        note: note
+      });
+      if (res && res.success) {
+        showToast("Rulon muvaffaqiyatli transfer qilindi!");
+        e.target.reset();
+        loadStockData();
+        loadTransferData();
+      }
+    }
+
+    // ==================== RASXOD (EXPENSES) LOGIC ====================
+    async function loadExpensesData() {
+      const data = await apiRequest('/api/expenses');
+      if (!data || !data.expenses) return;
+      const tbody = document.getElementById('expenses-tbody');
+      tbody.innerHTML = '';
+      if (data.expenses.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-ghostMuted">Hozircha xarajatlar kiritilmagan</td></tr>';
+        return;
+      }
+      data.expenses.forEach(ex => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-neutral-50 transition";
+        const catMap = { carpet: "Rezinka Gilam", leather: "Teri", kavralan: "Asl Kavralan", branch3: "3-Filial" };
+        tr.innerHTML = `
+          <td class="py-2.5 text-neutral-500">${ex.created_at.substring(5, 16)}</td>
+          <td class="py-2.5 text-neutral-600">${catMap[ex.category] || ex.category}</td>
+          <td class="py-2.5 font-medium text-neutral-900">${ex.note || 'Xarajat'}</td>
+          <td class="py-2.5 font-bold text-rose-600">-$${ex.amount}</td>
+          <td class="py-2.5 text-neutral-600">$${ex.balance_after}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function submitExpenseForm(e) {
+      e.preventDefault();
+      const body = {
+        expense_title: document.getElementById('expense-title-select').value,
+        category: document.getElementById('expense-category-select').value,
+        amount: parseFloat(document.getElementById('expense-amount').value),
+        note: document.getElementById('expense-note').value
+      };
+      const res = await apiRequest('/api/expenses', 'POST', body);
+      if (res && res.success) {
+        showToast("Rasxod muvaffaqiyatli saqlandi!");
+        e.target.reset();
+        loadExpensesData();
         loadCashboxData();
       }
     }
