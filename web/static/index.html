@@ -1743,7 +1743,8 @@
       const wrapCost = document.getElementById('stat-cost-wrap');
       const titleSell = document.getElementById('stat-sell-title');
 
-      if (elArea) elArea.innerText = `${sumArea.toFixed(1)} m²`;
+      const roundedArea = Math.round(sumArea * 100) / 100;
+      if (elArea) elArea.innerText = `${roundedArea.toFixed(2)} m²`;
       if (elCost) elCost.innerText = `$${sumCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
       if (elSell) elSell.innerText = `$${sumSell.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
       
