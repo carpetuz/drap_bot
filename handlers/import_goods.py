@@ -7,7 +7,7 @@ from keyboards.default_kb import get_carpet_submenu
 from keyboards.inline_kb import get_width_kb, get_color_kb, get_confirm_import_kb
 from utils.states import ImportStates
 from database.local_db import add_roll
-from handlers.common import get_user_role
+from handlers.common import get_user_role, get_user_menu
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -68,14 +68,47 @@ async def process_length(message: Message, state: FSMContext):
         await message.answer("Iltimos, faqat raqam kiriting (Masalan: 10.95 yoki 15):")
         return
 
+    length = round(length, 2)
     data = await state.get_data()
     width = data["width"]
     color = data["color"]
-    
     area_m2 = round(width * length, 2)
-    total_price = round(area_m2 * PRICE_PER_M2, 2)
     
-    await state.update_data(length=length, area_m2=area_m2, total_price=total_price)
+    await state.update_data(length=length, area_m2=area_m2)
+    await state.set_state(ImportStates.entering_price)
+    
+    await message.answer(
+        f"Tanlangan: *{width:g}x{length} metr - {color}* (`{area_m2} m²`)\n\n"
+        f"💰 Ushbu mahsulotning *1 m² narxini ($)* kiriting:\n"
+        f"(Masalan: `8` yoki `8.5`):",
+        parse_mode="Markdown"
+    )
+
+@router.message(ImportStates.entering_price)
+async def process_price(message: Message, state: FSMContext):
+    role, branch_id = get_user_role(message.from_user.id)
+    if role != "branch":
+        return
+    text = message.text.strip().replace(",", ".").replace("$", "")
+    try:
+        price_per_m2 = float(text)
+        if price_per_m2 <= 0:
+            await message.answer("Narx 0 dan katta bo'lishi kerak! Qaytadan kiriting:")
+            return
+    except ValueError:
+        await message.answer("Iltimos, faqat raqam kiriting (Masalan: 8 yoki 8.5):")
+        return
+
+    price_per_m2 = round(price_per_m2, 2)
+    data = await state.get_data()
+    width = data["width"]
+    color = data["color"]
+    length = data["length"]
+    area_m2 = data["area_m2"]
+    
+    total_price = round(area_m2 * price_per_m2, 2)
+    
+    await state.update_data(price_per_m2=price_per_m2, total_price=total_price)
     await state.set_state(ImportStates.confirming)
     
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
@@ -84,23 +117,31 @@ async def process_length(message: Message, state: FSMContext):
         f"📏 O'lchami: `{width:g} x {length} metr`\n"
         f"🎨 Rangi: *{color}*\n"
         f"📐 Maydoni: `{area_m2} m²`\n"
-        f"💰 Qiymati ($8/m²): `${total_price:.2f}`\n\n"
-        f"Qisqacha: *{width:g}x{length} - {color}*\n\n"
+        f"💵 1 m² narxi: *${price_per_m2:.2f}*\n"
+        f"💰 Jami qiymati: *${total_price:.2f}*\n\n"
+        f"Qisqacha: *{width:g}x{length} - {color} (${price_per_m2:.2f}/m²)*\n\n"
         f"Ma'lumotlar to'g'riligini tasdiqlaysizmi?"
     )
     await message.answer(summary, parse_mode="Markdown", reply_markup=get_confirm_import_kb())
 
 @router.callback_query(F.data == "retry_import", ImportStates.confirming)
 async def retry_import(callback: CallbackQuery, state: FSMContext):
+    try:
+        await callback.answer()
+    except Exception:
+        pass
     role, branch_id = get_user_role(callback.from_user.id)
     if role != "branch":
         return
     await state.set_state(ImportStates.choosing_width)
     await callback.message.edit_text("Rulonning enini tanlang:", reply_markup=get_width_kb("import_width"))
-    await callback.answer()
 
 @router.callback_query(F.data == "confirm_import", ImportStates.confirming)
 async def confirm_import(callback: CallbackQuery, state: FSMContext):
+    try:
+        await callback.answer("Saqlandi!")
+    except Exception:
+        pass
     role, branch_id = get_user_role(callback.from_user.id)
     if role != "branch":
         return
@@ -108,8 +149,15 @@ async def confirm_import(callback: CallbackQuery, state: FSMContext):
     width = data["width"]
     color = data["color"]
     length = data["length"]
+    price_per_m2 = data.get("price_per_m2", PRICE_PER_M2)
     
-    created_roll = await add_roll(width=width, color=color, length=length, branch_id=branch_id)
+    created_roll = await add_roll(
+        width=width, 
+        color=color, 
+        length=length, 
+        branch_id=branch_id,
+        price_per_m2=price_per_m2
+    )
     
     await state.clear()
     try:
@@ -118,13 +166,14 @@ async def confirm_import(callback: CallbackQuery, state: FSMContext):
         pass
         
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
+    menu = get_user_menu(role, branch_id) if branch_id == 2 else get_carpet_submenu()
     await callback.message.answer(
         f"✅ *Rulon omborga saqlandi! ({b_name})*\n\n"
         f"🆔 Rulon kodi: *{created_roll['roll_code']}*\n"
         f"📐 O'lchami: {width:g} x {length} metr ({created_roll['area_m2']} m²)\n"
         f"🎨 Rangi: {color}\n"
+        f"💵 1 m² narxi: ${price_per_m2:.2f}\n"
         f"💰 Qiymati: ${created_roll['total_price']:.2f}",
         parse_mode="Markdown",
-        reply_markup=get_carpet_submenu()
+        reply_markup=menu
     )
-    await callback.answer("Saqlandi!")

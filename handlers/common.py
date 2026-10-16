@@ -4,7 +4,7 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message, CallbackQuery
 from aiogram.fsm.context import FSMContext
 from config import SUPER_ADMIN_IDS, BRANCH_USERS, BRANCH_NAMES
-from keyboards.default_kb import get_branch_menu, get_superadmin_menu, get_carpet_submenu, get_branch3_menu
+from keyboards.default_kb import get_branch_menu, get_superadmin_menu, get_carpet_submenu, get_branch3_menu, get_branch2_menu
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -22,6 +22,8 @@ def get_user_menu(role: str, branch_id: int | None):
         return get_superadmin_menu()
     if branch_id == 3:
         return get_branch3_menu()
+    if branch_id == 2:
+        return get_branch2_menu()
     return get_branch_menu(BRANCH_NAMES.get(branch_id, "Filial"))
 
 @router.message(CommandStart())
@@ -47,6 +49,14 @@ async def cmd_start(message: Message, state: FSMContext):
             "Kerakli bo'limni tanlang:"
         )
         await message.answer(msg, parse_mode="Markdown", reply_markup=get_branch3_menu())
+    elif branch_id == 2:
+        b_name = BRANCH_NAMES.get(branch_id, "2-Filial")
+        msg = (
+            f"Assalomu alaykum, {first_name}!\n\n"
+            f"Siz *{b_name} (Rezinka Gilam)* savdo tizimiga ulandingiz.\n"
+            "Kerakli bo'limni tanlang:"
+        )
+        await message.answer(msg, parse_mode="Markdown", reply_markup=get_branch2_menu())
     else:
         b_name = BRANCH_NAMES.get(branch_id, f"Filial-{branch_id}")
         msg = (
@@ -59,7 +69,7 @@ async def cmd_start(message: Message, state: FSMContext):
 @router.message(F.text == "🌀 Rezinka Gilam")
 async def open_carpet_menu(message: Message, state: FSMContext):
     role, branch_id = get_user_role(message.from_user.id)
-    if role != "branch" or branch_id == 3:
+    if role != "branch" or branch_id in [2, 3]:
         return
     await state.clear()
     b_name = BRANCH_NAMES.get(branch_id, "Filial")

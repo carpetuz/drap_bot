@@ -27,11 +27,26 @@ async def show_dashboard(message: Message):
     stats = await get_dashboard_stats(branch_id=branch_id)
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
     
+    if branch_id == 2:
+        text = (
+            f"📊 *{b_name} — REZINKA GILAM DASHBOARDI*\n\n"
+            f"🌀 *REZINKA GILAM:*\n"
+            f"• Ombordagi rulonlar: *{stats['carpet_rolls_count']} ta* ({stats['carpet_total_m2']} m²)\n"
+            f"• Tovar qiymati: *${stats['carpet_total_val']:.2f}*\n"
+            f"• Bugungi savdo: *{stats['today_carpet_count']} ta* ({stats['today_carpet_m2']} m² — ${stats['today_carpet_rev']:.2f})\n"
+            f"• 💵 *Gilam kassasi qoldig'i:* *${stats['carpet_cash']:.2f}*\n\n"
+            f"📒 *NASIYALAR (QARZLAR):*\n"
+            f"• Faol qarzdorlar soni: *{stats['active_debts_count']} ta*\n"
+            f"• ⏳ Kutilayotgan qarz (Gilam): *${stats['carpet_debt_rem']:.2f}*"
+        )
+        await message.answer(text, parse_mode="Markdown")
+        return
+
     text = (
         f"📊 *{b_name} DASHBOARDI*\n\n"
         f"🌀 *REZINKA GILAM:*\n"
         f"• Ombordagi rulonlar: *{stats['carpet_rolls_count']} ta* ({stats['carpet_total_m2']} m²)\n"
-        f"• Tovar qiymati ($8/m²): *${stats['carpet_total_val']:.2f}*\n"
+        f"• Tovar qiymati: *${stats['carpet_total_val']:.2f}*\n"
         f"• Bugungi savdo: *{stats['today_carpet_count']} ta* ({stats['today_carpet_m2']} m² — ${stats['today_carpet_rev']:.2f})\n"
         f"• 💵 *Gilam kassasi qoldig'i:* *${stats['carpet_cash']:.2f}*\n\n"
         f"🐑 *TERI MAHSULOTI ($50/dona):*\n"
@@ -55,6 +70,9 @@ async def show_dashboard(message: Message):
 async def show_inventory(message: Message):
     role, branch_id = get_user_role(message.from_user.id)
     if role != "branch":
+        return
+    if branch_id == 2:
+        await show_carpet_inventory(message)
         return
     rolls = await get_all_active_rolls(branch_id=branch_id)
     leathers = await get_leather_stock(branch_id=branch_id)
@@ -137,9 +155,12 @@ async def send_excel_report(message: Message):
         report_path = f"CRM_{b_name}.xlsx"
         await generate_excel_report(report_path, branch_id=branch_id)
         doc = FSInputFile(report_path, filename=f"Hisobot_{b_name}_{datetime.now().strftime('%Y-%m-%d')}.xlsx")
+        caption = f"📊 *{b_name} (Rezinka Gilam) hisoboti*\n\n1. Gilam Ombori\n2. Gilam Sotuvlari\n3. Gilam Kassasi\n4. Gilam Qarzlar Daftari" if branch_id == 2 else (
+            f"📊 *{b_name} to'liq hisoboti*\n\n1. Gilam Ombori\n2. Teri Ombori\n3. Kavralan Ombori\n4. Sotuvlar\n5. Kassalar\n6. Nasiyalar"
+        )
         await message.answer_document(
             document=doc,
-            caption=f"📊 *{b_name} to'liq hisoboti*\n\n1. Gilam Ombori\n2. Teri Ombori\n3. Gilam Sotuvlari\n4. Teri Sotuvlari\n5. Gilam Kassasi\n6. Teri Kassasi",
+            caption=caption,
             parse_mode="Markdown"
         )
         await wait_msg.delete()

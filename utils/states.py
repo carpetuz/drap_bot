@@ -4,6 +4,7 @@ class ImportStates(StatesGroup):
     choosing_width = State()
     choosing_color = State()
     entering_length = State()
+    entering_price = State()
     confirming = State()
 
 class SaleStates(StatesGroup):

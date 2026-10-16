@@ -39,15 +39,23 @@ async def show_debts_menu(message: Message, state: FSMContext):
     else:
         title = "📒 *Barcha filiallar — Umumiy Nasiyalar Daftari*"
         
-    text = (
-        f"{title}\n\n"
-        f"👥 Faol qarzdorlar soni: *{summary['active_count']} ta*\n"
-        f"⏳ Jami kutilayotgan summa: *${summary['total_rem']:.2f}*\n"
-        f"  • 🌀 Gilam bo'yicha: *${summary['carpet_rem']:.2f}*\n"
-        f"  • 🐑 Teri bo'yicha: *${summary['leather_rem']:.2f}*\n"
-        f"  • 🧶 Kavralan bo'yicha: *${summary['kavralan_rem']:.2f}*\n\n"
-        "Kerakli bo'limni tanlang:"
-    )
+    if role == "branch" and branch_id == 2:
+        text = (
+            f"{title}\n\n"
+            f"👥 Faol qarzdorlar soni: *{summary['active_count']} ta*\n"
+            f"⏳ Kutilayotgan summa (Gilam): *${summary['carpet_rem']:.2f}*\n\n"
+            "Kerakli bo'limni tanlang:"
+        )
+    else:
+        text = (
+            f"{title}\n\n"
+            f"👥 Faol qarzdorlar soni: *{summary['active_count']} ta*\n"
+            f"⏳ Jami kutilayotgan summa: *${summary['total_rem']:.2f}*\n"
+            f"  • 🌀 Gilam bo'yicha: *${summary['carpet_rem']:.2f}*\n"
+            f"  • 🐑 Teri bo'yicha: *${summary['leather_rem']:.2f}*\n"
+            f"  • 🧶 Kavralan bo'yicha: *${summary['kavralan_rem']:.2f}*\n\n"
+            "Kerakli bo'limni tanlang:"
+        )
     await message.answer(text, parse_mode="Markdown", reply_markup=get_debts_main_kb(is_superadmin=(role == "superadmin")))
 
 @router.callback_query(F.data == "debts_menu")
@@ -64,15 +72,23 @@ async def cb_debts_menu(callback: CallbackQuery, state: FSMContext):
     else:
         title = "📒 *Barcha filiallar — Umumiy Nasiyalar Daftari*"
         
-    text = (
-        f"{title}\n\n"
-        f"👥 Faol qarzdorlar soni: *{summary['active_count']} ta*\n"
-        f"⏳ Jami kutilayotgan summa: *${summary['total_rem']:.2f}*\n"
-        f"  • 🌀 Gilam bo'yicha: *${summary['carpet_rem']:.2f}*\n"
-        f"  • 🐑 Teri bo'yicha: *${summary['leather_rem']:.2f}*\n"
-        f"  • 🧶 Kavralan bo'yicha: *${summary['kavralan_rem']:.2f}*\n\n"
-        "Kerakli bo'limni tanlang:"
-    )
+    if role == "branch" and branch_id == 2:
+        text = (
+            f"{title}\n\n"
+            f"👥 Faol qarzdorlar soni: *{summary['active_count']} ta*\n"
+            f"⏳ Kutilayotgan summa (Gilam): *${summary['carpet_rem']:.2f}*\n\n"
+            "Kerakli bo'limni tanlang:"
+        )
+    else:
+        text = (
+            f"{title}\n\n"
+            f"👥 Faol qarzdorlar soni: *{summary['active_count']} ta*\n"
+            f"⏳ Jami kutilayotgan summa: *${summary['total_rem']:.2f}*\n"
+            f"  • 🌀 Gilam bo'yicha: *${summary['carpet_rem']:.2f}*\n"
+            f"  • 🐑 Teri bo'yicha: *${summary['leather_rem']:.2f}*\n"
+            f"  • 🧶 Kavralan bo'yicha: *${summary['kavralan_rem']:.2f}*\n\n"
+            "Kerakli bo'limni tanlang:"
+        )
     await callback.message.edit_text(text, parse_mode="Markdown", reply_markup=get_debts_main_kb(is_superadmin=(role == "superadmin")))
     await callback.answer()
 

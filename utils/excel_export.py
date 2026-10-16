@@ -58,20 +58,66 @@ async def generate_excel_report(file_path: str = "CRM_Hisobot.xlsx", branch_id: 
                     ])
             sheet_configs.append((ws_b3_cash, cash_fill))
 
+        elif branch_id == 2:
+            # --- 2-FILIAL (FAQAT REZINKA GILAM) ---
+            # 1. Gilam Ombor Qoldig'i
+            ws_c_ombor = wb.active
+            ws_c_ombor.title = "Gilam Ombori"
+            headers_c_ombor = ["Filial", "Rulon kodi", "Eni (m)", "Rangi", "Boshlang'ich metr", "Qoldiq metr", "Maydon (m²)", "Narxi ($/m²)", "Qiymati ($)", "Holati", "Kirim sanasi"]
+            ws_c_ombor.append(headers_c_ombor)
+            async with db.execute("SELECT * FROM rolls WHERE branch_id = 2 ORDER BY id DESC") as cursor:
+                for r in await cursor.fetchall():
+                    price_m2 = r["price_per_m2"] if ("price_per_m2" in r.keys() and r["price_per_m2"]) else 8.0
+                    ws_c_ombor.append(["2-Filial", r["roll_code"], r["width"], r["color"], r["initial_length"], r["current_length"], r["area_m2"], price_m2, r["total_price"], "Mavjud" if r["status"] == "active" and r["current_length"] > 0 else "Tugagan", r["created_at"]])
+            sheet_configs.append((ws_c_ombor, carpet_fill))
+
+            # 2. Gilam Sotuvlar Tarixi
+            ws_c_sales = wb.create_sheet(title="Gilam Sotuvlari")
+            headers_c_sales = ["Filial", "Sana va Vaqt", "Rulon kodi", "O'lchami va rangi", "Sotilgan metr", "Maydoni (m²)", "Narx ($/m²)", "Jami summa ($)"]
+            ws_c_sales.append(headers_c_sales)
+            async with db.execute("SELECT * FROM sales WHERE branch_id = 2 ORDER BY id DESC") as cursor:
+                for s in await cursor.fetchall():
+                    ws_c_sales.append(["2-Filial", s["created_at"], s["roll_code"], f"{s['width']}x{s['sold_length']}m - {s['color']}", s["sold_length"], s["area_m2"], s["price_per_m2"], s["total_price"]])
+            sheet_configs.append((ws_c_sales, carpet_fill))
+
+            # 3. Gilam Kassasi Harakatlari
+            ws_c_cash = wb.create_sheet(title="Gilam Kassasi")
+            headers_c_cash = ["Filial", "Sana va Vaqt", "Operatsiya", "Summa ($)", "Izoh", "Kassa qoldig'i ($)"]
+            ws_c_cash.append(headers_c_cash)
+            async with db.execute("SELECT * FROM cashbox WHERE branch_id = 2 AND category = 'carpet' ORDER BY id DESC") as cursor:
+                for c in await cursor.fetchall():
+                    ws_c_cash.append(["2-Filial", c["created_at"], "Kirim (Sotuv)" if c["operation_type"] == "INCOME" else "Chiqim (Topshirildi)", c["amount"], c["note"], c["balance_after"]])
+            sheet_configs.append((ws_c_cash, cash_fill))
+
+            # 4. Gilam Nasiyalari
+            ws_debts = wb.create_sheet(title="Gilam Nasiyalari")
+            headers_debts = ["Filial", "Nasiya ID", "Mijoz Ismi", "Telefon", "Tovar turi", "Mahsulot tavsifi", "Jami summa ($)", "Boshlang'ich ($)", "To'langan ($)", "Qarz qoldig'i ($)", "Holati", "Berilgan sana", "Oxirgi yangilanish"]
+            ws_debts.append(headers_debts)
+            async with db.execute("SELECT * FROM debts WHERE branch_id = 2 AND category = 'carpet' ORDER BY id DESC") as cursor:
+                for d in await cursor.fetchall():
+                    status_text = "To'liq yopilgan" if d["status"] == "paid" else ("Qisman to'langan" if d["status"] == "partial" else "To'lanmagan")
+                    ws_debts.append([
+                        "2-Filial", f"#D-{d['id']}", d["customer_name"], d["customer_phone"] or "-",
+                        "Gilam", d["item_details"], d["total_amount"], d["initial_paid"],
+                        d["paid_amount"], d["remaining_amount"], status_text, d["created_at"], d["updated_at"]
+                    ])
+            sheet_configs.append((ws_debts, debt_fill))
+
         else:
-            # --- 1-FILIAL, 2-FILIAL YOKI BARCHA FILIALLAR ---
+            # --- 1-FILIAL YOKI BARCHA FILIALLAR ---
             p = (branch_id,) if branch_id else ()
 
             # 1. Gilam Ombor Qoldig'i
             ws_c_ombor = wb.active
             ws_c_ombor.title = "Gilam Ombori"
-            headers_c_ombor = ["Filial", "Rulon kodi", "Eni (m)", "Rangi", "Boshlang'ich metr", "Qoldiq metr", "Maydon (m²)", "Qiymati ($)", "Holati", "Kirim sanasi"]
+            headers_c_ombor = ["Filial", "Rulon kodi", "Eni (m)", "Rangi", "Boshlang'ich metr", "Qoldiq metr", "Maydon (m²)", "Narxi ($/m²)", "Qiymati ($)", "Holati", "Kirim sanasi"]
             ws_c_ombor.append(headers_c_ombor)
             q = "SELECT * FROM rolls WHERE branch_id = ? ORDER BY id DESC" if branch_id else "SELECT * FROM rolls ORDER BY branch_id ASC, id DESC"
             async with db.execute(q, p) as cursor:
                 for r in await cursor.fetchall():
                     b_name = BRANCH_NAMES.get(r["branch_id"], f"Filial-{r['branch_id']}")
-                    ws_c_ombor.append([b_name, r["roll_code"], r["width"], r["color"], r["initial_length"], r["current_length"], r["area_m2"], r["total_price"], "Mavjud" if r["status"] == "active" and r["current_length"] > 0 else "Tugagan", r["created_at"]])
+                    price_m2 = r["price_per_m2"] if ("price_per_m2" in r.keys() and r["price_per_m2"]) else 8.0
+                    ws_c_ombor.append([b_name, r["roll_code"], r["width"], r["color"], r["initial_length"], r["current_length"], r["area_m2"], price_m2, r["total_price"], "Mavjud" if r["status"] == "active" and r["current_length"] > 0 else "Tugagan", r["created_at"]])
             sheet_configs.append((ws_c_ombor, carpet_fill))
 
             # 2. Teri Ombor Qoldig'i

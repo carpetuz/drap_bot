@@ -17,6 +17,7 @@ async def init_db():
                 initial_length REAL NOT NULL,
                 current_length REAL NOT NULL,
                 area_m2 REAL NOT NULL,
+                price_per_m2 REAL NOT NULL DEFAULT 8.0,
                 total_price REAL NOT NULL,
                 status TEXT NOT NULL DEFAULT 'active',
                 created_at TEXT NOT NULL
@@ -176,6 +177,14 @@ async def init_db():
                     await db.execute("ALTER TABLE cashbox ADD COLUMN category TEXT NOT NULL DEFAULT 'carpet'")
         except Exception:
             pass
+
+        try:
+            async with db.execute("PRAGMA table_info(rolls)") as cur:
+                cols = [row[1] for row in await cur.fetchall()]
+                if "price_per_m2" not in cols:
+                    await db.execute("ALTER TABLE rolls ADD COLUMN price_per_m2 REAL NOT NULL DEFAULT 8.0")
+        except Exception:
+            pass
             
         await db.commit()
 
@@ -246,9 +255,9 @@ async def add_roll(width: float, color: str, length: float, branch_id: int = 1, 
             roll_code = f"#F{branch_id}-{1000 + next_id}"
         
         await db.execute("""
-            INSERT INTO rolls (branch_id, roll_code, width, color, initial_length, current_length, area_m2, total_price, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
-        """, (branch_id, roll_code, width, color, length, length, area_m2, total_price, created_at))
+            INSERT INTO rolls (branch_id, roll_code, width, color, initial_length, current_length, area_m2, price_per_m2, total_price, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
+        """, (branch_id, roll_code, width, color, length, length, area_m2, price_per_m2, total_price, created_at))
         await db.commit()
         
         return {
@@ -260,6 +269,7 @@ async def add_roll(width: float, color: str, length: float, branch_id: int = 1, 
             "initial_length": length,
             "current_length": length,
             "area_m2": area_m2,
+            "price_per_m2": price_per_m2,
             "total_price": total_price,
             "created_at": created_at
         }
@@ -338,9 +348,10 @@ async def make_sale(
             if sold_length > roll["current_length"]:
                 raise ValueError(f"Rulonda yetarli uzunlik yo'q! Mavjud qoldiq: {roll['current_length']} m")
         
+        roll_price = float(roll["price_per_m2"]) if ("price_per_m2" in roll.keys() and roll["price_per_m2"]) else price_per_m2
         new_length = round(roll["current_length"] - sold_length, 2)
         new_area = round(roll["width"] * new_length, 2)
-        new_total_price = round(new_area * price_per_m2, 2)
+        new_total_price = round(new_area * roll_price, 2)
         new_status = "finished" if new_length <= 0 else "active"
         
         await db.execute("""
@@ -350,12 +361,12 @@ async def make_sale(
         """, (new_length, new_area, new_total_price, new_status, roll_id))
         
         sold_area = round(roll["width"] * sold_length, 2)
-        sale_total_price = round(sold_area * price_per_m2, 2)
+        sale_total_price = round(sold_area * roll_price, 2)
         
         async with db.execute("""
             INSERT INTO sales (branch_id, roll_id, roll_code, width, color, sold_length, area_m2, price_per_m2, total_price, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (branch_id, roll_id, roll["roll_code"], roll["width"], roll["color"], sold_length, sold_area, price_per_m2, sale_total_price, created_at)) as cursor:
+        """, (branch_id, roll_id, roll["roll_code"], roll["width"], roll["color"], sold_length, sold_area, roll_price, sale_total_price, created_at)) as cursor:
             sale_id = cursor.lastrowid
         
         debt_id = None

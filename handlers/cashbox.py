@@ -1,13 +1,13 @@
 import logging
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 from config import BRANCH_NAMES
 from keyboards.default_kb import get_branch_menu
 from keyboards.inline_kb import get_cash_categories_kb, get_confirm_withdraw_kb
 from utils.states import CashStates
 from database.local_db import get_cash_balance, withdraw_cash
-from handlers.common import get_user_role
+from handlers.common import get_user_role, get_user_menu
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -20,9 +20,23 @@ async def show_cash(message: Message, state: FSMContext):
     await state.clear()
     
     carpet_balance = await get_cash_balance(branch_id=branch_id, category="carpet")
+    b_name = BRANCH_NAMES.get(branch_id, "Filial")
+    
+    if branch_id == 2:
+        text = (
+            f"💵 *{b_name} — REZINKA GILAM KASSASI:*\n\n"
+            f"🌀 *Gilam kassasi qoldig'i:* `${carpet_balance:.2f}`\n\n"
+            f"Kassani topshirmoqchimisiz?"
+        )
+        buttons = [
+            [InlineKeyboardButton(text="💸 Gilam kassasini topshirish", callback_data="withdraw_cat:carpet")],
+            [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="cancel_action")]
+        ]
+        await message.answer(text, parse_mode="Markdown", reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons))
+        return
+
     leather_balance = await get_cash_balance(branch_id=branch_id, category="leather")
     kavralan_balance = await get_cash_balance(branch_id=branch_id, category="kavralan")
-    b_name = BRANCH_NAMES.get(branch_id, "Filial")
     
     text = (
         f"💵 *{b_name} — KASSA VA TOPSHIRISH BO'LIMI:*\n\n"
@@ -125,6 +139,6 @@ async def confirm_withdraw(callback: CallbackQuery, state: FSMContext):
         f"📤 Chiqim summasi: *${res['amount']:.2f}*\n"
         f"💰 {cat_name} kassasidagi yangi qoldiq: *${res['new_balance']:.2f}*",
         parse_mode="Markdown",
-        reply_markup=get_branch_menu(b_name)
+        reply_markup=get_user_menu(role, branch_id)
     )
     await callback.answer("Topshirildi!")

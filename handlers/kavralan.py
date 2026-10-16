@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 @router.message(F.text == "🧶 Asl Kavralan")
 async def open_kavralan_menu(message: Message, state: FSMContext):
     role, branch_id = get_user_role(message.from_user.id)
-    if role != "branch":
+    if role != "branch" or branch_id in [2, 3]:
         return
     await state.clear()
     b_name = BRANCH_NAMES.get(branch_id, "Filial")

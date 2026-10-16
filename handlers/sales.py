@@ -19,7 +19,7 @@ from database.local_db import (
     get_roll_by_id, 
     make_sale
 )
-from handlers.common import get_user_role
+from handlers.common import get_user_role, get_user_menu
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -124,9 +124,11 @@ async def sale_choose_roll(callback: CallbackQuery, state: FSMContext):
     await state.update_data(roll_id=roll_id, roll=roll)
     await state.set_state(SaleStates.entering_sold_length)
     
+    roll_price = float(roll.get("price_per_m2") or PRICE_PER_M2)
     await callback.message.edit_text(
         f"Tanlangan rulon: *{roll['roll_code']}*\n"
         f"O'lchami: {roll['width']:g} x {roll['current_length']} metr - {roll['color']}\n"
+        f"💵 Narxi: *${roll_price:g} / m²*\n"
         f"Mavjud qoldiq: *{roll['current_length']} metr*\n\n"
         "Qancha metr sotildi? Uzunlikni yozing (Masalan: 10 yoki 3.5):",
         parse_mode="Markdown"
@@ -161,12 +163,14 @@ async def sale_process_length(message: Message, state: FSMContext):
         return
         
     sold_area = round(roll["width"] * sold_length, 2)
-    total_price = round(sold_area * PRICE_PER_M2, 2)
+    roll_price = float(roll.get("price_per_m2") or PRICE_PER_M2)
+    total_price = round(sold_area * roll_price, 2)
     remaining_length = round(roll["current_length"] - sold_length, 2)
     
     await state.update_data(
         sold_length=sold_length, 
         sold_area=sold_area, 
+        roll_price=roll_price,
         total_price=total_price, 
         remaining_length=remaining_length
     )
@@ -177,7 +181,7 @@ async def sale_process_length(message: Message, state: FSMContext):
         f"🆔 Rulon: *{roll['roll_code']}*\n"
         f"📦 Mahsulot: `{roll['width']:g}x{sold_length} metr - {roll['color']}`\n"
         f"📐 Sotilgan maydon: `{sold_area} m²`\n"
-        f"💵 Narxi ($8/m²): `${PRICE_PER_M2:.2f}`\n"
+        f"💵 Narxi (${roll_price:g}/m²): `${roll_price:.2f}`\n"
         f"💰 Jami summa: *${total_price:.2f}*\n"
         f"✂️ Rulonda qoladi: `{remaining_length} metr`\n\n"
         f"To'lov turini tanlang yoki sotuvni tasdiqlang:"
@@ -208,8 +212,15 @@ async def confirm_sale(callback: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     roll_id = data["roll_id"]
     sold_length = data["sold_length"]
+    roll_price = data.get("roll_price", PRICE_PER_M2)
     
-    result = await make_sale(roll_id=roll_id, sold_length=sold_length, branch_id=branch_id, is_debt=False)
+    result = await make_sale(
+        roll_id=roll_id, 
+        sold_length=sold_length, 
+        branch_id=branch_id, 
+        price_per_m2=roll_price, 
+        is_debt=False
+    )
     
     await state.clear()
     try:
@@ -218,17 +229,19 @@ async def confirm_sale(callback: CallbackQuery, state: FSMContext):
         pass
     
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
+    menu = get_user_menu(role, branch_id) if branch_id == 2 else get_carpet_submenu()
     await callback.message.answer(
         f"✅ *Gilam sotuvi muvaffaqiyatli amalga oshirildi! ({b_name})*\n"
         f"💵 *To'lov turi:* Naqd to'lov\n\n"
         f"📦 Mahsulot: {result['width']:g}x{result['sold_length']}m - {result['color']}\n"
         f"📐 Maydoni: {result['sold_area']} m²\n"
+        f"💵 Narxi: ${roll_price:.2f}/m²\n"
         f"💰 Sotuv summasi: *${result['sale_total_price']:.2f}*\n"
         f"✂️ Rulondagi qoldiq: {result['remaining_length']} metr\n\n"
         f"💵 *Gilam kassasiga qo'shildi:* +${result['sale_total_price']:.2f}\n"
         f"💰 *Joriy Gilam kassa balansi:* ${result['new_cash_balance']:.2f}",
         parse_mode="Markdown",
-        reply_markup=get_carpet_submenu()
+        reply_markup=menu
     )
     await callback.answer("Sotildi!")
 
@@ -354,11 +367,13 @@ async def confirm_carpet_debt_final(callback: CallbackQuery, state: FSMContext):
     customer_name = data["customer_name"]
     customer_phone = data["customer_phone"]
     initial_paid = data["initial_paid"]
+    roll_price = data.get("roll_price", PRICE_PER_M2)
     
     result = await make_sale(
         roll_id=roll_id, 
         sold_length=sold_length, 
         branch_id=branch_id, 
+        price_per_m2=roll_price,
         is_debt=True, 
         customer_name=customer_name, 
         customer_phone=customer_phone, 
@@ -372,12 +387,14 @@ async def confirm_carpet_debt_final(callback: CallbackQuery, state: FSMContext):
         pass
         
     b_name = BRANCH_NAMES.get(branch_id, "Filial")
+    menu = get_user_menu(role, branch_id) if branch_id == 2 else get_carpet_submenu()
     phone_display = customer_phone if customer_phone else "Kiritilmagan"
     await callback.message.answer(
         f"✅ *Gilam nasiyaga (qarzga) sotildi! ({b_name})*\n\n"
         f"🆔 Nasiya ID: *#D-{result['debt_id']}*\n"
         f"👤 Mijoz: *{customer_name}* ({phone_display})\n"
         f"📦 Mahsulot: {result['width']:g}x{result['sold_length']}m - {result['color']}\n"
+        f"💵 Narxi: ${roll_price:.2f}/m²\n"
         f"💰 Jami sotuv: *${result['sale_total_price']:.2f}*\n"
         f"💵 Boshlang'ich to'lov: *${result['initial_paid']:.2f}*\n"
         f"⏳ Qolgan qarz: *${result['remaining_debt']:.2f}*\n"
@@ -385,7 +402,7 @@ async def confirm_carpet_debt_final(callback: CallbackQuery, state: FSMContext):
         f"💵 *Gilam kassasiga qo'shildi:* +${result['initial_paid']:.2f}\n"
         f"💰 *Joriy Gilam kassa balansi:* ${result['new_cash_balance']:.2f}",
         parse_mode="Markdown",
-        reply_markup=get_carpet_submenu()
+        reply_markup=menu
     )
     await callback.answer("Nasiyaga sotildi!")
 

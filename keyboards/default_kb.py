@@ -31,6 +31,15 @@ def get_kavralan_submenu():
     return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
 
+def get_branch2_menu():
+    kb = [
+        [KeyboardButton(text="📥 Gilam Kirim"), KeyboardButton(text="🛒 Gilam Sotuv")],
+        [KeyboardButton(text="📦 Gilam Ombori"), KeyboardButton(text="💵 Kassa")],
+        [KeyboardButton(text="📊 Dashboard"), KeyboardButton(text="📑 Excel hisobot")],
+        [KeyboardButton(text="📒 Nasiya / Qarzlar")]
+    ]
+    return ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
+
 def get_branch3_menu():
     kb = [
         [KeyboardButton(text="🛒 Sotuv"), KeyboardButton(text="📊 Hisobot")]
