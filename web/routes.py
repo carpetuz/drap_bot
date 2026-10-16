@@ -459,7 +459,7 @@ async def api_transfer_roll(request: web.Request):
             return json_response({"error": "O'tkaziladigan miqdor noto'g'ri kiritildi"}, status=400)
     
     try:
-        res = await local_db.transfer_roll(
+        res = await local_db.create_transfer_request(
             roll_id=roll_id, 
             from_branch=from_branch, 
             to_branch=to_branch, 
@@ -467,9 +467,10 @@ async def api_transfer_roll(request: web.Request):
             note=note
         )
         
-        # Send Telegram notification to destination branch users & super admins
+        # Send Telegram notification with inline buttons to destination branch users & super admins
         bot = request.app.get("bot")
         if bot:
+            from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
             from_name = BRANCH_NAMES.get(from_branch, f"{from_branch}-Filial")
             to_name = BRANCH_NAMES.get(to_branch, f"{to_branch}-Filial")
             msg = (
@@ -477,15 +478,21 @@ async def api_transfer_roll(request: web.Request):
                 f"📍 *Jo'natuvchi:* {from_name}\n"
                 f"📍 *Qabul qiluvchi:* {to_name}\n"
                 f"📦 *Rulon kodi:* `{res.get('roll_code')}`\n"
-                f"📏 *O'lchami:* {res.get('width')}m x {res.get('current_length')}m ({res.get('color')})\n"
+                f"📏 *O'lchami:* {res.get('width')}m x {res.get('length')}m ({res.get('color')})\n"
                 f"📝 *Izoh:* {note or 'Izohsiz'}\n\n"
-                f"✅ Ushbu rulon endi {to_name} omboriga muvaffaqiyatli qabul qilindi va sotuvga tayyor!"
+                f"⏳ *Mahsulot jo'natildi!* Filialga yetib borgach, qabul qilib olishni tasdiqlang:"
             )
+            kb = InlineKeyboardMarkup(inline_keyboard=[
+                [
+                    InlineKeyboardButton(text="✅ Qabul qilish", callback_data=f"tr_accept:{res['transfer_id']}"),
+                    InlineKeyboardButton(text="❌ Rad etish", callback_data=f"tr_reject:{res['transfer_id']}")
+                ]
+            ])
             recipients = [uid for uid, bid in BRANCH_USERS.items() if bid == to_branch]
             all_to_notify = set(recipients + SUPER_ADMIN_IDS)
             for uid in all_to_notify:
                 try:
-                    await bot.send_message(uid, msg, parse_mode="Markdown")
+                    await bot.send_message(uid, msg, parse_mode="Markdown", reply_markup=kb)
                 except Exception as e:
                     logger.error(f"Transfer bildirishnomasi yuborishda xatolik ({uid}): {e}")
                     
@@ -499,7 +506,105 @@ async def api_get_transfers(request: web.Request):
     branch_id = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
     limit = int(request.query.get("limit", 50))
     transfers = await local_db.get_transfers_history(branch_id=branch_id, limit=limit)
-    return json_response({"transfers": transfers})
+    pending_incoming = await local_db.get_pending_transfers(branch_id=branch_id, as_recipient=True)
+    pending_outgoing = await local_db.get_pending_transfers(branch_id=branch_id, as_recipient=False)
+    return json_response({
+        "transfers": transfers,
+        "pending_incoming": pending_incoming,
+        "pending_outgoing": pending_outgoing
+    })
+
+@auth_required
+async def api_accept_transfer(request: web.Request):
+    user = request["user"]
+    body = await request.json()
+    transfer_id = int(body.get("transfer_id", 0))
+    if transfer_id <= 0:
+        return json_response({"error": "Noto'g'ri transfer ID"}, status=400)
+        
+    user_branch = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
+    user_name = user.get("first_name") or f"Filial-{user_branch} xodimi"
+    
+    try:
+        res = await local_db.accept_transfer(transfer_id, accepted_by=f"{user_name} ({user['role']})")
+        
+        bot = request.app.get("bot")
+        if bot:
+            from_name = BRANCH_NAMES.get(res["from_branch"], f"{res['from_branch']}-Filial")
+            to_name = BRANCH_NAMES.get(res["to_branch"], f"{res['to_branch']}-Filial")
+            msg = (
+                f"✅ *TRANSFER QABUL QILINDI!*\n\n"
+                f"📍 *Qabul qiluvchi:* {to_name}\n"
+                f"📍 *Jo'natuvchi:* {from_name}\n"
+                f"📦 *Rulon:* {res.get('width')}m x {res.get('length')}m ({res.get('color')})\n"
+                f"👤 *Qabul qildi:* {user_name}\n\n"
+                f"🎉 Mahsulot {to_name} omboriga muvaffaqiyatli kirim qilindi va sotuvga tayyor!"
+            )
+            recipients = [uid for uid, bid in BRANCH_USERS.items() if bid in (res["from_branch"], res["to_branch"])]
+            all_to_notify = set(recipients + SUPER_ADMIN_IDS)
+            for uid in all_to_notify:
+                try:
+                    await bot.send_message(uid, msg, parse_mode="Markdown")
+                except Exception as e:
+                    logger.error(f"Transfer qabul bildirishnomasi ({uid}): {e}")
+                    
+        return json_response({"success": True, "result": res})
+    except Exception as e:
+        return json_response({"error": str(e)}, status=400)
+
+@auth_required
+async def api_reject_transfer(request: web.Request):
+    user = request["user"]
+    body = await request.json()
+    transfer_id = int(body.get("transfer_id", 0))
+    reason = body.get("reason", "").strip()
+    if transfer_id <= 0:
+        return json_response({"error": "Noto'g'ri transfer ID"}, status=400)
+        
+    user_branch = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
+    user_name = user.get("first_name") or f"Filial-{user_branch} xodimi"
+    
+    try:
+        tr = await local_db.reject_transfer(transfer_id, rejected_by=f"{user_name} ({user['role']})", reason=reason)
+        bot = request.app.get("bot")
+        if bot:
+            from_name = BRANCH_NAMES.get(tr["from_branch"], f"{tr['from_branch']}-Filial")
+            to_name = BRANCH_NAMES.get(tr["to_branch"], f"{tr['to_branch']}-Filial")
+            msg = (
+                f"❌ *TRANSFER RAD ETILDI!*\n\n"
+                f"📍 *Rad etgan:* {to_name} ({user_name})\n"
+                f"📍 *Jo'natuvchi:* {from_name}\n"
+                f"📦 *Rulon:* {tr.get('width')}m x {tr.get('length')}m ({tr.get('color')})\n"
+                f"📝 *Sabab:* {reason or 'Ko''rsatilmadi'}\n\n"
+                f"ℹ️ Tovar {from_name} ombori balansida qoldi."
+            )
+            recipients = [uid for uid, bid in BRANCH_USERS.items() if bid in (tr["from_branch"], tr["to_branch"])]
+            all_to_notify = set(recipients + SUPER_ADMIN_IDS)
+            for uid in all_to_notify:
+                try:
+                    await bot.send_message(uid, msg, parse_mode="Markdown")
+                except Exception as e:
+                    logger.error(f"Transfer rad bildirishnomasi ({uid}): {e}")
+                    
+        return json_response({"success": True})
+    except Exception as e:
+        return json_response({"error": str(e)}, status=400)
+
+@auth_required
+async def api_cancel_transfer(request: web.Request):
+    user = request["user"]
+    body = await request.json()
+    transfer_id = int(body.get("transfer_id", 0))
+    if transfer_id <= 0:
+        return json_response({"error": "Noto'g'ri transfer ID"}, status=400)
+        
+    user_branch = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
+    is_super = user["role"] == "superadmin"
+    try:
+        await local_db.cancel_transfer(transfer_id, user_branch=user_branch, is_superadmin=is_super)
+        return json_response({"success": True})
+    except Exception as e:
+        return json_response({"error": str(e)}, status=400)
 
 # --- SUPER ADMIN OMBOR TAHRIRLASH APIS ---
 

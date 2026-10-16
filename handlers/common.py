@@ -102,6 +102,78 @@ async def cb_qr_reject(callback: CallbackQuery):
     await callback.message.edit_text("❌ Tizimga kirish so'rovi bekor qilindi.")
     await callback.answer()
 
+# --- TRANSFERNI QABUL QILISH / RAD ETISH HANDLERLARI ---
+
+@router.callback_query(F.data.startswith("tr_accept:"))
+async def cb_transfer_accept(callback: CallbackQuery):
+    transfer_id_str = callback.data.split(":", 1)[1]
+    try:
+        transfer_id = int(transfer_id_str)
+    except ValueError:
+        await callback.answer("Noto'g'ri transfer ID", show_alert=True)
+        return
+
+    user_id = callback.from_user.id
+    role, branch_id = get_user_role(user_id)
+    if not role:
+        await callback.answer("Sizga ruxsat berilmagan!", show_alert=True)
+        return
+
+    from database import local_db
+    try:
+        user_name = callback.from_user.first_name or f"Foydalanuvchi {user_id}"
+        res = await local_db.accept_transfer(transfer_id, accepted_by=f"{user_name} (Telegram)")
+        to_name = BRANCH_NAMES.get(res["to_branch"], f"{res['to_branch']}-Filial")
+        from_name = BRANCH_NAMES.get(res["from_branch"], f"{res['from_branch']}-Filial")
+        
+        await callback.message.edit_text(
+            f"✅ *TRANSFER QABUL QILINDI!*\n\n"
+            f"📍 *Qabul qiluvchi:* {to_name}\n"
+            f"📍 *Jo'natuvchi:* {from_name}\n"
+            f"📦 *Rulon:* {res.get('width')}m x {res.get('length')}m ({res.get('color')})\n"
+            f"👤 *Qabul qildi:* {user_name}\n"
+            f"⏰ *Vaqt:* {res.get('accepted_at')}\n\n"
+            f"🎉 Mahsulot {to_name} omboriga muvaffaqiyatli kirim qilindi!",
+            parse_mode="Markdown"
+        )
+        await callback.answer("✅ Transfer qabul qilindi va omboringizga qo'shildi!", show_alert=True)
+    except Exception as e:
+        await callback.answer(f"Xatolik: {str(e)}", show_alert=True)
+
+@router.callback_query(F.data.startswith("tr_reject:"))
+async def cb_transfer_reject(callback: CallbackQuery):
+    transfer_id_str = callback.data.split(":", 1)[1]
+    try:
+        transfer_id = int(transfer_id_str)
+    except ValueError:
+        await callback.answer("Noto'g'ri transfer ID", show_alert=True)
+        return
+
+    user_id = callback.from_user.id
+    role, branch_id = get_user_role(user_id)
+    if not role:
+        await callback.answer("Sizga ruxsat berilmagan!", show_alert=True)
+        return
+
+    from database import local_db
+    try:
+        user_name = callback.from_user.first_name or f"Foydalanuvchi {user_id}"
+        tr = await local_db.reject_transfer(transfer_id, rejected_by=f"{user_name} (Telegram)")
+        to_name = BRANCH_NAMES.get(tr["to_branch"], f"{tr['to_branch']}-Filial")
+        from_name = BRANCH_NAMES.get(tr["from_branch"], f"{tr['from_branch']}-Filial")
+        
+        await callback.message.edit_text(
+            f"❌ *TRANSFER RAD ETILDI!*\n\n"
+            f"📍 *Rad etgan:* {to_name} ({user_name})\n"
+            f"📍 *Jo'natuvchi:* {from_name}\n"
+            f"📦 *Rulon:* {tr.get('width')}m x {tr.get('length')}m ({tr.get('color')})\n\n"
+            f"ℹ️ Tovar {from_name} ombori balansida qoldi.",
+            parse_mode="Markdown"
+        )
+        await callback.answer("❌ Transfer rad etildi.", show_alert=True)
+    except Exception as e:
+        await callback.answer(f"Xatolik: {str(e)}", show_alert=True)
+
 # Qolgan barcha matnli xabarlar uchun yo'naltirish
 @router.message()
 async def all_other_messages(message: Message):

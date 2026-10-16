@@ -180,9 +180,36 @@ async def init_db():
                 color TEXT NOT NULL,
                 length REAL NOT NULL,
                 note TEXT,
+                status TEXT NOT NULL DEFAULT 'pending',
+                target_roll_id INTEGER,
+                target_roll_code TEXT,
+                accepted_at TEXT,
+                accepted_by TEXT,
+                rejected_at TEXT,
+                rejected_by TEXT,
                 created_at TEXT NOT NULL
             )
         """)
+
+        try:
+            async with db.execute("PRAGMA table_info(transfers)") as cur:
+                cols = [row[1] for row in await cur.fetchall()]
+                if "status" not in cols:
+                    await db.execute("ALTER TABLE transfers ADD COLUMN status TEXT NOT NULL DEFAULT 'accepted'")
+                if "target_roll_id" not in cols:
+                    await db.execute("ALTER TABLE transfers ADD COLUMN target_roll_id INTEGER")
+                if "target_roll_code" not in cols:
+                    await db.execute("ALTER TABLE transfers ADD COLUMN target_roll_code TEXT")
+                if "accepted_at" not in cols:
+                    await db.execute("ALTER TABLE transfers ADD COLUMN accepted_at TEXT")
+                if "accepted_by" not in cols:
+                    await db.execute("ALTER TABLE transfers ADD COLUMN accepted_by TEXT")
+                if "rejected_at" not in cols:
+                    await db.execute("ALTER TABLE transfers ADD COLUMN rejected_at TEXT")
+                if "rejected_by" not in cols:
+                    await db.execute("ALTER TABLE transfers ADD COLUMN rejected_by TEXT")
+        except Exception:
+            pass
         
         # Xavfsiz avtomatik migratsiyalar
         for tbl in ["rolls", "sales", "cashbox", "debts", "kavralan_rolls", "kavralan_sales", "branch3_sales"]:
@@ -351,72 +378,205 @@ async def get_expenses(branch_id: int = 1, limit: int = 50) -> list[dict]:
             rows = await cur.fetchall()
             return [dict(r) for r in rows]
 
-async def transfer_roll(roll_id: int, from_branch: int, to_branch: int, transfer_length: float | None = None, note: str = "") -> dict:
+async def create_transfer_request(
+    roll_id: int, 
+    from_branch: int, 
+    to_branch: int, 
+    transfer_length: float | None = None, 
+    note: str = ""
+) -> dict:
     created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
-        async with db.execute("SELECT * FROM rolls WHERE id = ? AND branch_id = ?", (roll_id, from_branch)) as cur:
+        async with db.execute("SELECT * FROM rolls WHERE id = ? AND branch_id = ? AND status = 'active'", (roll_id, from_branch)) as cur:
             roll = await cur.fetchone()
             if not roll:
                 raise ValueError("Rulon topilmadi yoki ushbu filialga tegishli emas!")
                 
         curr_len = float(roll["current_length"])
+        # Mavjud kutilayotgan (pending) transferlarni tekshirish
+        async with db.execute("SELECT COALESCE(SUM(length), 0.0) FROM transfers WHERE roll_id = ? AND status = 'pending'", (roll_id,)) as cur_p:
+            p_row = await cur_p.fetchone()
+            already_pending = float(p_row[0] or 0.0)
+            
+        avail_to_transfer = round(curr_len - already_pending, 2)
+        if avail_to_transfer <= 0:
+            raise ValueError("Ushbu rulon to'liq boshqa filialga transfer qilinishi kutilmoqda!")
+            
         if transfer_length is None or float(transfer_length) <= 0:
-            transfer_length = curr_len
+            transfer_length = avail_to_transfer
         else:
             transfer_length = round(float(transfer_length), 2)
             
-        if transfer_length > curr_len:
-            raise ValueError(f"O'tkaziladigan miqdor qoldiqdan ({curr_len} m) ko'p bo'lishi mumkin emas!")
+        if transfer_length > avail_to_transfer:
+            raise ValueError(f"O'tkaziladigan miqdor mavjud qoldiqdan ({avail_to_transfer} m) ko'p bo'lishi mumkin emas!")
 
-        if transfer_length >= curr_len:
-            # Butun rulon to'liq o'tkaziladi
-            await db.execute("UPDATE rolls SET branch_id = ? WHERE id = ?", (to_branch, roll_id))
-            target_roll_id = roll_id
-            target_roll_code = roll["roll_code"]
-        else:
-            # Qisman transfer: manba filialdagi rulon qoldig'i kamaytiriladi
-            new_source_len = round(curr_len - transfer_length, 2)
-            new_source_area = round(float(roll["width"]) * new_source_len, 2)
-            new_source_total = round(new_source_area * float(roll["price_per_m2"]), 2)
-            await db.execute("""
-                UPDATE rolls 
-                SET current_length = ?, area_m2 = ?, total_price = ? 
-                WHERE id = ?
-            """, (new_source_len, new_source_area, new_source_total, roll_id))
-
-            # Qabul qiluvchi filialda yangi rulon ochiladi
-            async with db.execute("SELECT MAX(id) FROM rolls") as cursor:
-                row = await cursor.fetchone()
-                next_id = (row[0] or 0) + 1
-                target_roll_code = f"#F{to_branch}-{1000 + next_id}"
-            
-            target_area = round(float(roll["width"]) * transfer_length, 2)
-            target_total = round(target_area * float(roll["price_per_m2"]), 2)
-            cost_pr = roll["cost_price_per_m2"] if "cost_price_per_m2" in roll.keys() and roll["cost_price_per_m2"] else roll["price_per_m2"]
-            
-            cur_ins = await db.execute("""
-                INSERT INTO rolls (branch_id, roll_code, width, color, initial_length, current_length, area_m2, price_per_m2, cost_price_per_m2, total_price, status, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
-            """, (to_branch, target_roll_code, roll["width"], roll["color"], transfer_length, transfer_length, target_area, roll["price_per_m2"], cost_pr, target_total, created_at))
-            target_roll_id = cur_ins.lastrowid
-
-        await db.execute("""
-            INSERT INTO transfers (roll_id, roll_code, from_branch, to_branch, width, color, length, note, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (target_roll_id, target_roll_code, from_branch, to_branch, roll["width"], roll["color"], transfer_length, note, created_at))
+        # DIQQAT: rolls jadvali o'zgarmaydi! Tovar qabul qilinguncha jo'natuvchi filial balansida turadi.
+        cur_ins = await db.execute("""
+            INSERT INTO transfers (roll_id, roll_code, from_branch, to_branch, width, color, length, note, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+        """, (roll_id, roll["roll_code"], from_branch, to_branch, roll["width"], roll["color"], transfer_length, note, created_at))
+        transfer_id = cur_ins.lastrowid
         await db.commit()
+        
         return {
-            "roll_id": target_roll_id,
-            "roll_code": target_roll_code,
+            "transfer_id": transfer_id,
+            "roll_id": roll_id,
+            "roll_code": roll["roll_code"],
             "from_branch": from_branch,
             "to_branch": to_branch,
             "width": roll["width"],
             "color": roll["color"],
+            "length": transfer_length,
             "current_length": transfer_length,
             "note": note,
+            "status": "pending",
             "created_at": created_at
         }
+
+async def transfer_roll(roll_id: int, from_branch: int, to_branch: int, transfer_length: float | None = None, note: str = "") -> dict:
+    """Moslik uchun wrapper: transfer so'rovini yaratadi (avtomatik qabul qilinmaydi)"""
+    return await create_transfer_request(roll_id, from_branch, to_branch, transfer_length, note)
+
+async def accept_transfer(transfer_id: int, accepted_by: str = "") -> dict:
+    """Qabul qiluvchi filial xodimi tomonidan transferni tasdiqlash va omborga qabul qilish"""
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM transfers WHERE id = ?", (transfer_id,)) as cur:
+            tr = await cur.fetchone()
+            if not tr:
+                raise ValueError("Transfer topilmadi!")
+            if tr["status"] != "pending":
+                raise ValueError(f"Ushbu transfer allaqachon '{tr['status']}' holatida!")
+                
+        roll_id = tr["roll_id"]
+        from_branch = tr["from_branch"]
+        to_branch = tr["to_branch"]
+        transfer_len = float(tr["length"])
+        
+        async with db.execute("SELECT * FROM rolls WHERE id = ? AND branch_id = ?", (roll_id, from_branch)) as cur_r:
+            roll = await cur_r.fetchone()
+            if not roll:
+                raise ValueError("Jo'natuvchi filialdagi asl rulon topilmadi!")
+                
+        curr_len = float(roll["current_length"])
+        if transfer_len > curr_len:
+            raise ValueError(f"Jo'natuvchi filialdagi rulonda yetarli metr qolmagan (mavjud: {curr_len} m)!")
+            
+        if transfer_len >= curr_len:
+            # Butun rulon to'liq qabul qiluvchi filialga o'tadi
+            await db.execute("UPDATE rolls SET branch_id = ? WHERE id = ?", (to_branch, roll_id))
+            target_roll_id = roll_id
+            target_roll_code = roll["roll_code"]
+        else:
+            # Qisman transfer: Jo'natuvchidagi rulon metrajini kamaytirish
+            new_source_len = round(curr_len - transfer_len, 2)
+            new_source_area = round(float(roll["width"]) * new_source_len, 2)
+            new_source_total = round(new_source_area * float(roll["price_per_m2"]), 2)
+            await db.execute("""
+                UPDATE rolls
+                SET current_length = ?, area_m2 = ?, total_price = ?
+                WHERE id = ?
+            """, (new_source_len, new_source_area, new_source_total, roll_id))
+            
+            # Qabul qiluvchida yangi rulon ochish
+            async with db.execute("SELECT MAX(id) FROM rolls") as cursor:
+                row = await cursor.fetchone()
+                next_id = (row[0] or 0) + 1
+                target_roll_code = f"#F{to_branch}-{1000 + next_id}"
+                
+            target_area = round(float(roll["width"]) * transfer_len, 2)
+            target_total = round(target_area * float(roll["price_per_m2"]), 2)
+            cost_pr = roll["cost_price_per_m2"] if ("cost_price_per_m2" in roll.keys() and roll["cost_price_per_m2"]) else roll["price_per_m2"]
+            
+            cur_ins = await db.execute("""
+                INSERT INTO rolls (branch_id, roll_code, width, color, initial_length, current_length, area_m2, price_per_m2, cost_price_per_m2, total_price, status, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
+            """, (to_branch, target_roll_code, roll["width"], roll["color"], transfer_len, transfer_len, target_area, roll["price_per_m2"], cost_pr, target_total, now_str))
+            target_roll_id = cur_ins.lastrowid
+            
+        await db.execute("""
+            UPDATE transfers
+            SET status = 'accepted', target_roll_id = ?, target_roll_code = ?, accepted_at = ?, accepted_by = ?
+            WHERE id = ?
+        """, (target_roll_id, target_roll_code, now_str, accepted_by, transfer_id))
+        await db.commit()
+        
+        return {
+            "transfer_id": transfer_id,
+            "target_roll_id": target_roll_id,
+            "target_roll_code": target_roll_code,
+            "from_branch": from_branch,
+            "to_branch": to_branch,
+            "width": tr["width"],
+            "color": tr["color"],
+            "length": transfer_len,
+            "accepted_at": now_str,
+            "accepted_by": accepted_by,
+            "status": "accepted"
+        }
+
+async def reject_transfer(transfer_id: int, rejected_by: str = "", reason: str = "") -> dict:
+    """Qabul qiluvchi filial xodimi tomonidan transferni rad etish"""
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM transfers WHERE id = ?", (transfer_id,)) as cur:
+            tr = await cur.fetchone()
+            if not tr:
+                raise ValueError("Transfer topilmadi!")
+            if tr["status"] != "pending":
+                raise ValueError(f"Ushbu transfer allaqachon '{tr['status']}' holatida!")
+                
+        note_append = f" [Rad etildi: {reason}]" if reason else " [Rad etildi]"
+        await db.execute("""
+            UPDATE transfers
+            SET status = 'rejected', rejected_at = ?, rejected_by = ?, note = COALESCE(note, '') || ?
+            WHERE id = ?
+        """, (now_str, rejected_by, note_append, transfer_id))
+        await db.commit()
+        return dict(tr)
+
+async def cancel_transfer(transfer_id: int, user_branch: int = None, is_superadmin: bool = False) -> dict:
+    """Transferni jo'natgan filial tomonidan bekor qilish"""
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("SELECT * FROM transfers WHERE id = ?", (transfer_id,)) as cur:
+            tr = await cur.fetchone()
+            if not tr:
+                raise ValueError("Transfer topilmadi!")
+            if tr["status"] != "pending":
+                raise ValueError(f"Ushbu transfer allaqachon '{tr['status']}' holatida!")
+            if not is_superadmin and user_branch is not None and tr["from_branch"] != user_branch:
+                raise ValueError("Faqat transferni jo'natgan filial uni bekor qilishi mumkin!")
+                
+        await db.execute("""
+            UPDATE transfers
+            SET status = 'cancelled', rejected_at = ?, rejected_by = 'Jo''natuvchi tomonidan bekor qilindi'
+            WHERE id = ?
+        """, (now_str, transfer_id))
+        await db.commit()
+        return dict(tr)
+
+async def get_pending_transfers(branch_id: int | None = None, as_recipient: bool = True) -> list[dict]:
+    """Kutilayotgan (pending) transferlar ro'yxati"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        if branch_id is not None:
+            if as_recipient:
+                query = "SELECT * FROM transfers WHERE to_branch = ? AND status = 'pending' ORDER BY id DESC"
+                params = (branch_id,)
+            else:
+                query = "SELECT * FROM transfers WHERE from_branch = ? AND status = 'pending' ORDER BY id DESC"
+                params = (branch_id,)
+        else:
+            query = "SELECT * FROM transfers WHERE status = 'pending' ORDER BY id DESC"
+            params = ()
+        async with db.execute(query, params) as cur:
+            rows = await cur.fetchall()
+            return [dict(r) for r in rows]
 
 async def get_transfers_history(branch_id: int = None, limit: int = 50) -> list[dict]:
     async with aiosqlite.connect(DB_PATH) as db:
@@ -570,10 +730,24 @@ async def get_all_active_rolls(branch_id: int | None = None) -> list[dict]:
     async with aiosqlite.connect(DB_PATH) as db:
         db.row_factory = aiosqlite.Row
         if branch_id is not None:
-            query = "SELECT * FROM rolls WHERE branch_id = ? AND current_length > 0 AND status = 'active' ORDER BY width ASC, current_length DESC"
+            query = """
+                SELECT r.*,
+                       COALESCE((SELECT SUM(t.length) FROM transfers t WHERE t.roll_id = r.id AND t.status = 'pending'), 0.0) as pending_length,
+                       (SELECT t.to_branch FROM transfers t WHERE t.roll_id = r.id AND t.status = 'pending' ORDER BY t.id DESC LIMIT 1) as pending_to_branch
+                FROM rolls r
+                WHERE r.branch_id = ? AND r.current_length > 0 AND r.status = 'active'
+                ORDER BY r.width ASC, r.current_length DESC
+            """
             params = (branch_id,)
         else:
-            query = "SELECT * FROM rolls WHERE current_length > 0 AND status = 'active' ORDER BY branch_id ASC, width ASC, current_length DESC"
+            query = """
+                SELECT r.*,
+                       COALESCE((SELECT SUM(t.length) FROM transfers t WHERE t.roll_id = r.id AND t.status = 'pending'), 0.0) as pending_length,
+                       (SELECT t.to_branch FROM transfers t WHERE t.roll_id = r.id AND t.status = 'pending' ORDER BY t.id DESC LIMIT 1) as pending_to_branch
+                FROM rolls r
+                WHERE r.current_length > 0 AND r.status = 'active'
+                ORDER BY r.branch_id ASC, r.width ASC, r.current_length DESC
+            """
             params = ()
             
         async with db.execute(query, params) as cursor:
@@ -607,8 +781,17 @@ async def make_sale(
             if not roll:
                 raise ValueError("Rulon topilmadi yoki boshqa filialga tegishli!")
             
-            if sold_length > roll["current_length"]:
-                raise ValueError(f"Rulonda yetarli uzunlik yo'q! Mavjud qoldiq: {roll['current_length']} m")
+            # Kutilayotgan transfer tekshiruvi
+            async with db.execute("SELECT COALESCE(SUM(length), 0.0) FROM transfers WHERE roll_id = ? AND status = 'pending'", (roll_id,)) as cur_p:
+                p_row = await cur_p.fetchone()
+                pending_len = float(p_row[0] or 0.0)
+                
+            avail_len = round(roll["current_length"] - pending_len, 2)
+            if sold_length > avail_len:
+                if pending_len > 0:
+                    raise ValueError(f"Rulondan {pending_len} m boshqa filialga transfer kutilmoqda! Sotish uchun mavjud: {avail_len} m")
+                else:
+                    raise ValueError(f"Rulonda yetarli uzunlik yo'q! Mavjud qoldiq: {roll['current_length']} m")
         
         roll_cost_price = float(roll["cost_price_per_m2"]) if ("cost_price_per_m2" in roll.keys() and roll["cost_price_per_m2"] and float(roll["cost_price_per_m2"]) > 0) else float(roll.get("price_per_m2", 8.0))
         new_length = round(roll["current_length"] - sold_length, 2)

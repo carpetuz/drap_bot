@@ -3,5 +3,6 @@ __pycache__/
 *.pyc
 .env
 data.db
+*.db
 *.xlsx
 scripts/

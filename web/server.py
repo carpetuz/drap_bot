@@ -8,7 +8,8 @@ from web.routes import (
     api_get_stock, api_add_roll, api_make_sale,
     api_get_cashbox, api_withdraw_cash,
     api_get_debts, api_pay_debt,
-    api_transfer_roll, api_get_transfers, api_get_expenses, api_add_expense,
+    api_transfer_roll, api_get_transfers, api_accept_transfer, api_reject_transfer, api_cancel_transfer,
+    api_get_expenses, api_add_expense,
     api_edit_roll, api_delete_roll, api_edit_leather, api_edit_kavralan, api_delete_kavralan,
     api_get_profit_loss
 )
@@ -17,7 +18,11 @@ logger = logging.getLogger(__name__)
 
 async def serve_index(request: web.Request):
     index_path = os.path.join(os.path.dirname(__file__), "static", "index.html")
-    return web.FileResponse(index_path)
+    resp = web.FileResponse(index_path)
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
 
 def setup_web_app(bot: Bot = None) -> web.Application:
     app = web.Application()
@@ -57,6 +62,9 @@ def setup_web_app(bot: Bot = None) -> web.Application:
     # Transfer & Expenses (Rasxod)
     app.router.add_post("/api/transfer", api_transfer_roll)
     app.router.add_get("/api/transfers", api_get_transfers)
+    app.router.add_post("/api/transfer/accept", api_accept_transfer)
+    app.router.add_post("/api/transfer/reject", api_reject_transfer)
+    app.router.add_post("/api/transfer/cancel", api_cancel_transfer)
     app.router.add_get("/api/expenses", api_get_expenses)
     app.router.add_post("/api/expenses", api_add_expense)
 
