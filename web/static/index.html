@@ -308,30 +308,30 @@
         <!-- TAB: OMBOR QOLDIQLARI -->
         <section id="view-stock" class="hidden space-y-6">
           <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-sm">
-            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-5">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
               <div>
                 <h2 class="text-base font-semibold text-neutral-900">Ombor qoldiqlari</h2>
                 <p class="text-xs text-ghostMuted mt-0.5">Mavjud rulonlar va tovarlar ro'yxati</p>
               </div>
 
-              <!-- Summary Stats Block (Umumiy m², Kelgan narx, Sotish narx) -->
-              <div id="stock-summary-stats" class="flex flex-wrap items-center gap-2 sm:gap-3 text-xs">
-                <div class="px-3 py-1.5 bg-neutral-50 border border-neutral-200/80 rounded-xl">
-                  <span class="text-neutral-400 text-[10px] uppercase tracking-wider block font-medium">Jami maydon</span>
+              <!-- Summary Stats Block (Umumiy m², Kelgan narx, Sotish narx - bir tekisda va ixcham) -->
+              <div id="stock-summary-stats" class="flex items-center gap-1.5 sm:gap-2 text-xs flex-nowrap overflow-x-auto py-0.5">
+                <div class="px-2.5 py-1 bg-neutral-100 rounded-lg text-neutral-800 whitespace-nowrap flex items-center gap-1.5 border border-neutral-200/60">
+                  <span class="text-neutral-500 text-[11px]">Maydon:</span>
                   <b id="stat-total-area" class="font-bold text-neutral-900 text-xs">0 m²</b>
                 </div>
-                <div id="stat-cost-wrap" class="px-3 py-1.5 bg-emerald-50/70 border border-emerald-200/80 rounded-xl">
-                  <span class="text-emerald-700 text-[10px] uppercase tracking-wider block font-medium">Kelgan narx (Jami)</span>
+                <div id="stat-cost-wrap" class="px-2.5 py-1 bg-emerald-50 border border-emerald-200/70 rounded-lg text-emerald-900 whitespace-nowrap flex items-center gap-1.5">
+                  <span class="text-emerald-700 text-[11px]">Kelgan:</span>
                   <b id="stat-total-cost" class="font-bold text-emerald-800 text-xs">$0.00</b>
                 </div>
-                <div class="px-3 py-1.5 bg-neutral-50 border border-neutral-200/80 rounded-xl">
-                  <span id="stat-sell-title" class="text-neutral-400 text-[10px] uppercase tracking-wider block font-medium">Sotish narxi (Jami)</span>
+                <div class="px-2.5 py-1 bg-neutral-100 rounded-lg text-neutral-800 whitespace-nowrap flex items-center gap-1.5 border border-neutral-200/60">
+                  <span id="stat-sell-title" class="text-neutral-500 text-[11px]">Sotish:</span>
                   <b id="stat-total-sell" class="font-bold text-neutral-900 text-xs">$0.00</b>
                 </div>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="text" id="stock-search" oninput="filterStockTable()" placeholder="Filtr: masalan 1.2x seriy yoki 0.8x Bordo..." class="w-64 sm:w-80 bg-ghostBg border border-ghostBorder rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-neutral-900">
+                <input type="text" id="stock-search" oninput="filterStockTable()" placeholder="Filtr: masalan 1.2x seriy yoki 0.8x Bordo..." class="w-52 sm:w-64 bg-ghostBg border border-ghostBorder rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-neutral-900">
                 <button onclick="loadStockData()" class="px-3 py-1.5 text-xs bg-neutral-100 hover:bg-neutral-200 rounded-xl transition">↻</button>
               </div>
             </div>
@@ -1681,10 +1681,10 @@
       
       const isKartal = isRezinkaRestricted();
       if (wrapCost) {
-        wrapCost.style.display = isKartal ? 'block' : 'none';
+        wrapCost.style.display = isKartal ? 'flex' : 'none';
       }
       if (titleSell) {
-        titleSell.innerText = isKartal ? "Sotish narxi (Jami)" : "Jami qiymati";
+        titleSell.innerText = isKartal ? "Sotish:" : "Jami:";
       }
 
       const canManage = (CURRENT_USER && (CURRENT_USER.role === 'superadmin' || CURRENT_USER.role === 'branch'));
