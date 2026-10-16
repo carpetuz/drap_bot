@@ -12,6 +12,7 @@ class SaleStates(StatesGroup):
     choosing_color = State()
     choosing_roll = State()
     entering_sold_length = State()
+    entering_sold_price = State()
     confirming = State()
     entering_customer_name = State()
     entering_customer_phone = State()

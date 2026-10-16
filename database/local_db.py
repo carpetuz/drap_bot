@@ -361,12 +361,12 @@ async def make_sale(
         """, (new_length, new_area, new_total_price, new_status, roll_id))
         
         sold_area = round(roll["width"] * sold_length, 2)
-        sale_total_price = round(sold_area * roll_price, 2)
+        sale_total_price = round(sold_area * price_per_m2, 2)
         
         async with db.execute("""
             INSERT INTO sales (branch_id, roll_id, roll_code, width, color, sold_length, area_m2, price_per_m2, total_price, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (branch_id, roll_id, roll["roll_code"], roll["width"], roll["color"], sold_length, sold_area, roll_price, sale_total_price, created_at)) as cursor:
+        """, (branch_id, roll_id, roll["roll_code"], roll["width"], roll["color"], sold_length, sold_area, price_per_m2, sale_total_price, created_at)) as cursor:
             sale_id = cursor.lastrowid
         
         debt_id = None
