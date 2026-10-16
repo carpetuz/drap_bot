@@ -8,7 +8,8 @@ from web.routes import (
     api_get_stock, api_add_roll, api_make_sale,
     api_get_cashbox, api_withdraw_cash,
     api_get_debts, api_pay_debt,
-    api_transfer_roll, api_get_expenses, api_add_expense
+    api_transfer_roll, api_get_transfers, api_get_expenses, api_add_expense,
+    api_edit_roll, api_delete_roll, api_edit_leather, api_edit_kavralan, api_delete_kavralan
 )
 
 logger = logging.getLogger(__name__)
@@ -53,8 +54,16 @@ def setup_web_app(bot: Bot = None) -> web.Application:
 
     # Transfer & Expenses (Rasxod)
     app.router.add_post("/api/transfer", api_transfer_roll)
+    app.router.add_get("/api/transfers", api_get_transfers)
     app.router.add_get("/api/expenses", api_get_expenses)
     app.router.add_post("/api/expenses", api_add_expense)
+
+    # Super Admin Stock Management
+    app.router.add_post("/api/stock/edit-roll", api_edit_roll)
+    app.router.add_post("/api/stock/delete-roll", api_delete_roll)
+    app.router.add_post("/api/stock/edit-leather", api_edit_leather)
+    app.router.add_post("/api/stock/edit-kavralan", api_edit_kavralan)
+    app.router.add_post("/api/stock/delete-kavralan", api_delete_kavralan)
 
     # Static files directory
     static_dir = os.path.join(os.path.dirname(__file__), "static")

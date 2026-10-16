@@ -373,13 +373,105 @@ async def api_transfer_roll(request: web.Request):
     body = await request.json()
     roll_id = int(body["roll_id"])
     to_branch = int(body["to_branch"])
-    note = body.get("note", "")
+    note = body.get("note", "").strip()
     
     try:
         res = await local_db.transfer_roll(roll_id=roll_id, from_branch=from_branch, to_branch=to_branch, note=note)
+        
+        # Send Telegram notification to destination branch users & super admins
+        bot = request.app.get("bot")
+        if bot:
+            from_name = BRANCH_NAMES.get(from_branch, f"{from_branch}-Filial")
+            to_name = BRANCH_NAMES.get(to_branch, f"{to_branch}-Filial")
+            msg = (
+                f"🔄 *YANGI REZINKA GILAM TRANSFERI!*\n\n"
+                f"📍 *Jo'natuvchi:* {from_name}\n"
+                f"📍 *Qabul qiluvchi:* {to_name}\n"
+                f"📦 *Rulon kodi:* `{res.get('roll_code')}`\n"
+                f"📏 *O'lchami:* {res.get('width')}m x {res.get('current_length')}m ({res.get('color')})\n"
+                f"📝 *Izoh:* {note or 'Izohsiz'}\n\n"
+                f"✅ Ushbu rulon endi {to_name} omboriga muvaffaqiyatli qabul qilindi va sotuvga tayyor!"
+            )
+            recipients = [uid for uid, bid in BRANCH_USERS.items() if bid == to_branch]
+            all_to_notify = set(recipients + SUPER_ADMIN_IDS)
+            for uid in all_to_notify:
+                try:
+                    await bot.send_message(uid, msg, parse_mode="Markdown")
+                except Exception as e:
+                    logger.error(f"Transfer bildirishnomasi yuborishda xatolik ({uid}): {e}")
+                    
         return json_response({"success": True, "result": res})
     except Exception as e:
         return json_response({"error": str(e)}, status=400)
+
+@auth_required
+async def api_get_transfers(request: web.Request):
+    user = request["user"]
+    branch_id = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
+    limit = int(request.query.get("limit", 50))
+    transfers = await local_db.get_transfers_history(branch_id=branch_id, limit=limit)
+    return json_response({"transfers": transfers})
+
+# --- SUPER ADMIN OMBOR TAHRIRLASH APIS ---
+
+@auth_required
+async def api_edit_roll(request: web.Request):
+    user = request["user"]
+    if user["role"] != "superadmin":
+        return json_response({"error": "Faqat Bosh Admin omborni tahrirlashi mumkin"}, status=403)
+    body = await request.json()
+    roll_id = int(body["roll_id"])
+    width = float(body["width"])
+    color = str(body["color"]).strip()
+    current_length = float(body["current_length"])
+    price_per_m2 = float(body["price_per_m2"])
+    res = await local_db.update_roll(roll_id, width, color, current_length, price_per_m2)
+    return json_response(res)
+
+@auth_required
+async def api_delete_roll(request: web.Request):
+    user = request["user"]
+    if user["role"] != "superadmin":
+        return json_response({"error": "Faqat Bosh Admin omborni tahrirlashi mumkin"}, status=403)
+    body = await request.json()
+    roll_id = int(body["roll_id"])
+    await local_db.delete_roll(roll_id)
+    return json_response({"success": True})
+
+@auth_required
+async def api_edit_leather(request: web.Request):
+    user = request["user"]
+    if user["role"] != "superadmin":
+        return json_response({"error": "Faqat Bosh Admin omborni tahrirlashi mumkin"}, status=403)
+    body = await request.json()
+    branch_id = int(body.get("branch_id", user["active_branch"]))
+    color = str(body["color"]).strip()
+    quantity = int(body["quantity"])
+    price_per_item = float(body["price_per_item"])
+    res = await local_db.update_leather_item(branch_id, color, quantity, price_per_item)
+    return json_response(res)
+
+@auth_required
+async def api_edit_kavralan(request: web.Request):
+    user = request["user"]
+    if user["role"] != "superadmin":
+        return json_response({"error": "Faqat Bosh Admin omborni tahrirlashi mumkin"}, status=403)
+    body = await request.json()
+    roll_id = int(body["roll_id"])
+    current_length = float(body["current_length"])
+    price_per_m2 = float(body.get("price_per_m2", 30.0))
+    res = await local_db.update_kavralan_roll(roll_id, current_length, price_per_m2)
+    return json_response(res)
+
+@auth_required
+async def api_delete_kavralan(request: web.Request):
+    user = request["user"]
+    if user["role"] != "superadmin":
+        return json_response({"error": "Faqat Bosh Admin omborni tahrirlashi mumkin"}, status=403)
+    body = await request.json()
+    roll_id = int(body["roll_id"])
+    await local_db.delete_kavralan_roll(roll_id)
+    return json_response({"success": True})
 
 @auth_required
 async def api_get_expenses(request: web.Request):

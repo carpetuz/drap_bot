@@ -160,6 +160,22 @@ async def init_db():
             )
         """)
         
+        # 11. Transfers
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS transfers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                roll_id INTEGER NOT NULL,
+                roll_code TEXT NOT NULL,
+                from_branch INTEGER NOT NULL,
+                to_branch INTEGER NOT NULL,
+                width REAL NOT NULL,
+                color TEXT NOT NULL,
+                length REAL NOT NULL,
+                note TEXT,
+                created_at TEXT NOT NULL
+            )
+        """)
+        
         # Xavfsiz avtomatik migratsiyalar
         for tbl in ["rolls", "sales", "cashbox", "debts", "kavralan_rolls", "kavralan_sales", "branch3_sales"]:
             try:
@@ -286,15 +302,85 @@ async def transfer_roll(roll_id: int, from_branch: int, to_branch: int, note: st
                 raise ValueError("Rulon topilmadi yoki ushbu filialga tegishli emas!")
                 
         await db.execute("UPDATE rolls SET branch_id = ? WHERE id = ?", (to_branch, roll_id))
+        await db.execute("""
+            INSERT INTO transfers (roll_id, roll_code, from_branch, to_branch, width, color, length, note, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (roll_id, roll["roll_code"], from_branch, to_branch, roll["width"], roll["color"], roll["current_length"], note, created_at))
         await db.commit()
         return {
             "roll_id": roll_id,
             "roll_code": roll["roll_code"],
             "from_branch": from_branch,
             "to_branch": to_branch,
+            "width": roll["width"],
+            "color": roll["color"],
+            "current_length": roll["current_length"],
             "note": note,
             "created_at": created_at
         }
+
+async def get_transfers_history(branch_id: int = None, limit: int = 50) -> list[dict]:
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        if branch_id:
+            query = "SELECT * FROM transfers WHERE from_branch = ? OR to_branch = ? ORDER BY id DESC LIMIT ?"
+            params = (branch_id, branch_id, limit)
+        else:
+            query = "SELECT * FROM transfers ORDER BY id DESC LIMIT ?"
+            params = (limit,)
+        async with db.execute(query, params) as cur:
+            rows = await cur.fetchall()
+            return [dict(r) for r in rows]
+
+async def update_roll(roll_id: int, width: float, color: str, current_length: float, price_per_m2: float) -> dict:
+    area_m2 = round(width * current_length, 2)
+    total_price = round(area_m2 * price_per_m2, 2)
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            UPDATE rolls
+            SET width = ?, color = ?, current_length = ?, area_m2 = ?, price_per_m2 = ?, total_price = ?
+            WHERE id = ?
+        """, (width, color, current_length, area_m2, price_per_m2, total_price, roll_id))
+        await db.commit()
+    return {"success": True, "roll_id": roll_id, "width": width, "color": color, "current_length": current_length, "area_m2": area_m2, "price_per_m2": price_per_m2, "total_price": total_price}
+
+async def delete_roll(roll_id: int) -> bool:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE rolls SET status = 'deleted' WHERE id = ?", (roll_id,))
+        await db.commit()
+    return True
+
+async def update_leather_item(branch_id: int, color: str, quantity: int, price_per_item: float) -> dict:
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            INSERT INTO leather_inventory (branch_id, color, quantity, price_per_item, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(branch_id, color) DO UPDATE SET
+                quantity = excluded.quantity,
+                price_per_item = excluded.price_per_item,
+                updated_at = excluded.updated_at
+        """, (branch_id, color, quantity, price_per_item, now_str))
+        await db.commit()
+    return {"success": True, "branch_id": branch_id, "color": color, "quantity": quantity, "price_per_item": price_per_item}
+
+async def update_kavralan_roll(roll_id: int, current_length: float, price_per_m2: float) -> dict:
+    area_m2 = round(4.0 * current_length, 2)
+    total_price = round(area_m2 * price_per_m2, 2)
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("""
+            UPDATE kavralan_rolls
+            SET current_length = ?, area_m2 = ?, total_price = ?
+            WHERE id = ?
+        """, (current_length, area_m2, total_price, roll_id))
+        await db.commit()
+    return {"success": True, "roll_id": roll_id, "current_length": current_length, "area_m2": area_m2, "total_price": total_price}
+
+async def delete_kavralan_roll(roll_id: int) -> bool:
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE kavralan_rolls SET status = 'deleted' WHERE id = ?", (roll_id,))
+        await db.commit()
+    return True
 
 
 # --- GILAM FUNKSIYALARI ---

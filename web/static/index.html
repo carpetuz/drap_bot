@@ -300,7 +300,10 @@
           <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-sm">
             <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
               <div>
-                <h2 class="text-base font-semibold text-neutral-900">Ombor qoldiqlari</h2>
+                <div class="flex items-center gap-2">
+                  <h2 class="text-base font-semibold text-neutral-900">Ombor qoldiqlari</h2>
+                  <span id="stock-admin-badge" class="hidden px-2 py-0.5 text-[10px] font-semibold bg-neutral-900 text-white rounded-md">👑 Admin boshqaruvi</span>
+                </div>
                 <p class="text-xs text-ghostMuted mt-0.5">Mavjud rulonlar va tovarlar ro'yxati</p>
               </div>
               <div class="flex items-center gap-2">
@@ -328,6 +331,7 @@
                     <th class="pb-2.5">Maydon (m²)</th>
                     <th class="pb-2.5">1 m² narxi</th>
                     <th class="pb-2.5">Jami qiymati</th>
+                    <th id="th-carpet-actions" class="pb-2.5 text-right hidden">Amallar</th>
                   </tr>
                 </thead>
                 <tbody id="stock-tbody" class="divide-y divide-ghostBorder"></tbody>
@@ -343,6 +347,7 @@
                     <th class="pb-2.5">Mavjud qoldiq</th>
                     <th class="pb-2.5">1 dona narxi</th>
                     <th class="pb-2.5">Jami qiymati</th>
+                    <th id="th-leather-actions" class="pb-2.5 text-right hidden">Amallar</th>
                   </tr>
                 </thead>
                 <tbody id="stock-leather-tbody" class="divide-y divide-ghostBorder"></tbody>
@@ -360,6 +365,7 @@
                     <th class="pb-2.5">Maydon (m²)</th>
                     <th class="pb-2.5">1 m² narxi</th>
                     <th class="pb-2.5">Jami qiymati</th>
+                    <th id="th-kavralan-actions" class="pb-2.5 text-right hidden">Amallar</th>
                   </tr>
                 </thead>
                 <tbody id="stock-kavralan-tbody" class="divide-y divide-ghostBorder"></tbody>
@@ -695,6 +701,27 @@
               </button>
             </form>
           </div>
+
+          <!-- Transfer History Table -->
+          <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-sm">
+            <h2 class="text-base font-semibold text-neutral-900 mb-1">Transferlar tarixi</h2>
+            <p class="text-xs text-ghostMuted mb-4">Filiallar orasida jo'natilgan va qabul qilingan rulonlar</p>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="border-b border-ghostBorder text-ghostMuted font-medium">
+                    <th class="pb-2.5">Sana</th>
+                    <th class="pb-2.5">Rulon kodi</th>
+                    <th class="pb-2.5">Qayerdan</th>
+                    <th class="pb-2.5">Qayerga</th>
+                    <th class="pb-2.5">O'lchami / Rangi</th>
+                    <th class="pb-2.5">Izoh</th>
+                  </tr>
+                </thead>
+                <tbody id="transfer-history-tbody" class="divide-y divide-ghostBorder"></tbody>
+              </table>
+            </div>
+          </div>
         </section>
 
         <!-- TAB: RASXOD (XARAJATLAR) -->
@@ -773,6 +800,89 @@
   <!-- TOAST NOTIFICATION -->
   <div id="toast" class="fixed bottom-4 right-4 z-50 transform translate-y-10 opacity-0 transition-all duration-200 bg-neutral-900 text-white text-xs px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 pointer-events-none">
     <span id="toast-text">Xabar</span>
+  </div>
+
+  <!-- EDIT CARPET ROLL MODAL -->
+  <div id="modal-edit-carpet" class="fixed inset-0 bg-neutral-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-xl max-w-md w-full animate-in fade-in duration-150">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-base font-semibold text-neutral-900" id="edit-carpet-title">Rulonni tahrirlash</h3>
+        <button type="button" onclick="closeEditModal('carpet')" class="text-ghostMuted hover:text-neutral-900 text-lg font-bold">✕</button>
+      </div>
+      <form onsubmit="submitEditCarpetRoll(event)" class="space-y-4">
+        <input type="hidden" id="edit-carpet-id">
+        <div>
+          <label class="block text-xs font-medium text-neutral-600 mb-1">Eni (metr):</label>
+          <input type="number" step="0.1" id="edit-carpet-width" required class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-neutral-600 mb-1">Rangi:</label>
+          <input type="text" id="edit-carpet-color" required class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-neutral-600 mb-1">Qoldiq uzunligi (m):</label>
+          <input type="number" step="0.01" id="edit-carpet-length" required class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-neutral-600 mb-1">1 m² narxi ($):</label>
+          <input type="number" step="0.1" id="edit-carpet-price" required class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeEditModal('carpet')" class="w-1/2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 font-medium text-sm py-2.5 rounded-xl transition">Bekor qilish</button>
+          <button type="submit" class="w-1/2 bg-neutral-900 hover:bg-neutral-800 text-white font-medium text-sm py-2.5 rounded-xl transition">Saqlash</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- EDIT LEATHER MODAL -->
+  <div id="modal-edit-leather" class="fixed inset-0 bg-neutral-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-xl max-w-md w-full animate-in fade-in duration-150">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-base font-semibold text-neutral-900" id="edit-leather-title">Terini tahrirlash</h3>
+        <button type="button" onclick="closeEditModal('leather')" class="text-ghostMuted hover:text-neutral-900 text-lg font-bold">✕</button>
+      </div>
+      <form onsubmit="submitEditLeather(event)" class="space-y-4">
+        <input type="hidden" id="edit-leather-color">
+        <div>
+          <label class="block text-xs font-medium text-neutral-600 mb-1">Soni (dona):</label>
+          <input type="number" id="edit-leather-quantity" required class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-neutral-600 mb-1">1 dona narxi ($):</label>
+          <input type="number" step="0.1" id="edit-leather-price" required class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeEditModal('leather')" class="w-1/2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 font-medium text-sm py-2.5 rounded-xl transition">Bekor qilish</button>
+          <button type="submit" class="w-1/2 bg-neutral-900 hover:bg-neutral-800 text-white font-medium text-sm py-2.5 rounded-xl transition">Saqlash</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- EDIT KAVRALAN MODAL -->
+  <div id="modal-edit-kavralan" class="fixed inset-0 bg-neutral-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
+    <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-xl max-w-md w-full animate-in fade-in duration-150">
+      <div class="flex justify-between items-center mb-4">
+        <h3 class="text-base font-semibold text-neutral-900" id="edit-kavralan-title">Kavralan rulonini tahrirlash</h3>
+        <button type="button" onclick="closeEditModal('kavralan')" class="text-ghostMuted hover:text-neutral-900 text-lg font-bold">✕</button>
+      </div>
+      <form onsubmit="submitEditKavralan(event)" class="space-y-4">
+        <input type="hidden" id="edit-kavralan-id">
+        <div>
+          <label class="block text-xs font-medium text-neutral-600 mb-1">Qoldiq uzunligi (m):</label>
+          <input type="number" step="0.01" id="edit-kavralan-length" required class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-neutral-600 mb-1">1 m² narxi ($):</label>
+          <input type="number" step="0.1" id="edit-kavralan-price" required class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeEditModal('kavralan')" class="w-1/2 bg-neutral-100 hover:bg-neutral-200 text-neutral-800 font-medium text-sm py-2.5 rounded-xl transition">Bekor qilish</button>
+          <button type="submit" class="w-1/2 bg-neutral-900 hover:bg-neutral-800 text-white font-medium text-sm py-2.5 rounded-xl transition">Saqlash</button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- APPLICATION JAVASCRIPT LOGIC -->
@@ -1214,6 +1324,16 @@
       ALL_LEATHER = data.leather || [];
       ALL_KAVRALAN = data.kavralan_rolls || [];
 
+      const isAdmin = (CURRENT_USER && CURRENT_USER.role === 'superadmin');
+      const thC = document.getElementById('th-carpet-actions');
+      const thL = document.getElementById('th-leather-actions');
+      const thK = document.getElementById('th-kavralan-actions');
+      const badge = document.getElementById('stock-admin-badge');
+      if (thC) thC.classList.toggle('hidden', !isAdmin);
+      if (thL) thL.classList.toggle('hidden', !isAdmin);
+      if (thK) thK.classList.toggle('hidden', !isAdmin);
+      if (badge) badge.classList.toggle('hidden', !isAdmin);
+
       renderStockTable(ALL_ROLLS);
       renderLeatherStockTable(ALL_LEATHER);
       renderKavralanStockTable(ALL_KAVRALAN);
@@ -1227,13 +1347,23 @@
       const tbody = document.getElementById('stock-tbody');
       if (!tbody) return;
       tbody.innerHTML = '';
+      const isAdmin = (CURRENT_USER && CURRENT_USER.role === 'superadmin');
       if (rolls.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-ghostMuted">Omborda faol gilam rulonlari yo\'q</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="${isAdmin ? 8 : 7}" class="py-4 text-center text-ghostMuted">Omborda faol gilam rulonlari yo'q</td></tr>`;
         return;
       }
       rolls.forEach(r => {
         const tr = document.createElement('tr');
         tr.className = "hover:bg-neutral-50 transition";
+        let actionsTd = '';
+        if (isAdmin) {
+          actionsTd = `
+            <td class="py-2.5 text-right space-x-1 whitespace-nowrap">
+              <button onclick="openEditCarpetModal(${r.id})" class="px-2 py-1 text-[11px] bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-lg transition font-medium">✏️ Tahrirlash</button>
+              <button onclick="deleteCarpetRoll(${r.id}, '${r.roll_code}')" class="px-2 py-1 text-[11px] bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition font-medium">🗑</button>
+            </td>
+          `;
+        }
         tr.innerHTML = `
           <td class="py-2.5 font-medium text-neutral-900">${r.roll_code}</td>
           <td class="py-2.5 text-neutral-600">${r.width} m</td>
@@ -1242,6 +1372,7 @@
           <td class="py-2.5 text-neutral-600">${r.area_m2} m²</td>
           <td class="py-2.5 text-neutral-600">$${r.price_per_m2 || 8}</td>
           <td class="py-2.5 font-semibold text-neutral-900">$${r.total_price}</td>
+          ${actionsTd}
         `;
         tbody.appendChild(tr);
       });
@@ -1251,19 +1382,29 @@
       const tbody = document.getElementById('stock-leather-tbody');
       if (!tbody) return;
       tbody.innerHTML = '';
+      const isAdmin = (CURRENT_USER && CURRENT_USER.role === 'superadmin');
       if (leathers.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-ghostMuted">Omborda teri mavjud emas</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="${isAdmin ? 5 : 4}" class="py-4 text-center text-ghostMuted">Omborda teri mavjud emas</td></tr>`;
         return;
       }
       leathers.forEach(l => {
         const tr = document.createElement('tr');
         tr.className = "hover:bg-neutral-50 transition";
         const tot = Math.round(l.quantity * (l.price_per_item || 50) * 100) / 100;
+        let actionsTd = '';
+        if (isAdmin) {
+          actionsTd = `
+            <td class="py-2.5 text-right whitespace-nowrap">
+              <button onclick="openEditLeatherModal('${l.color}', ${l.quantity}, ${l.price_per_item || 50})" class="px-2 py-1 text-[11px] bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-lg transition font-medium">✏️ Tahrirlash</button>
+            </td>
+          `;
+        }
         tr.innerHTML = `
           <td class="py-2.5 font-medium text-neutral-900">${l.color}</td>
           <td class="py-2.5 font-bold text-neutral-900">${l.quantity} dona</td>
           <td class="py-2.5 text-neutral-600">$${l.price_per_item || 50}</td>
           <td class="py-2.5 font-semibold text-neutral-900">$${tot}</td>
+          ${actionsTd}
         `;
         tbody.appendChild(tr);
       });
@@ -1273,13 +1414,23 @@
       const tbody = document.getElementById('stock-kavralan-tbody');
       if (!tbody) return;
       tbody.innerHTML = '';
+      const isAdmin = (CURRENT_USER && CURRENT_USER.role === 'superadmin');
       if (kavralans.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-ghostMuted">Omborda Kavralan rulonlari yo\'q</td></tr>';
+        tbody.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 6}" class="py-4 text-center text-ghostMuted">Omborda Kavralan rulonlari yo'q</td></tr>`;
         return;
       }
       kavralans.forEach(k => {
         const tr = document.createElement('tr');
         tr.className = "hover:bg-neutral-50 transition";
+        let actionsTd = '';
+        if (isAdmin) {
+          actionsTd = `
+            <td class="py-2.5 text-right space-x-1 whitespace-nowrap">
+              <button onclick="openEditKavralanModal(${k.id})" class="px-2 py-1 text-[11px] bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-lg transition font-medium">✏️ Tahrirlash</button>
+              <button onclick="deleteKavralanRoll(${k.id}, '${k.roll_code}')" class="px-2 py-1 text-[11px] bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition font-medium">🗑</button>
+            </td>
+          `;
+        }
         tr.innerHTML = `
           <td class="py-2.5 font-medium text-neutral-900">${k.roll_code}</td>
           <td class="py-2.5 text-neutral-600">${k.width || 4.0} m</td>
@@ -1287,6 +1438,7 @@
           <td class="py-2.5 text-neutral-600">${k.area_m2} m²</td>
           <td class="py-2.5 text-neutral-600">$${k.price_per_m2 || 30}</td>
           <td class="py-2.5 font-semibold text-neutral-900">$${k.total_price}</td>
+          ${actionsTd}
         `;
         tbody.appendChild(tr);
       });
@@ -1612,26 +1764,51 @@
     // ==================== TRANSFER LOGIC ====================
     async function loadTransferData() {
       const data = await apiRequest('/api/stock');
-      if (!data) return;
-      const select = document.getElementById('transfer-roll-select');
-      select.innerHTML = '<option value="">Rulonni tanlang...</option>';
-      (data.rolls || []).forEach(r => {
-        const opt = document.createElement('option');
-        opt.value = r.id;
-        opt.innerText = `${r.roll_code} — ${r.color} ${r.width}m (${r.current_length} m qoldiq)`;
-        select.appendChild(opt);
-      });
-
-      const toSelect = document.getElementById('transfer-to-branch');
-      toSelect.innerHTML = '';
-      [1, 2, 3].forEach(bId => {
-        if (bId !== ACTIVE_BRANCH) {
+      if (data) {
+        const select = document.getElementById('transfer-roll-select');
+        select.innerHTML = '<option value="">Rulonni tanlang...</option>';
+        (data.rolls || []).forEach(r => {
           const opt = document.createElement('option');
-          opt.value = bId;
-          opt.innerText = `${bId}-Filial`;
-          toSelect.appendChild(opt);
+          opt.value = r.id;
+          opt.innerText = `${r.roll_code} — ${r.color} ${r.width}m (${r.current_length} m qoldiq)`;
+          select.appendChild(opt);
+        });
+
+        const toSelect = document.getElementById('transfer-to-branch');
+        toSelect.innerHTML = '';
+        [1, 2, 3].forEach(bId => {
+          if (bId !== ACTIVE_BRANCH) {
+            const opt = document.createElement('option');
+            opt.value = bId;
+            opt.innerText = `${bId}-Filial`;
+            toSelect.appendChild(opt);
+          }
+        });
+      }
+
+      // Load Transfer History
+      const thRes = await apiRequest('/api/transfers');
+      const thBody = document.getElementById('transfer-history-tbody');
+      if (thBody && thRes && thRes.transfers) {
+        thBody.innerHTML = '';
+        if (thRes.transfers.length === 0) {
+          thBody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-ghostMuted">Hozircha transferlar mavjud emas</td></tr>';
+        } else {
+          thRes.transfers.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-neutral-50 transition";
+            tr.innerHTML = `
+              <td class="py-2.5 text-neutral-500 whitespace-nowrap">${t.created_at || ''}</td>
+              <td class="py-2.5 font-semibold text-neutral-900">${t.roll_code}</td>
+              <td class="py-2.5 text-neutral-700">${t.from_branch}-Filial</td>
+              <td class="py-2.5 font-medium text-emerald-700">${t.to_branch}-Filial</td>
+              <td class="py-2.5 text-neutral-600">${t.width}m x ${t.length}m (${t.color})</td>
+              <td class="py-2.5 text-neutral-500">${t.note || '-'}</td>
+            `;
+            thBody.appendChild(tr);
+          });
         }
-      });
+      }
     }
 
     async function submitRollTransfer(e) {
@@ -1649,7 +1826,7 @@
         note: note
       });
       if (res && res.success) {
-        showToast("Rulon muvaffaqiyatli transfer qilindi!");
+        showToast("Rulon muvaffaqiyatli transfer qilindi va filialga xabar yuborildi!");
         e.target.reset();
         loadStockData();
         loadTransferData();
@@ -1695,6 +1872,125 @@
         e.target.reset();
         loadExpensesData();
         loadCashboxData();
+      }
+    }
+
+    // ==================== SUPER ADMIN STOCK EDIT & DELETE LOGIC ====================
+    function closeEditModal(type) {
+      const m = document.getElementById(`modal-edit-${type}`);
+      if (m) m.classList.add('hidden');
+    }
+
+    // 1. CARPET EDIT & DELETE
+    function openEditCarpetModal(rollId) {
+      const roll = ALL_ROLLS.find(r => r.id === rollId);
+      if (!roll) return;
+      document.getElementById('edit-carpet-id').value = roll.id;
+      document.getElementById('edit-carpet-title').innerText = `Rulonni tahrirlash: ${roll.roll_code}`;
+      document.getElementById('edit-carpet-width').value = roll.width;
+      document.getElementById('edit-carpet-color').value = roll.color;
+      document.getElementById('edit-carpet-length').value = roll.current_length;
+      document.getElementById('edit-carpet-price').value = roll.price_per_m2 || 8;
+      document.getElementById('modal-edit-carpet').classList.remove('hidden');
+    }
+
+    async function submitEditCarpetRoll(e) {
+      e.preventDefault();
+      const rollId = parseInt(document.getElementById('edit-carpet-id').value);
+      const width = parseFloat(document.getElementById('edit-carpet-width').value);
+      const color = document.getElementById('edit-carpet-color').value.trim();
+      const current_length = parseFloat(document.getElementById('edit-carpet-length').value);
+      const price_per_m2 = parseFloat(document.getElementById('edit-carpet-price').value);
+
+      const res = await apiRequest('/api/stock/edit-roll', 'POST', {
+        roll_id: rollId,
+        width,
+        color,
+        current_length,
+        price_per_m2
+      });
+
+      if (res && res.success) {
+        showToast("Rulon muvaffaqiyatli tahrirlandi!");
+        closeEditModal('carpet');
+        loadStockData();
+      }
+    }
+
+    async function deleteCarpetRoll(rollId, rollCode) {
+      if (!confirm(`Haqiqatan ham ${rollCode} rulonini ombordan o'chirmoqchimisiz?`)) return;
+      const res = await apiRequest('/api/stock/delete-roll', 'POST', { roll_id: rollId });
+      if (res && res.success) {
+        showToast(`${rollCode} ombordan o'chirildi!`);
+        loadStockData();
+      }
+    }
+
+    // 2. LEATHER EDIT
+    function openEditLeatherModal(color, qty, price) {
+      document.getElementById('edit-leather-color').value = color;
+      document.getElementById('edit-leather-title').innerText = `${color} terini tahrirlash`;
+      document.getElementById('edit-leather-quantity').value = qty;
+      document.getElementById('edit-leather-price').value = price;
+      document.getElementById('modal-edit-leather').classList.remove('hidden');
+    }
+
+    async function submitEditLeather(e) {
+      e.preventDefault();
+      const color = document.getElementById('edit-leather-color').value;
+      const quantity = parseInt(document.getElementById('edit-leather-quantity').value);
+      const price_per_item = parseFloat(document.getElementById('edit-leather-price').value);
+
+      const res = await apiRequest('/api/stock/edit-leather', 'POST', {
+        branch_id: ACTIVE_BRANCH,
+        color,
+        quantity,
+        price_per_item
+      });
+
+      if (res && res.success) {
+        showToast("Teri qoldig'i muvaffaqiyatli yangilandi!");
+        closeEditModal('leather');
+        loadStockData();
+      }
+    }
+
+    // 3. KAVRALAN EDIT & DELETE
+    function openEditKavralanModal(rollId) {
+      const roll = ALL_KAVRALAN.find(k => k.id === rollId);
+      if (!roll) return;
+      document.getElementById('edit-kavralan-id').value = roll.id;
+      document.getElementById('edit-kavralan-title').innerText = `Kavralan rulonini tahrirlash: ${roll.roll_code}`;
+      document.getElementById('edit-kavralan-length').value = roll.current_length;
+      document.getElementById('edit-kavralan-price').value = roll.price_per_m2 || 30;
+      document.getElementById('modal-edit-kavralan').classList.remove('hidden');
+    }
+
+    async function submitEditKavralan(e) {
+      e.preventDefault();
+      const rollId = parseInt(document.getElementById('edit-kavralan-id').value);
+      const current_length = parseFloat(document.getElementById('edit-kavralan-length').value);
+      const price_per_m2 = parseFloat(document.getElementById('edit-kavralan-price').value);
+
+      const res = await apiRequest('/api/stock/edit-kavralan', 'POST', {
+        roll_id: rollId,
+        current_length,
+        price_per_m2
+      });
+
+      if (res && res.success) {
+        showToast("Kavralan ruloni tahrirlandi!");
+        closeEditModal('kavralan');
+        loadStockData();
+      }
+    }
+
+    async function deleteKavralanRoll(rollId, rollCode) {
+      if (!confirm(`Haqiqatan ham ${rollCode} Kavralan rulonini o'chirmoqchimisiz?`)) return;
+      const res = await apiRequest('/api/stock/delete-kavralan', 'POST', { roll_id: rollId });
+      if (res && res.success) {
+        showToast(`${rollCode} o'chirildi!`);
+        loadStockData();
       }
     }
 

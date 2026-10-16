@@ -9,7 +9,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from config import BOT_TOKEN, SUPER_ADMIN_IDS
 from database.local_db import init_db, DB_PATH
-from handlers import common, import_goods, sales, cashbox, dashboard, leather, debts, kavralan, branch3
+from handlers import common
 from utils.excel_export import generate_excel_report
 
 logging.basicConfig(
@@ -57,16 +57,8 @@ async def main():
     bot = Bot(token=BOT_TOKEN)
     dp = Dispatcher(storage=MemoryStorage())
 
-    # 3. Routerlarni ro'yxatdan o'tkazish
+    # 3. Routerlarni ro'yxatdan o'tkazish (Faqat avtorizatsiya va bildirishnomalar)
     dp.include_router(common.router)
-    dp.include_router(branch3.router)      # 3-Filial sodda sotuv va hisobot routeri
-    dp.include_router(debts.router)        # Yangi Nasiya (Qarzlar) routeri
-    dp.include_router(leather.router)      # Teri routeri
-    dp.include_router(kavralan.router)     # Asl Kavralan routeri
-    dp.include_router(import_goods.router) # Gilam kirim
-    dp.include_router(sales.router)        # Gilam sotuv
-    dp.include_router(cashbox.router)      # Alohida kassalar
-    dp.include_router(dashboard.router)    # Statistika va hisobotlar
 
     # 4. Haftalik zaxira (Har yakshanba 23:59 da faqat Super Adminga)
     scheduler = AsyncIOScheduler()
