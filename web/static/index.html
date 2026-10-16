@@ -537,9 +537,10 @@
                            autocomplete="off"
                            placeholder="Qidirish: masalan 0.8x seriy yoki 1.2x Bordo..." 
                            onfocus="openSaleRollDropdown()" 
+                           onclick="openSaleRollDropdown()"
                            oninput="onSaleRollSearchInput(this.value)" 
                            class="w-full bg-ghostBg border border-ghostBorder rounded-xl pl-3 pr-8 py-2.5 text-sm focus:outline-none focus:border-neutral-900 font-medium">
-                    <div class="absolute right-3 top-3 text-ghostMuted pointer-events-none">
+                    <div onclick="openSaleRollDropdown(); document.getElementById('sale-roll-input').focus();" class="absolute right-3 top-3 text-ghostMuted cursor-pointer hover:text-neutral-800 transition">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                     </div>
                   </div>
@@ -816,9 +817,10 @@
                          autocomplete="off"
                          placeholder="Qidirish: masalan 0.8x seriy yoki 1.2x..." 
                          onfocus="openTransferRollDropdown()" 
+                         onclick="openTransferRollDropdown()" 
                          oninput="onTransferRollSearchInput(this.value)" 
                          class="w-full bg-ghostBg border border-ghostBorder rounded-xl pl-3 pr-8 py-2.5 text-sm focus:outline-none focus:border-neutral-900 font-medium">
-                  <div class="absolute right-3 top-3 text-ghostMuted pointer-events-none">
+                  <div onclick="openTransferRollDropdown(); document.getElementById('transfer-roll-input').focus();" class="absolute right-3 top-3 text-ghostMuted cursor-pointer hover:text-neutral-800 transition">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                   </div>
                 </div>
@@ -1374,6 +1376,12 @@
       if (res && res.success) {
         ACTIVE_BRANCH = bId;
         CURRENT_USER.active_branch = bId;
+        SELECTED_SALE_ROLL = null;
+        SELECTED_TRANSFER_ROLL = null;
+        const sInput = document.getElementById('sale-roll-input');
+        if (sInput) sInput.value = '';
+        const tInput = document.getElementById('transfer-roll-input');
+        if (tInput) tInput.value = '';
         updateBranchPills();
         renderBranchLayout();
         showToast(`${bId}-Filialga o'tildi`);
@@ -1511,6 +1519,11 @@
         document.getElementById('view-import').classList.remove('hidden');
       } else if (viewId === 'sale') {
         document.getElementById('view-sale').classList.remove('hidden');
+        if (!ALL_ROLLS || ALL_ROLLS.length === 0) {
+          loadStockData();
+        } else {
+          filterSaleRollDropdown();
+        }
       } else if (viewId === 'cashbox') {
         document.getElementById('view-cashbox').classList.remove('hidden');
         loadCashboxData();
@@ -1871,35 +1884,64 @@
 
     function matchRollQuery(r, rawQuery) {
       if (!rawQuery) return true;
-      let q = rawQuery.toLowerCase().trim();
+      let q = String(rawQuery).toLowerCase().trim();
       if (!q) return true;
 
-      // "1.2x", "1.2*", "1.2 x", "1.2 m", "1.2xseriy" -> "1.2 seriy"
-      q = q.replace(/(\d+(?:\.\d+)?)\s*[xX*mм]\s*/g, "$1 ");
-      q = q.replace(/[,/]/g, " ");
-
-      const tokens = q.split(/\s+/).filter(t => t.length > 0);
-      if (tokens.length === 0) return true;
-
+      const rWidth = parseFloat(r.width) || 0;
       const widthStr = String(r.width || "");
       const colorStr = (r.color || "").toLowerCase();
+      const lengthVal = parseFloat(r.current_length || 0);
       const lengthStr = String(r.current_length || "");
       const codeStr = (r.roll_code || "").toLowerCase();
 
+      // Check for explicit width specification, e.g. "2x", "0.8x", "1.2*", "1.6m", "2.0 x"
+      const widthMatch = q.match(/(\d+(?:\.\d+)?)\s*(?:[xX*]|(?:m|м)(?:\s|$))/i);
+      if (widthMatch) {
+        const reqWidth = parseFloat(widthMatch[1]);
+        if (Math.abs(rWidth - reqWidth) > 0.01) {
+          return false; // Foydalanuvchi aynan shu enni qidirgan, boshqa enlar chiqmasligi shart!
+        }
+        // Eni mos kelgan bo'lsa, qolgan so'zlarni (rang, kod) tekshirish uchun o'lcham qismini olib tashlaymiz
+        q = (q.slice(0, widthMatch.index) + " " + q.slice(widthMatch.index + widthMatch[0].length)).trim();
+      }
+
+      q = q.replace(/[,/]/g, " ");
+      const tokens = q.split(/\s+/).filter(t => t.length > 0);
+      if (tokens.length === 0) return true;
+
+      const standardWidths = [0.8, 1, 1.0, 1.2, 1.5, 1.6, 2, 2.0, 2.5, 3, 3.0, 4, 4.0];
+
       return tokens.every(token => {
+        // 1. Rang yoki rulon kodi bo'yicha moslik
+        if (colorStr.includes(token) || codeStr.includes(token)) {
+          return true;
+        }
+
+        // 2. Raqamli qiymatlar bo'yicha moslik
         if (!isNaN(token)) {
           const num = parseFloat(token);
-          // Eni bo'yicha qat'iy tekshirish (0.8, 1, 1.0, 1.2, 1.6, 2, 2.0)
-          if ([0.8, 1, 1.0, 1.2, 1.6, 2, 2.0].includes(num)) {
-            if (num === r.width || widthStr === token || (num === 1 && r.width === 1.0) || (num === 2 && r.width === 2.0)) {
+
+          // Standart gilam enlaridan biri yozilgan bo'lsa (masalan 2 yoki 0.8 yoki 1.2)
+          if (standardWidths.includes(num)) {
+            if (Math.abs(rWidth - num) < 0.01 || widthStr === token) {
               return true;
             }
           }
-          // Uzunlik bo'yicha moslik (masalan 15, 16.8)
-          if (lengthStr.includes(token)) return true;
-          return r.width === num;
+
+          // Aniq uzunlik bo'yicha moslik (masalan 18.5, 15, 25)
+          if (Math.abs(lengthVal - num) < 0.01 || lengthStr === token) {
+            return true;
+          }
+
+          // Kamida 2 xonali son bo'lsa va standart en bo'lmasa, uzunlik prefiksi (masalan "18" -> "18.5")
+          if (token.length >= 2 && lengthStr.startsWith(token) && !standardWidths.includes(num)) {
+            return true;
+          }
+
+          return false;
         }
-        return colorStr.includes(token) || codeStr.includes(token);
+
+        return false;
       });
     }
 
@@ -1965,12 +2007,35 @@
 
     function openSaleRollDropdown() {
       const input = document.getElementById('sale-roll-input');
-      const q = input ? input.value : '';
+      if (input) {
+        input.select();
+      }
+      if (!ALL_ROLLS || ALL_ROLLS.length === 0) {
+        loadStockData().then(() => {
+          renderSaleRollDropdown(ALL_ROLLS);
+        });
+        return;
+      }
+      let q = input ? input.value : '';
+      if (SELECTED_SALE_ROLL) {
+        const avail = Math.round(((SELECTED_SALE_ROLL.current_length || 0) - (SELECTED_SALE_ROLL.pending_length || 0)) * 100) / 100;
+        const selectedLabel = `${SELECTED_SALE_ROLL.width}x - ${avail} ${SELECTED_SALE_ROLL.color}`;
+        if (q.trim() === selectedLabel.trim()) {
+          q = '';
+        }
+      }
       const filtered = ALL_ROLLS.filter(r => matchRollQuery(r, q));
       renderSaleRollDropdown(filtered);
     }
 
     function onSaleRollSearchInput(q) {
+      if (!ALL_ROLLS || ALL_ROLLS.length === 0) {
+        loadStockData().then(() => {
+          const filtered = ALL_ROLLS.filter(r => matchRollQuery(r, q));
+          renderSaleRollDropdown(filtered);
+        });
+        return;
+      }
       const filtered = ALL_ROLLS.filter(r => matchRollQuery(r, q));
       renderSaleRollDropdown(filtered);
       if (!q.trim()) {
@@ -1998,9 +2063,17 @@
 
     function filterSaleRollDropdown() {
       const input = document.getElementById('sale-roll-input');
-      const q = input ? input.value : '';
-      const filtered = ALL_ROLLS.filter(r => matchRollQuery(r, q));
+      let q = input ? input.value : '';
+      if (SELECTED_SALE_ROLL) {
+        const avail = Math.round(((SELECTED_SALE_ROLL.current_length || 0) - (SELECTED_SALE_ROLL.pending_length || 0)) * 100) / 100;
+        const selectedLabel = `${SELECTED_SALE_ROLL.width}x - ${avail} ${SELECTED_SALE_ROLL.color}`;
+        if (q.trim() === selectedLabel.trim()) {
+          q = '';
+        }
+      }
+      const filtered = (ALL_ROLLS || []).filter(r => matchRollQuery(r, q));
       populateSaleRollDropdown(filtered);
+      renderSaleRollDropdown(filtered);
     }
 
     function populateSaleRollDropdown(rolls) {
@@ -2523,14 +2596,39 @@
 
     function openTransferRollDropdown() {
       const input = document.getElementById('transfer-roll-input');
-      const q = input ? input.value : '';
+      if (input) {
+        input.select();
+      }
       const sourceRolls = (TRANSFER_ROLLS && TRANSFER_ROLLS.length > 0) ? TRANSFER_ROLLS : (ALL_ROLLS || []);
+      if (!sourceRolls || sourceRolls.length === 0) {
+        loadStockData().then(() => {
+          const src = (TRANSFER_ROLLS && TRANSFER_ROLLS.length > 0) ? TRANSFER_ROLLS : (ALL_ROLLS || []);
+          renderTransferRollDropdown(src);
+        });
+        return;
+      }
+      let q = input ? input.value : '';
+      if (SELECTED_TRANSFER_ROLL) {
+        const avail = Math.round(((SELECTED_TRANSFER_ROLL.current_length || 0) - (SELECTED_TRANSFER_ROLL.pending_length || 0)) * 100) / 100;
+        const selectedLabel = `${SELECTED_TRANSFER_ROLL.width}x - ${avail} ${SELECTED_TRANSFER_ROLL.color}`;
+        if (q.trim() === selectedLabel.trim()) {
+          q = '';
+        }
+      }
       const filtered = sourceRolls.filter(r => matchRollQuery(r, q));
       renderTransferRollDropdown(filtered);
     }
 
     function onTransferRollSearchInput(q) {
       const sourceRolls = (TRANSFER_ROLLS && TRANSFER_ROLLS.length > 0) ? TRANSFER_ROLLS : (ALL_ROLLS || []);
+      if (!sourceRolls || sourceRolls.length === 0) {
+        loadStockData().then(() => {
+          const src = (TRANSFER_ROLLS && TRANSFER_ROLLS.length > 0) ? TRANSFER_ROLLS : (ALL_ROLLS || []);
+          const filtered = src.filter(r => matchRollQuery(r, q));
+          renderTransferRollDropdown(filtered);
+        });
+        return;
+      }
       const filtered = sourceRolls.filter(r => matchRollQuery(r, q));
       renderTransferRollDropdown(filtered);
       if (!q.trim()) {
@@ -2562,10 +2660,18 @@
 
     function filterTransferRollDropdown() {
       const input = document.getElementById('transfer-roll-input');
-      const q = input ? input.value : '';
+      let q = input ? input.value : '';
       const sourceRolls = (TRANSFER_ROLLS && TRANSFER_ROLLS.length > 0) ? TRANSFER_ROLLS : (ALL_ROLLS || []);
+      if (SELECTED_TRANSFER_ROLL) {
+        const avail = Math.round(((SELECTED_TRANSFER_ROLL.current_length || 0) - (SELECTED_TRANSFER_ROLL.pending_length || 0)) * 100) / 100;
+        const selectedLabel = `${SELECTED_TRANSFER_ROLL.width}x - ${avail} ${SELECTED_TRANSFER_ROLL.color}`;
+        if (q.trim() === selectedLabel.trim()) {
+          q = '';
+        }
+      }
       const filtered = sourceRolls.filter(r => matchRollQuery(r, q));
       populateTransferRollDropdown(filtered);
+      renderTransferRollDropdown(filtered);
     }
 
     function populateTransferRollDropdown(rolls) {
