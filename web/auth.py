@@ -2,7 +2,7 @@ import hmac
 import hashlib
 import json
 import time
-import uuid
+import secrets
 import urllib.parse
 from typing import Optional, Dict
 from config import BOT_TOKEN, SUPER_ADMIN_IDS, BRANCH_USERS, BRANCH_NAMES
@@ -25,6 +25,7 @@ def verify_telegram_webapp_data(init_data: str) -> Optional[dict]:
     """
     Telegram WebApp initData ni tekshirish (HMAC-SHA256).
     Muvaffaqiyatli bo'lsa user ma'lumotlarini dict ko'rinishida qaytaradi.
+    Replay attack oldini olish uchun 24 soatlik muddat tekshiriladi.
     """
     if not init_data or not BOT_TOKEN:
         return None
@@ -34,6 +35,11 @@ def verify_telegram_webapp_data(init_data: str) -> Optional[dict]:
         if "hash" not in parsed_data:
             return None
         received_hash = parsed_data.pop("hash")
+
+        # Replay attack himoyasi (auth_date 24 soatdan oshgan bo'lmasligi kerak)
+        auth_date = int(parsed_data.get("auth_date", 0))
+        if auth_date > 0 and (time.time() - auth_date > 86400):
+            return None
 
         # Kalitlarni alifbo bo'yicha saralash
         data_check_string = "\n".join(f"{k}={v}" for k, v in sorted(parsed_data.items()))
@@ -54,12 +60,12 @@ def verify_telegram_webapp_data(init_data: str) -> Optional[dict]:
         return None
 
 def create_session(user_id: int, user_info: Optional[dict] = None) -> Optional[dict]:
-    """Foydalanuvchi uchun sessiya tokeni yaratish"""
+    """Foydalanuvchi uchun xavfsiz sessiya tokeni yaratish"""
     role, default_branch = get_user_role_and_branch(user_id)
     if not role:
         return None
 
-    session_token = str(uuid.uuid4())
+    session_token = secrets.token_urlsafe(32)
     first_name = (user_info or {}).get("first_name", "") or (user_info or {}).get("name", "Foydalanuvchi")
     username = (user_info or {}).get("username", "")
 
@@ -89,7 +95,7 @@ def get_session(token: str) -> Optional[dict]:
 
 def create_qr_request() -> dict:
     """Kompyuter orqali kirish uchun QR so'rov yaratish"""
-    qr_token = str(uuid.uuid4())
+    qr_token = secrets.token_urlsafe(24)
     QR_REQUESTS[qr_token] = {
         "status": "pending",
         "created_at": time.time(),

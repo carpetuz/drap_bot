@@ -23,9 +23,6 @@ def get_current_user(request: web.Request):
         token = auth_header.split(" ", 1)[1].strip()
     if not token:
         token = request.cookies.get("crm_session")
-    if not token:
-        # Query parameter fallback (for easy dev or Telegram Mini App)
-        token = request.query.get("token")
         
     if not token:
         return None
@@ -65,7 +62,7 @@ async def api_auth_webapp(request: web.Request):
             "user": session,
             "branch_names": BRANCH_NAMES
         })
-        resp.set_cookie("crm_session", session["token"], max_age=86400*30, httponly=False)
+        resp.set_cookie("crm_session", session["token"], max_age=86400*30, httponly=False, samesite="Lax")
         return resp
     except Exception as e:
         logger.error(f"api_auth_webapp xatolik: {e}")
@@ -97,7 +94,7 @@ async def api_auth_qr_check(request: web.Request):
             "user": session,
             "branch_names": BRANCH_NAMES
         })
-        resp.set_cookie("crm_session", req["session_token"], max_age=86400*30, httponly=False)
+        resp.set_cookie("crm_session", req["session_token"], max_age=86400*30, httponly=False, samesite="Lax")
         return resp
     return json_response({"status": req["status"]})
 
@@ -210,21 +207,27 @@ async def api_add_roll(request: web.Request):
     
     try:
         if product_type == "carpet":
-            width = float(body["width"])
-            color = str(body["color"]).strip()
-            length = float(body["length"])
+            width = float(body.get("width", 0))
+            color = str(body.get("color", "")).strip()
+            length = float(body.get("length", 0))
             price_per_m2 = float(body.get("price_per_m2", 8.0))
+            if width <= 0 or length <= 0 or price_per_m2 <= 0 or not color:
+                return json_response({"error": "Noto'g'ri o'lcham yoki narx kiritildi"}, status=400)
             res = await local_db.add_roll(width, color, length, branch_id, price_per_m2)
             return json_response({"success": True, "item": res})
         elif product_type == "kavralan":
-            length = float(body["length"])
+            length = float(body.get("length", 0))
             price_per_m2 = float(body.get("price_per_m2", 30.0))
+            if length <= 0 or price_per_m2 <= 0:
+                return json_response({"error": "Noto'g'ri o'lcham yoki narx kiritildi"}, status=400)
             res = await local_db.add_kavralan_roll(length, branch_id, price_per_m2)
             return json_response({"success": True, "item": res})
         elif product_type == "leather":
-            color = str(body["color"]).strip()
-            quantity = int(body["quantity"])
+            color = str(body.get("color", "")).strip()
+            quantity = int(body.get("quantity", 0))
             price_per_item = float(body.get("price_per_item", 50.0))
+            if quantity <= 0 or price_per_item <= 0 or not color:
+                return json_response({"error": "Noto'g'ri miqdor yoki narx kiritildi"}, status=400)
             res = await local_db.add_leather_stock(color, quantity, branch_id, price_per_item)
             return json_response({"success": True, "item": res})
         else:
@@ -249,15 +252,19 @@ async def api_make_sale(request: web.Request):
     customer_name = str(body.get("customer_name", "")).strip()
     customer_phone = str(body.get("customer_phone", "")).strip()
     initial_paid = float(body.get("initial_paid", 0.0))
+    if initial_paid < 0:
+        return json_response({"error": "Boshlang'ich to'lov manfiy bo'lishi mumkin emas"}, status=400)
     
     raw_total = body.get("total_price")
     custom_total_price = float(raw_total) if raw_total is not None and str(raw_total).strip() != "" and float(raw_total) > 0 else None
     
     try:
         if product_type == "carpet":
-            roll_id = int(body["roll_id"])
-            sold_length = float(body["sold_length"])
-            price_per_m2 = float(body["price_per_m2"])
+            roll_id = int(body.get("roll_id", 0))
+            sold_length = float(body.get("sold_length", 0))
+            price_per_m2 = float(body.get("price_per_m2", 0))
+            if roll_id <= 0 or sold_length <= 0 or price_per_m2 <= 0:
+                return json_response({"error": "Sotuv parametri noto'g'ri kiritildi"}, status=400)
             res = await local_db.make_sale(
                 roll_id=roll_id,
                 sold_length=sold_length,
@@ -271,9 +278,11 @@ async def api_make_sale(request: web.Request):
             )
             return json_response({"success": True, "sale": res})
         elif product_type == "kavralan":
-            roll_id = int(body["roll_id"])
-            sold_length = float(body["sold_length"])
-            price_per_m2 = float(body["price_per_m2"])
+            roll_id = int(body.get("roll_id", 0))
+            sold_length = float(body.get("sold_length", 0))
+            price_per_m2 = float(body.get("price_per_m2", 0))
+            if roll_id <= 0 or sold_length <= 0 or price_per_m2 <= 0:
+                return json_response({"error": "Sotuv parametri noto'g'ri kiritildi"}, status=400)
             res = await local_db.make_kavralan_sale(
                 roll_id=roll_id,
                 sold_length=sold_length,
@@ -287,9 +296,11 @@ async def api_make_sale(request: web.Request):
             )
             return json_response({"success": True, "sale": res})
         elif product_type == "leather":
-            color = str(body["color"]).strip()
-            quantity = int(body["quantity"])
-            price_per_item = float(body["price_per_item"])
+            color = str(body.get("color", "")).strip()
+            quantity = int(body.get("quantity", 0))
+            price_per_item = float(body.get("price_per_item", 0))
+            if not color or quantity <= 0 or price_per_item <= 0:
+                return json_response({"error": "Sotuv parametri noto'g'ri kiritildi"}, status=400)
             res = await local_db.make_leather_sale(
                 color=color,
                 quantity=quantity,
@@ -367,6 +378,8 @@ async def api_withdraw_cash(request: web.Request):
     
     body = await request.json()
     amount = float(body.get("amount", 0))
+    if amount <= 0:
+        return json_response({"error": "Yechib olinadigan summa musbat bo'lishi kerak"}, status=400)
     category = body.get("category", "carpet")
     note = body.get("note", "Kassa topshirildi")
     
@@ -389,8 +402,10 @@ async def api_pay_debt(request: web.Request):
     branch_id = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
     
     body = await request.json()
-    debt_id = int(body["debt_id"])
-    amount = float(body["amount"])
+    debt_id = int(body.get("debt_id", 0))
+    amount = float(body.get("amount", 0))
+    if debt_id <= 0 or amount <= 0:
+        return json_response({"error": "To'lov summasi musbat bo'lishi kerak"}, status=400)
     note = body.get("note", "")
     
     try:
@@ -407,8 +422,14 @@ async def api_transfer_roll(request: web.Request):
     from_branch = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
     
     body = await request.json()
-    roll_id = int(body["roll_id"])
-    to_branch = int(body["to_branch"])
+    roll_id = int(body.get("roll_id", 0))
+    to_branch = int(body.get("to_branch", 0))
+    if roll_id <= 0:
+        return json_response({"error": "Rulon tanlanmagan"}, status=400)
+    if to_branch not in BRANCH_NAMES:
+        return json_response({"error": "Noto'g'ri qabul qiluvchi filial"}, status=400)
+    if to_branch == from_branch:
+        return json_response({"error": "O'z filialingizga transfer qilib bo'lmaydi"}, status=400)
     note = body.get("note", "").strip()
     
     try:
@@ -523,6 +544,8 @@ async def api_add_expense(request: web.Request):
     
     body = await request.json()
     amount = float(body.get("amount", 0))
+    if amount <= 0:
+        return json_response({"error": "Xarajat summasi musbat bo'lishi kerak"}, status=400)
     category = body.get("category", "carpet")
     expense_title = body.get("expense_title", "Xarajat")
     note = body.get("note", "")
