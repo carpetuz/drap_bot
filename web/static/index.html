@@ -1119,11 +1119,16 @@
       }
     });
 
-    // API Helper with credentials
+    // API Helper with credentials & persistent token support
     async function apiRequest(url, method = 'GET', body = null) {
+      const headers = { 'Content-Type': 'application/json' };
+      const token = localStorage.getItem('crm_session_token');
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
       const opts = {
         method,
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         credentials: 'same-origin'
       };
       if (body) opts.body = JSON.stringify(body);
@@ -1134,7 +1139,9 @@
         return data;
       } catch (err) {
         console.error(err);
-        showToast(err.message, true);
+        if (url !== '/api/auth/me') {
+          showToast(err.message, true);
+        }
         return null;
       }
     }
@@ -1143,6 +1150,7 @@
     async function loginWithTelegramWebApp(initData) {
       const data = await apiRequest('/api/auth/webapp', 'POST', { initData });
       if (data && data.success) {
+        if (data.token) localStorage.setItem('crm_session_token', data.token);
         if (data.branch_names) BRANCH_NAMES = data.branch_names;
         setupUserInterface(data.user);
         return true;
@@ -1185,6 +1193,7 @@
           const check = await res.json();
           if (check.status === 'approved') {
             clearInterval(QR_POLL_INTERVAL);
+            if (check.token) localStorage.setItem('crm_session_token', check.token);
             showToast("Muvaffaqiyatli kirdingiz!");
             if (check.branch_names) BRANCH_NAMES = check.branch_names;
             setupUserInterface(check.user);
@@ -2636,7 +2645,11 @@
       }
     }
 
-    function logout() {
+    async function logout() {
+      try {
+        await apiRequest('/api/auth/logout', 'POST');
+      } catch (e) {}
+      localStorage.removeItem('crm_session_token');
       document.cookie = "crm_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
       CURRENT_USER = null;
       showLoginView();

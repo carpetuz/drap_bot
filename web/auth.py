@@ -5,6 +5,7 @@ import time
 import secrets
 import urllib.parse
 from typing import Optional, Dict
+import sqlite3
 from config import BOT_TOKEN, SUPER_ADMIN_IDS, BRANCH_USERS, BRANCH_NAMES
 
 # Session storage in-memory: token -> session_data
@@ -12,6 +13,28 @@ SESSIONS: Dict[str, dict] = {}
 
 # QR Auth requests: qr_token -> qr_state
 QR_REQUESTS: Dict[str, dict] = {}
+
+def _init_sessions_db():
+    try:
+        with sqlite3.connect("data.db") as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS web_sessions (
+                    token TEXT PRIMARY KEY,
+                    user_id INTEGER NOT NULL,
+                    role TEXT NOT NULL,
+                    branch_id INTEGER NOT NULL,
+                    active_branch INTEGER NOT NULL,
+                    first_name TEXT,
+                    username TEXT,
+                    created_at REAL NOT NULL,
+                    expires_at REAL NOT NULL
+                )
+            """)
+            conn.commit()
+    except Exception as e:
+        print(f"web_sessions jadvalini yaratishda xatolik: {e}")
+
+_init_sessions_db()
 
 def get_user_role_and_branch(user_id: int):
     """Foydalanuvchi roli va filialini aniqlash"""
@@ -68,6 +91,8 @@ def create_session(user_id: int, user_info: Optional[dict] = None) -> Optional[d
     session_token = secrets.token_urlsafe(32)
     first_name = (user_info or {}).get("first_name", "") or (user_info or {}).get("name", "Foydalanuvchi")
     username = (user_info or {}).get("username", "")
+    now = time.time()
+    expires_at = now + (86400 * 30) # 30 kun
 
     session = {
         "token": session_token,
@@ -77,21 +102,85 @@ def create_session(user_id: int, user_info: Optional[dict] = None) -> Optional[d
         "active_branch": default_branch,
         "first_name": first_name,
         "username": username,
-        "created_at": time.time(),
-        "expires_at": time.time() + (86400 * 30) # 30 kun
+        "created_at": now,
+        "expires_at": expires_at
     }
     SESSIONS[session_token] = session
+    try:
+        with sqlite3.connect("data.db") as conn:
+            conn.execute("""
+                INSERT OR REPLACE INTO web_sessions 
+                (token, user_id, role, branch_id, active_branch, first_name, username, created_at, expires_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (session_token, user_id, role, default_branch, default_branch, first_name, username, now, expires_at))
+            conn.commit()
+    except Exception as e:
+        print(f"Sessiyani bazaga saqlashda xatolik: {e}")
     return session
 
 def get_session(token: str) -> Optional[dict]:
-    """Sessiya ma'lumotlarini olish"""
-    if not token or token not in SESSIONS:
+    """Sessiya ma'lumotlarini olish (xotiradan yoki bazadan)"""
+    if not token:
         return None
-    session = SESSIONS[token]
-    if time.time() > session["expires_at"]:
+    # 1. Tezkor xotiradan tekshirish
+    if token in SESSIONS:
+        session = SESSIONS[token]
+        if time.time() > session["expires_at"]:
+            del SESSIONS[token]
+            try:
+                with sqlite3.connect("data.db") as conn:
+                    conn.execute("DELETE FROM web_sessions WHERE token = ?", (token,))
+                    conn.commit()
+            except Exception:
+                pass
+            return None
+        return session
+
+    # 2. Server qayta yonganda SQLite bazasidan tiklash
+    try:
+        with sqlite3.connect("data.db") as conn:
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM web_sessions WHERE token = ?", (token,))
+            row = cur.fetchone()
+            if row:
+                if time.time() > row["expires_at"]:
+                    conn.execute("DELETE FROM web_sessions WHERE token = ?", (token,))
+                    conn.commit()
+                    return None
+                role, default_branch = get_user_role_and_branch(row["user_id"])
+                if not role:
+                    conn.execute("DELETE FROM web_sessions WHERE token = ?", (token,))
+                    conn.commit()
+                    return None
+                session = {
+                    "token": row["token"],
+                    "user_id": row["user_id"],
+                    "role": role,
+                    "branch_id": row["branch_id"],
+                    "active_branch": row["active_branch"],
+                    "first_name": row["first_name"] or "",
+                    "username": row["username"] or "",
+                    "created_at": row["created_at"],
+                    "expires_at": row["expires_at"]
+                }
+                SESSIONS[token] = session
+                return session
+    except Exception as e:
+        print(f"Bazadan sessiyani o'qishda xatolik: {e}")
+
+    return None
+
+def delete_session(token: str):
+    """Sessiyani to'liq o'chirish"""
+    if token in SESSIONS:
         del SESSIONS[token]
-        return None
-    return session
+    try:
+        with sqlite3.connect("data.db") as conn:
+            conn.execute("DELETE FROM web_sessions WHERE token = ?", (token,))
+            conn.commit()
+    except Exception:
+        pass
 
 def create_qr_request() -> dict:
     """Kompyuter orqali kirish uchun QR so'rov yaratish"""

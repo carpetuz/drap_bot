@@ -3,7 +3,7 @@ import logging
 from aiohttp import web
 from aiogram import Bot
 from web.routes import (
-    api_auth_webapp, api_auth_qr_create, api_auth_qr_check, api_auth_me, api_switch_branch,
+    api_auth_webapp, api_auth_qr_create, api_auth_qr_check, api_auth_me, api_auth_logout, api_switch_branch,
     api_branch3_stats, api_branch3_sales,
     api_get_stock, api_add_roll, api_make_sale,
     api_get_cashbox, api_withdraw_cash,
@@ -35,6 +35,7 @@ def setup_web_app(bot: Bot = None) -> web.Application:
     app.router.add_post("/api/auth/qr/create", api_auth_qr_create)
     app.router.add_get("/api/auth/qr/check", api_auth_qr_check)
     app.router.add_get("/api/auth/me", api_auth_me)
+    app.router.add_post("/api/auth/logout", api_auth_logout)
     app.router.add_post("/api/switch-branch", api_switch_branch)
 
     # 3-Filial routes

@@ -7,7 +7,7 @@ from config import (
 )
 from database import local_db
 from web.auth import (
-    verify_telegram_webapp_data, create_session, get_session, 
+    verify_telegram_webapp_data, create_session, get_session, delete_session,
     create_qr_request, QR_REQUESTS
 )
 
@@ -62,7 +62,7 @@ async def api_auth_webapp(request: web.Request):
             "user": session,
             "branch_names": BRANCH_NAMES
         })
-        resp.set_cookie("crm_session", session["token"], max_age=86400*30, httponly=False, samesite="Lax")
+        resp.set_cookie("crm_session", session["token"], max_age=86400*30, path="/", httponly=False, samesite="Lax")
         return resp
     except Exception as e:
         logger.error(f"api_auth_webapp xatolik: {e}")
@@ -94,7 +94,7 @@ async def api_auth_qr_check(request: web.Request):
             "user": session,
             "branch_names": BRANCH_NAMES
         })
-        resp.set_cookie("crm_session", req["session_token"], max_age=86400*30, httponly=False, samesite="Lax")
+        resp.set_cookie("crm_session", req["session_token"], max_age=86400*30, path="/", httponly=False, samesite="Lax")
         return resp
     return json_response({"status": req["status"]})
 
@@ -107,6 +107,20 @@ async def api_auth_me(request: web.Request):
         "branch_names": BRANCH_NAMES,
         "collections": BRANCH3_COLLECTIONS
     })
+
+async def api_auth_logout(request: web.Request):
+    """Foydalanuvchi tizimdan chiqishi"""
+    token = None
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ", 1)[1].strip()
+    if not token:
+        token = request.cookies.get("crm_session")
+    if token:
+        delete_session(token)
+    resp = json_response({"success": True})
+    resp.del_cookie("crm_session", path="/")
+    return resp
 
 @auth_required
 async def api_switch_branch(request: web.Request):
