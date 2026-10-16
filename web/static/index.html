@@ -308,14 +308,28 @@
         <!-- TAB: OMBOR QOLDIQLARI -->
         <section id="view-stock" class="hidden space-y-6">
           <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-sm">
-            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+            <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-5">
               <div>
-                <div class="flex items-center gap-2">
-                  <h2 class="text-base font-semibold text-neutral-900">Ombor qoldiqlari</h2>
-                  <span id="stock-admin-badge" class="hidden px-2 py-0.5 text-[10px] font-semibold bg-neutral-900 text-white rounded-md">👑 Admin boshqaruvi</span>
-                </div>
+                <h2 class="text-base font-semibold text-neutral-900">Ombor qoldiqlari</h2>
                 <p class="text-xs text-ghostMuted mt-0.5">Mavjud rulonlar va tovarlar ro'yxati</p>
               </div>
+
+              <!-- Summary Stats Block (Umumiy m², Kelgan narx, Sotish narx) -->
+              <div id="stock-summary-stats" class="flex flex-wrap items-center gap-2 sm:gap-3 text-xs">
+                <div class="px-3 py-1.5 bg-neutral-50 border border-neutral-200/80 rounded-xl">
+                  <span class="text-neutral-400 text-[10px] uppercase tracking-wider block font-medium">Jami maydon</span>
+                  <b id="stat-total-area" class="font-bold text-neutral-900 text-xs">0 m²</b>
+                </div>
+                <div id="stat-cost-wrap" class="px-3 py-1.5 bg-emerald-50/70 border border-emerald-200/80 rounded-xl">
+                  <span class="text-emerald-700 text-[10px] uppercase tracking-wider block font-medium">Kelgan narx (Jami)</span>
+                  <b id="stat-total-cost" class="font-bold text-emerald-800 text-xs">$0.00</b>
+                </div>
+                <div class="px-3 py-1.5 bg-neutral-50 border border-neutral-200/80 rounded-xl">
+                  <span id="stat-sell-title" class="text-neutral-400 text-[10px] uppercase tracking-wider block font-medium">Sotish narxi (Jami)</span>
+                  <b id="stat-total-sell" class="font-bold text-neutral-900 text-xs">$0.00</b>
+                </div>
+              </div>
+
               <div class="flex items-center gap-2">
                 <input type="text" id="stock-search" oninput="filterStockTable()" placeholder="Filtr: masalan 1.2x seriy yoki 0.8x Bordo..." class="w-64 sm:w-80 bg-ghostBg border border-ghostBorder rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-neutral-900">
                 <button onclick="loadStockData()" class="px-3 py-1.5 text-xs bg-neutral-100 hover:bg-neutral-200 rounded-xl transition">↻</button>
@@ -1640,6 +1654,39 @@
       const tbody = document.getElementById('stock-tbody');
       if (!tbody) return;
       tbody.innerHTML = '';
+
+      // Summary Stats calculation
+      let sumArea = 0;
+      let sumCost = 0;
+      let sumSell = 0;
+
+      rolls.forEach(r => {
+        const area = parseFloat(r.area_m2 || 0);
+        sumArea += area;
+        const costPr = (r.cost_price_per_m2 && r.cost_price_per_m2 > 0) ? parseFloat(r.cost_price_per_m2) : parseFloat(r.price_per_m2 || 8);
+        sumCost += (area * costPr);
+        const totalSell = (r.total_price && r.total_price > 0) ? parseFloat(r.total_price) : (area * parseFloat(r.price_per_m2 || 8));
+        sumSell += totalSell;
+      });
+
+      const elArea = document.getElementById('stat-total-area');
+      const elCost = document.getElementById('stat-total-cost');
+      const elSell = document.getElementById('stat-total-sell');
+      const wrapCost = document.getElementById('stat-cost-wrap');
+      const titleSell = document.getElementById('stat-sell-title');
+
+      if (elArea) elArea.innerText = `${sumArea.toFixed(1)} m²`;
+      if (elCost) elCost.innerText = `$${sumCost.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      if (elSell) elSell.innerText = `$${sumSell.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+      
+      const isKartal = isRezinkaRestricted();
+      if (wrapCost) {
+        wrapCost.style.display = isKartal ? 'block' : 'none';
+      }
+      if (titleSell) {
+        titleSell.innerText = isKartal ? "Sotish narxi (Jami)" : "Jami qiymati";
+      }
+
       const canManage = (CURRENT_USER && (CURRENT_USER.role === 'superadmin' || CURRENT_USER.role === 'branch'));
       if (rolls.length === 0) {
         tbody.innerHTML = `<tr><td colspan="${canManage ? 7 : 6}" class="py-4 text-center text-ghostMuted">Omborda mos keluvchi gilam rulonlari yo'q</td></tr>`;
