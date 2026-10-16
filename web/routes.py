@@ -475,10 +475,17 @@ async def api_get_transfers(request: web.Request):
 @auth_required
 async def api_edit_roll(request: web.Request):
     user = request["user"]
-    if user["role"] != "superadmin":
-        return json_response({"error": "Faqat Bosh Admin omborni tahrirlashi mumkin"}, status=403)
     body = await request.json()
     roll_id = int(body["roll_id"])
+    
+    roll = await local_db.get_roll_by_id(roll_id)
+    if not roll:
+        return json_response({"error": "Rulon topilmadi"}, status=404)
+        
+    user_branch = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
+    if user["role"] != "superadmin" and roll["branch_id"] != user_branch:
+        return json_response({"error": "Faqat o'z filialingizdagi tovarlarni tahrirlashingiz mumkin"}, status=403)
+
     width = float(body["width"])
     color = str(body["color"]).strip()
     current_length = float(body["current_length"])
@@ -490,20 +497,29 @@ async def api_edit_roll(request: web.Request):
 @auth_required
 async def api_delete_roll(request: web.Request):
     user = request["user"]
-    if user["role"] != "superadmin":
-        return json_response({"error": "Faqat Bosh Admin omborni tahrirlashi mumkin"}, status=403)
     body = await request.json()
     roll_id = int(body["roll_id"])
+    
+    roll = await local_db.get_roll_by_id(roll_id)
+    if not roll:
+        return json_response({"error": "Rulon topilmadi"}, status=404)
+        
+    user_branch = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
+    if user["role"] != "superadmin" and roll["branch_id"] != user_branch:
+        return json_response({"error": "Faqat o'z filialingizdagi tovarlarni o'chirishingiz mumkin"}, status=403)
+
     await local_db.delete_roll(roll_id)
     return json_response({"success": True})
 
 @auth_required
 async def api_edit_leather(request: web.Request):
     user = request["user"]
-    if user["role"] != "superadmin":
-        return json_response({"error": "Faqat Bosh Admin omborni tahrirlashi mumkin"}, status=403)
     body = await request.json()
-    branch_id = int(body.get("branch_id", user["active_branch"]))
+    user_branch = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
+    branch_id = int(body.get("branch_id", user_branch))
+    if user["role"] != "superadmin" and branch_id != user_branch:
+        return json_response({"error": "Faqat o'z filialingiz omborini tahrirlashingiz mumkin"}, status=403)
+
     color = str(body["color"]).strip()
     quantity = int(body["quantity"])
     price_per_item = float(body["price_per_item"])
@@ -513,10 +529,16 @@ async def api_edit_leather(request: web.Request):
 @auth_required
 async def api_edit_kavralan(request: web.Request):
     user = request["user"]
-    if user["role"] != "superadmin":
-        return json_response({"error": "Faqat Bosh Admin omborni tahrirlashi mumkin"}, status=403)
     body = await request.json()
     roll_id = int(body["roll_id"])
+    
+    kav = await local_db.get_kavralan_roll_by_id(roll_id)
+    if not kav:
+        return json_response({"error": "Kavralan topilmadi"}, status=404)
+    user_branch = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
+    if user["role"] != "superadmin" and kav["branch_id"] != user_branch:
+        return json_response({"error": "Faqat o'z filialingizdagi tovarlarni tahrirlashingiz mumkin"}, status=403)
+
     current_length = float(body["current_length"])
     price_per_m2 = float(body.get("price_per_m2", 30.0))
     res = await local_db.update_kavralan_roll(roll_id, current_length, price_per_m2)
@@ -525,10 +547,16 @@ async def api_edit_kavralan(request: web.Request):
 @auth_required
 async def api_delete_kavralan(request: web.Request):
     user = request["user"]
-    if user["role"] != "superadmin":
-        return json_response({"error": "Faqat Bosh Admin omborni tahrirlashi mumkin"}, status=403)
     body = await request.json()
     roll_id = int(body["roll_id"])
+    
+    kav = await local_db.get_kavralan_roll_by_id(roll_id)
+    if not kav:
+        return json_response({"error": "Kavralan topilmadi"}, status=404)
+    user_branch = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
+    if user["role"] != "superadmin" and kav["branch_id"] != user_branch:
+        return json_response({"error": "Faqat o'z filialingizdagi tovarlarni o'chirishingiz mumkin"}, status=403)
+
     await local_db.delete_kavralan_roll(roll_id)
     return json_response({"success": True})
 

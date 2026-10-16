@@ -1544,15 +1544,15 @@
       ALL_LEATHER = data.leather || [];
       ALL_KAVRALAN = data.kavralan_rolls || [];
 
-      const isAdmin = (CURRENT_USER && CURRENT_USER.role === 'superadmin');
+      const canManage = (CURRENT_USER && (CURRENT_USER.role === 'superadmin' || CURRENT_USER.role === 'branch'));
       const thC = document.getElementById('th-carpet-actions');
       const thL = document.getElementById('th-leather-actions');
       const thK = document.getElementById('th-kavralan-actions');
       const badge = document.getElementById('stock-admin-badge');
-      if (thC) thC.classList.toggle('hidden', !isAdmin);
-      if (thL) thL.classList.toggle('hidden', !isAdmin);
-      if (thK) thK.classList.toggle('hidden', !isAdmin);
-      if (badge) badge.classList.toggle('hidden', !isAdmin);
+      if (thC) thC.classList.toggle('hidden', !canManage);
+      if (thL) thL.classList.toggle('hidden', !canManage);
+      if (thK) thK.classList.toggle('hidden', !canManage);
+      if (badge) badge.classList.toggle('hidden', !canManage);
 
       renderStockTable(ALL_ROLLS);
       renderLeatherStockTable(ALL_LEATHER);
@@ -1567,16 +1567,16 @@
       const tbody = document.getElementById('stock-tbody');
       if (!tbody) return;
       tbody.innerHTML = '';
-      const isAdmin = (CURRENT_USER && CURRENT_USER.role === 'superadmin');
+      const canManage = (CURRENT_USER && (CURRENT_USER.role === 'superadmin' || CURRENT_USER.role === 'branch'));
       if (rolls.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${isAdmin ? 8 : 7}" class="py-4 text-center text-ghostMuted">Omborda faol gilam rulonlari yo'q</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${canManage ? 8 : 7}" class="py-4 text-center text-ghostMuted">Omborda faol gilam rulonlari yo'q</td></tr>`;
         return;
       }
       rolls.forEach(r => {
         const tr = document.createElement('tr');
         tr.className = "hover:bg-neutral-50 transition";
         let actionsTd = '';
-        if (isAdmin) {
+        if (canManage) {
           actionsTd = `
             <td class="py-2.5 text-right space-x-1 whitespace-nowrap">
               <button onclick="openEditCarpetModal(${r.id})" class="px-2 py-1 text-[11px] bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-lg transition font-medium">✏️ Tahrirlash</button>
@@ -1606,9 +1606,9 @@
       const tbody = document.getElementById('stock-leather-tbody');
       if (!tbody) return;
       tbody.innerHTML = '';
-      const isAdmin = (CURRENT_USER && CURRENT_USER.role === 'superadmin');
+      const canManage = (CURRENT_USER && (CURRENT_USER.role === 'superadmin' || CURRENT_USER.role === 'branch'));
       if (leathers.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${isAdmin ? 5 : 4}" class="py-4 text-center text-ghostMuted">Omborda teri mavjud emas</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${canManage ? 5 : 4}" class="py-4 text-center text-ghostMuted">Omborda teri mavjud emas</td></tr>`;
         return;
       }
       leathers.forEach(l => {
@@ -1616,7 +1616,7 @@
         tr.className = "hover:bg-neutral-50 transition";
         const tot = Math.round(l.quantity * (l.price_per_item || 50) * 100) / 100;
         let actionsTd = '';
-        if (isAdmin) {
+        if (canManage) {
           actionsTd = `
             <td class="py-2.5 text-right whitespace-nowrap">
               <button onclick="openEditLeatherModal('${l.color}', ${l.quantity}, ${l.price_per_item || 50})" class="px-2 py-1 text-[11px] bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-lg transition font-medium">✏️ Tahrirlash</button>
@@ -1638,16 +1638,16 @@
       const tbody = document.getElementById('stock-kavralan-tbody');
       if (!tbody) return;
       tbody.innerHTML = '';
-      const isAdmin = (CURRENT_USER && CURRENT_USER.role === 'superadmin');
+      const canManage = (CURRENT_USER && (CURRENT_USER.role === 'superadmin' || CURRENT_USER.role === 'branch'));
       if (kavralans.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="${isAdmin ? 7 : 6}" class="py-4 text-center text-ghostMuted">Omborda Kavralan rulonlari yo'q</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="${canManage ? 7 : 6}" class="py-4 text-center text-ghostMuted">Omborda Kavralan rulonlari yo'q</td></tr>`;
         return;
       }
       kavralans.forEach(k => {
         const tr = document.createElement('tr');
         tr.className = "hover:bg-neutral-50 transition";
         let actionsTd = '';
-        if (isAdmin) {
+        if (canManage) {
           actionsTd = `
             <td class="py-2.5 text-right space-x-1 whitespace-nowrap">
               <button onclick="openEditKavralanModal(${k.id})" class="px-2 py-1 text-[11px] bg-neutral-100 hover:bg-neutral-200 text-neutral-800 rounded-lg transition font-medium">✏️ Tahrirlash</button>
