@@ -807,13 +807,13 @@
       if (ACTIVE_BRANCH === 3) {
         // 3-Filial: 1-blok: Sotuv, Qarz, Rasxod, Kassa; 2-blok: Tarix / Hisobot
         b1.innerHTML = `
-          <button onclick="switchView('b3-sale')" id="nav-b3-sale" class="nav-item text-left py-1.5 active">Sotuv</button>
-          <button onclick="switchView('debts')" id="nav-debts" class="nav-item text-left py-1.5">Qarz</button>
-          <button onclick="switchView('expenses')" id="nav-expenses" class="nav-item text-left py-1.5">Rasxod</button>
-          <button onclick="switchView('cashbox')" id="nav-cashbox" class="nav-item text-left py-1.5">Kassa</button>
+          <button onclick="switchView('b3-sale')" id="nav-b3-sale" class="nav-item text-left py-1.5 active">🛒 Sotuv</button>
+          <button onclick="switchView('debts')" id="nav-debts" class="nav-item text-left py-1.5">📒 Qarz</button>
+          <button onclick="switchView('expenses')" id="nav-expenses" class="nav-item text-left py-1.5">💸 Rasxod</button>
+          <button onclick="switchView('cashbox')" id="nav-cashbox" class="nav-item text-left py-1.5">💵 Kassa</button>
         `;
         b2.innerHTML = `
-          <button onclick="switchView('b3-history')" id="nav-b3-history" class="nav-item text-left py-1.5">Ombor qoldig'i (Tarix)</button>
+          <button onclick="switchView('b3-history')" id="nav-b3-history" class="nav-item text-left py-1.5">📦 Ombor qoldig'i</button>
         `;
         selectB3Coll('Craft', 45);
         loadBranch3Data();
@@ -822,19 +822,19 @@
         loadExpensesData();
         switchView('b3-sale');
       } else {
-        // 1- and 2-Filial: Exactly as requested in 2 distinct blocks!
+        // 1- and 2-Filial: Exactly as requested in 2 distinct blocks with emojis!
         // 1-chi blok: Sotuv, Qarz, Transfer, Rasxod, Kassa
         b1.innerHTML = `
-          <button onclick="switchView('sale')" id="nav-sale" class="nav-item text-left py-1.5 active">Sotuv</button>
-          <button onclick="switchView('debts')" id="nav-debts" class="nav-item text-left py-1.5">Qarz</button>
-          <button onclick="switchView('transfer')" id="nav-transfer" class="nav-item text-left py-1.5">Transfer</button>
-          <button onclick="switchView('expenses')" id="nav-expenses" class="nav-item text-left py-1.5">Rasxod</button>
-          <button onclick="switchView('cashbox')" id="nav-cashbox" class="nav-item text-left py-1.5">Kassa</button>
+          <button onclick="switchView('sale')" id="nav-sale" class="nav-item text-left py-1.5 active">🛒 Sotuv</button>
+          <button onclick="switchView('debts')" id="nav-debts" class="nav-item text-left py-1.5">📒 Qarz</button>
+          <button onclick="switchView('transfer')" id="nav-transfer" class="nav-item text-left py-1.5">🔄 Transfer</button>
+          <button onclick="switchView('expenses')" id="nav-expenses" class="nav-item text-left py-1.5">💸 Rasxod</button>
+          <button onclick="switchView('cashbox')" id="nav-cashbox" class="nav-item text-left py-1.5">💵 Kassa</button>
         `;
         // 2-chi blok: Kirim qilish, Ombor qoldig'i
         b2.innerHTML = `
-          <button onclick="switchView('import')" id="nav-import" class="nav-item text-left py-1.5">Kirim qilish</button>
-          <button onclick="switchView('stock')" id="nav-stock" class="nav-item text-left py-1.5">Ombor qoldig'i</button>
+          <button onclick="switchView('import')" id="nav-import" class="nav-item text-left py-1.5">📥 Kirim qilish</button>
+          <button onclick="switchView('stock')" id="nav-stock" class="nav-item text-left py-1.5">📦 Ombor qoldig'i</button>
         `;
         loadStockData();
         loadCashboxData();
