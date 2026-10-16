@@ -512,15 +512,30 @@
             <form onsubmit="submitUnifiedSale(event)" class="space-y-4">
               <!-- CARPET SALE FIELDS -->
               <div id="sale-carpet-fields" class="space-y-4">
-                <div>
+                <div class="relative" id="sale-roll-combobox">
                   <div class="flex items-center justify-between mb-1">
                     <label class="block text-xs font-medium text-neutral-600">Ombordagi faol rulon:</label>
                     <span id="sale-roll-count" class="text-[11px] text-ghostMuted"></span>
                   </div>
-                  <input type="text" id="sale-roll-search" oninput="filterSaleRollDropdown()" placeholder="Filtr: masalan 0.8x seriy yoki 1.2x Bordo..." class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-neutral-900 mb-2">
-                  <select id="sale-roll-select" onchange="onRollSelected()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900 font-medium">
+                  <div class="relative">
+                    <input type="text" 
+                           id="sale-roll-input" 
+                           autocomplete="off"
+                           placeholder="Qidirish: masalan 0.8x seriy yoki 1.2x Bordo..." 
+                           onfocus="openSaleRollDropdown()" 
+                           oninput="onSaleRollSearchInput(this.value)" 
+                           class="w-full bg-ghostBg border border-ghostBorder rounded-xl pl-3 pr-8 py-2.5 text-sm focus:outline-none focus:border-neutral-900 font-medium">
+                    <div class="absolute right-3 top-3 text-ghostMuted pointer-events-none">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                  </div>
+                  <!-- Hidden native select for form and calculations compatibility -->
+                  <select id="sale-roll-select" onchange="onRollSelected()" class="hidden">
                     <option value="">Rulonni tanlang...</option>
                   </select>
+                  <!-- Live floating dropdown menu -->
+                  <div id="sale-roll-dropdown-menu" class="hidden absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-ghostBorder rounded-xl shadow-xl divide-y divide-ghostBorder">
+                  </div>
                 </div>
 
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -723,15 +738,30 @@
             <p class="text-xs text-ghostMuted mb-5">Rulonni tanlang va qaysi filialga o'tkazishni belgilang</p>
 
             <form onsubmit="submitRollTransfer(event)" class="space-y-4">
-              <div>
+              <div class="relative" id="transfer-roll-combobox">
                 <div class="flex items-center justify-between mb-1">
                   <label class="block text-xs font-medium text-neutral-600">O'tkaziladigan rulon:</label>
                   <span id="transfer-roll-count" class="text-[11px] text-ghostMuted"></span>
                 </div>
-                <input type="text" id="transfer-roll-search" oninput="filterTransferRollDropdown()" placeholder="Filtr: masalan 0.8x seriy yoki 1.2x..." class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-neutral-900 mb-2">
-                <select id="transfer-roll-select" onchange="onTransferRollSelected()" required class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900 font-medium">
+                <div class="relative">
+                  <input type="text" 
+                         id="transfer-roll-input" 
+                         autocomplete="off"
+                         placeholder="Qidirish: masalan 0.8x seriy yoki 1.2x..." 
+                         onfocus="openTransferRollDropdown()" 
+                         oninput="onTransferRollSearchInput(this.value)" 
+                         class="w-full bg-ghostBg border border-ghostBorder rounded-xl pl-3 pr-8 py-2.5 text-sm focus:outline-none focus:border-neutral-900 font-medium">
+                  <div class="absolute right-3 top-3 text-ghostMuted pointer-events-none">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                  </div>
+                </div>
+                <!-- Hidden native select for validation and compatibility -->
+                <select id="transfer-roll-select" onchange="onTransferRollSelected()" class="hidden">
                   <option value="">Rulonni tanlang...</option>
                 </select>
+                <!-- Live floating dropdown menu -->
+                <div id="transfer-roll-dropdown-menu" class="hidden absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-ghostBorder rounded-xl shadow-xl divide-y divide-ghostBorder">
+                </div>
               </div>
 
               <div>
@@ -1133,6 +1163,20 @@
         setupUserInterface(user);
       } else {
         showLoginView();
+      }
+    });
+
+    // Close live dropdowns on outside click
+    document.addEventListener('click', (e) => {
+      const saleCombobox = document.getElementById('sale-roll-combobox');
+      if (saleCombobox && !saleCombobox.contains(e.target)) {
+        const menu = document.getElementById('sale-roll-dropdown-menu');
+        if (menu) menu.classList.add('hidden');
+      }
+      const transferCombobox = document.getElementById('transfer-roll-combobox');
+      if (transferCombobox && !transferCombobox.contains(e.target)) {
+        const menu = document.getElementById('transfer-roll-dropdown-menu');
+        if (menu) menu.classList.add('hidden');
       }
     });
 
@@ -1750,9 +1794,77 @@
       renderKavralanStockTable(filteredKav);
     }
 
+    let SELECTED_SALE_ROLL = null;
+
+    function renderSaleRollDropdown(rolls) {
+      const menu = document.getElementById('sale-roll-dropdown-menu');
+      if (!menu) return;
+      menu.innerHTML = '';
+      const countEl = document.getElementById('sale-roll-count');
+      if (countEl) countEl.innerText = `${rolls.length} ta rulon`;
+
+      if (!rolls || rolls.length === 0) {
+        menu.innerHTML = '<div class="px-3 py-3 text-xs text-ghostMuted text-center">Mos keluvchi rulon topilmadi</div>';
+        menu.classList.remove('hidden');
+        return;
+      }
+
+      rolls.forEach(r => {
+        const item = document.createElement('div');
+        item.className = "px-3 py-2.5 text-sm text-neutral-800 hover:bg-neutral-100 cursor-pointer transition flex items-center justify-between";
+        const isSelected = SELECTED_SALE_ROLL && SELECTED_SALE_ROLL.id === r.id;
+        if (isSelected) item.classList.add('bg-neutral-50', 'font-semibold');
+
+        item.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="font-medium text-neutral-900">${r.width}x - ${r.current_length} ${r.color}</span>
+          </div>
+          <span class="text-xs text-ghostMuted">$${r.price_per_m2 || 8}/m²</span>
+        `;
+        item.onmousedown = (e) => {
+          e.preventDefault();
+          selectSaleRoll(r);
+        };
+        menu.appendChild(item);
+      });
+      menu.classList.remove('hidden');
+    }
+
+    function openSaleRollDropdown() {
+      const input = document.getElementById('sale-roll-input');
+      const q = input ? input.value : '';
+      const filtered = ALL_ROLLS.filter(r => matchRollQuery(r, q));
+      renderSaleRollDropdown(filtered);
+    }
+
+    function onSaleRollSearchInput(q) {
+      const filtered = ALL_ROLLS.filter(r => matchRollQuery(r, q));
+      renderSaleRollDropdown(filtered);
+      if (!q.trim()) {
+        SELECTED_SALE_ROLL = null;
+        const select = document.getElementById('sale-roll-select');
+        if (select) select.value = '';
+      }
+    }
+
+    function selectSaleRoll(r) {
+      SELECTED_SALE_ROLL = r;
+      const select = document.getElementById('sale-roll-select');
+      if (select) {
+        select.value = r.id;
+      }
+      const input = document.getElementById('sale-roll-input');
+      if (input) {
+        input.value = `${r.width}x - ${r.current_length} ${r.color}`;
+      }
+      const menu = document.getElementById('sale-roll-dropdown-menu');
+      if (menu) menu.classList.add('hidden');
+      onRollSelected();
+    }
+
     function filterSaleRollDropdown() {
-      const searchInput = document.getElementById('sale-roll-search');
-      const q = searchInput ? searchInput.value : '';
+      const input = document.getElementById('sale-roll-input');
+      const q = input ? input.value : '';
       const filtered = ALL_ROLLS.filter(r => matchRollQuery(r, q));
       populateSaleRollDropdown(filtered);
     }
@@ -1761,10 +1873,6 @@
       const select = document.getElementById('sale-roll-select');
       if (!select) return;
       const prevVal = select.value;
-      const countEl = document.getElementById('sale-roll-count');
-      if (countEl) {
-        countEl.innerText = `${rolls.length} ta rulon`;
-      }
       select.innerHTML = '<option value="">Rulonni tanlang...</option>';
       rolls.forEach(r => {
         const opt = document.createElement('option');
@@ -1778,13 +1886,14 @@
         opt.innerText = `${r.width}x - ${r.current_length} ${r.color}`;
         select.appendChild(opt);
       });
-      if (prevVal && rolls.some(r => r.id == prevVal)) {
+      if (prevVal) {
         select.value = prevVal;
-      } else if (rolls.length === 1 && document.getElementById('sale-roll-search') && document.getElementById('sale-roll-search').value.trim() !== '') {
-        select.value = rolls[0].id;
-        onRollSelected();
-      } else {
-        onRollSelected();
+        const found = rolls.find(r => r.id == prevVal);
+        if (found) {
+          SELECTED_SALE_ROLL = found;
+          const input = document.getElementById('sale-roll-input');
+          if (input && !input.value) input.value = `${found.width}x - ${found.current_length} ${found.color}`;
+        }
       }
     }
 
@@ -2086,6 +2195,9 @@
       if (res && res.success) {
         showToast("Sotuv muvaffaqiyatli saqlandi!");
         e.target.reset();
+        SELECTED_SALE_ROLL = null;
+        const rollInput = document.getElementById('sale-roll-input');
+        if (rollInput) rollInput.value = '';
         calcCarpetSaleByLength();
         loadStockData();
         loadCashboxData();
@@ -2229,15 +2341,92 @@
 
     // ==================== TRANSFER LOGIC ====================
     let TRANSFER_ROLLS = [];
+    let SELECTED_TRANSFER_ROLL = null;
+
+    function renderTransferRollDropdown(rolls) {
+      const menu = document.getElementById('transfer-roll-dropdown-menu');
+      if (!menu) return;
+      menu.innerHTML = '';
+      const countEl = document.getElementById('transfer-roll-count');
+      if (countEl) countEl.innerText = `${rolls.length} ta rulon`;
+
+      if (!rolls || rolls.length === 0) {
+        menu.innerHTML = '<div class="px-3 py-3 text-xs text-ghostMuted text-center">Mos keluvchi rulon topilmadi</div>';
+        menu.classList.remove('hidden');
+        return;
+      }
+
+      rolls.forEach(r => {
+        const item = document.createElement('div');
+        item.className = "px-3 py-2.5 text-sm text-neutral-800 hover:bg-neutral-100 cursor-pointer transition flex items-center justify-between";
+        const isSelected = SELECTED_TRANSFER_ROLL && SELECTED_TRANSFER_ROLL.id === r.id;
+        if (isSelected) item.classList.add('bg-neutral-50', 'font-semibold');
+
+        item.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="font-medium text-neutral-900">${r.width}x - ${r.current_length} ${r.color}</span>
+          </div>
+          <span class="text-xs text-emerald-700 font-medium">Qoldiq: ${r.current_length} m</span>
+        `;
+        item.onmousedown = (e) => {
+          e.preventDefault();
+          selectTransferRoll(r);
+        };
+        menu.appendChild(item);
+      });
+      menu.classList.remove('hidden');
+    }
+
+    function openTransferRollDropdown() {
+      const input = document.getElementById('transfer-roll-input');
+      const q = input ? input.value : '';
+      const sourceRolls = (TRANSFER_ROLLS && TRANSFER_ROLLS.length > 0) ? TRANSFER_ROLLS : (ALL_ROLLS || []);
+      const filtered = sourceRolls.filter(r => matchRollQuery(r, q));
+      renderTransferRollDropdown(filtered);
+    }
+
+    function onTransferRollSearchInput(q) {
+      const sourceRolls = (TRANSFER_ROLLS && TRANSFER_ROLLS.length > 0) ? TRANSFER_ROLLS : (ALL_ROLLS || []);
+      const filtered = sourceRolls.filter(r => matchRollQuery(r, q));
+      renderTransferRollDropdown(filtered);
+      if (!q.trim()) {
+        SELECTED_TRANSFER_ROLL = null;
+        const select = document.getElementById('transfer-roll-select');
+        if (select) select.value = '';
+        const lenInput = document.getElementById('transfer-length');
+        if (lenInput) lenInput.value = '';
+        const hint = document.getElementById('transfer-remain-hint');
+        if (hint) hint.innerText = '';
+      }
+    }
+
+    function selectTransferRoll(r) {
+      SELECTED_TRANSFER_ROLL = r;
+      const select = document.getElementById('transfer-roll-select');
+      if (select) {
+        select.value = r.id;
+      }
+      const input = document.getElementById('transfer-roll-input');
+      if (input) {
+        input.value = `${r.width}x - ${r.current_length} ${r.color}`;
+      }
+      const menu = document.getElementById('transfer-roll-dropdown-menu');
+      if (menu) menu.classList.add('hidden');
+      onTransferRollSelected();
+    }
+
+    function filterTransferRollDropdown() {
+      const input = document.getElementById('transfer-roll-input');
+      const q = input ? input.value : '';
+      const sourceRolls = (TRANSFER_ROLLS && TRANSFER_ROLLS.length > 0) ? TRANSFER_ROLLS : (ALL_ROLLS || []);
+      const filtered = sourceRolls.filter(r => matchRollQuery(r, q));
+      populateTransferRollDropdown(filtered);
+    }
 
     function populateTransferRollDropdown(rolls) {
       const select = document.getElementById('transfer-roll-select');
       if (!select) return;
       const prevVal = select.value;
-      const countEl = document.getElementById('transfer-roll-count');
-      if (countEl) {
-        countEl.innerText = `${rolls.length} ta rulon`;
-      }
       select.innerHTML = '<option value="">Rulonni tanlang...</option>';
       rolls.forEach(r => {
         const opt = document.createElement('option');
@@ -2249,22 +2438,15 @@
         opt.innerText = `${r.width}x - ${r.current_length} ${r.color}`;
         select.appendChild(opt);
       });
-      if (prevVal && rolls.some(r => r.id == prevVal)) {
+      if (prevVal) {
         select.value = prevVal;
-      } else if (rolls.length === 1 && document.getElementById('transfer-roll-search') && document.getElementById('transfer-roll-search').value.trim() !== '') {
-        select.value = rolls[0].id;
-        onTransferRollSelected();
-      } else {
-        onTransferRollSelected();
+        const found = rolls.find(r => r.id == prevVal);
+        if (found) {
+          SELECTED_TRANSFER_ROLL = found;
+          const input = document.getElementById('transfer-roll-input');
+          if (input && !input.value) input.value = `${found.width}x - ${found.current_length} ${found.color}`;
+        }
       }
-    }
-
-    function filterTransferRollDropdown() {
-      const searchInput = document.getElementById('transfer-roll-search');
-      const q = searchInput ? searchInput.value : '';
-      const sourceRolls = (TRANSFER_ROLLS && TRANSFER_ROLLS.length > 0) ? TRANSFER_ROLLS : (ALL_ROLLS || []);
-      const filtered = sourceRolls.filter(r => matchRollQuery(r, q));
-      populateTransferRollDropdown(filtered);
     }
 
     function onTransferRollSelected() {
@@ -2360,6 +2542,9 @@
       if (res && res.success) {
         showToast(`${transferLength} metr muvaffaqiyatli transfer qilindi va filialga xabar yuborildi!`);
         e.target.reset();
+        SELECTED_TRANSFER_ROLL = null;
+        const transferInput = document.getElementById('transfer-roll-input');
+        if (transferInput) transferInput.value = '';
         const hint = document.getElementById('transfer-remain-hint');
         if (hint) hint.innerText = '';
         loadStockData();
