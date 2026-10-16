@@ -339,7 +339,7 @@
                     <th class="pb-2.5">Rangi</th>
                     <th class="pb-2.5">Qoldiq (m)</th>
                     <th class="pb-2.5">Maydon (m²)</th>
-                    <th class="pb-2.5">1 m² narxi</th>
+                    <th id="th-carpet-price" class="pb-2.5">1 m² narxi</th>
                     <th class="pb-2.5">Jami qiymati</th>
                     <th id="th-carpet-actions" class="pb-2.5 text-right hidden">Amallar</th>
                   </tr>
@@ -430,9 +430,24 @@
                     <label class="block text-xs font-medium text-neutral-600 mb-1">Uzunligi (metr):</label>
                     <input type="number" step="0.1" id="import-length" placeholder="30" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
                   </div>
-                  <div>
+                  <!-- Standart 1 m² narxi (1-Filial Labzak uchun) -->
+                  <div id="wrap-import-price-standard">
                     <label class="block text-xs font-medium text-neutral-600 mb-1">1 m² narxi ($):</label>
                     <input type="number" step="0.5" id="import-price" value="8" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                  </div>
+                </div>
+
+                <!-- 2-Filial (Kartal) uchun: Kelgan tannarxi va Sotilish narxi -->
+                <div id="wrap-import-prices-kartal" class="hidden grid grid-cols-2 gap-3 p-3.5 bg-neutral-50 rounded-xl border border-ghostBorder">
+                  <div>
+                    <label class="block text-xs font-semibold text-neutral-800 mb-1">📥 Kelgan tannarxi (1 m², $):</label>
+                    <input type="number" step="0.1" id="import-cost-price" placeholder="Masalan: 5.0" class="w-full bg-white border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900 font-semibold text-emerald-700">
+                    <span class="text-[10px] text-neutral-400">Rulonning kelib tushgan narxi</span>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-semibold text-neutral-800 mb-1">🏷 Sotilish narxi (1 m², $):</label>
+                    <input type="number" step="0.1" id="import-sell-price" placeholder="Masalan: 8.0" value="8" class="w-full bg-white border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900 font-semibold text-neutral-900">
+                    <span class="text-[10px] text-neutral-400">Mijozga sotiladigan narx</span>
                   </div>
                 </div>
               </div>
@@ -994,8 +1009,12 @@
           <label class="block text-xs font-medium text-neutral-600 mb-1">Qoldiq uzunligi (m):</label>
           <input type="number" step="0.01" id="edit-carpet-length" required class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
         </div>
+        <div id="wrap-edit-carpet-cost-price" class="hidden">
+          <label class="block text-xs font-semibold text-neutral-800 mb-1">📥 Kelgan tannarxi (1 m², $):</label>
+          <input type="number" step="0.1" id="edit-carpet-cost-price" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900 font-semibold text-emerald-700">
+        </div>
         <div>
-          <label class="block text-xs font-medium text-neutral-600 mb-1">1 m² narxi ($):</label>
+          <label class="block text-xs font-medium text-neutral-600 mb-1" id="edit-carpet-price-label">1 m² sotilish narxi ($):</label>
           <input type="number" step="0.1" id="edit-carpet-price" required class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
         </div>
         <div class="flex gap-2 pt-2">
@@ -1283,6 +1302,19 @@
         if (importTabs) importTabs.style.display = isBranch1 ? 'inline-flex' : 'none';
         if (saleTabs) saleTabs.style.display = isBranch1 ? 'inline-flex' : 'none';
 
+        const isKartal = (ACTIVE_BRANCH === 2 || (CURRENT_USER && CURRENT_USER.user_id === 317633066));
+        const wrapStd = document.getElementById('wrap-import-price-standard');
+        const wrapKartal = document.getElementById('wrap-import-prices-kartal');
+        if (wrapStd) wrapStd.classList.toggle('hidden', isKartal);
+        if (wrapKartal) {
+          wrapKartal.classList.toggle('hidden', !isKartal);
+          wrapKartal.classList.toggle('grid', isKartal);
+        }
+        const thPrice = document.getElementById('th-carpet-price');
+        if (thPrice) {
+          thPrice.innerText = isKartal ? "Narx (Kelgan / Sotish)" : "1 m² narxi";
+        }
+
         setSaleProduct('carpet');
         setImportProduct('carpet');
         setStockTab('carpet');
@@ -1552,13 +1584,17 @@
             </td>
           `;
         }
+        let priceTd = `<td class="py-2.5 text-neutral-600">$${r.price_per_m2 || 8}</td>`;
+        if (isRezinkaRestricted() && r.cost_price_per_m2 && r.cost_price_per_m2 > 0) {
+          priceTd = `<td class="py-2.5 text-xs leading-snug"><span class="text-neutral-400">Kelgan:</span> <b class="text-emerald-700 font-semibold">$${r.cost_price_per_m2}</b><br><span class="text-neutral-400">Sotish:</span> <b class="text-neutral-900 font-semibold">$${r.price_per_m2 || 8}</b></td>`;
+        }
         tr.innerHTML = `
           <td class="py-2.5 font-medium text-neutral-900">${r.roll_code}</td>
           <td class="py-2.5 text-neutral-600">${r.width} m</td>
           <td class="py-2.5 text-neutral-600">${r.color}</td>
           <td class="py-2.5 font-medium text-neutral-900">${r.current_length} m</td>
           <td class="py-2.5 text-neutral-600">${r.area_m2} m²</td>
-          <td class="py-2.5 text-neutral-600">$${r.price_per_m2 || 8}</td>
+          ${priceTd}
           <td class="py-2.5 font-semibold text-neutral-900">$${r.total_price}</td>
           ${actionsTd}
         `;
@@ -1661,7 +1697,12 @@
         opt.dataset.color = r.color;
         opt.dataset.remain = r.current_length;
         opt.dataset.price = r.price_per_m2 || 8;
-        opt.innerText = `${r.roll_code} — ${r.color} ${r.width}m (Qoldiq: ${r.current_length}m, $${r.price_per_m2 || 8}/m²)`;
+        opt.dataset.costPrice = (r.cost_price_per_m2 && r.cost_price_per_m2 > 0) ? r.cost_price_per_m2 : (r.price_per_m2 || 8);
+        if (isRezinkaRestricted() && r.cost_price_per_m2 && r.cost_price_per_m2 > 0) {
+          opt.innerText = `${r.roll_code} — ${r.color} ${r.width}m (Qoldiq: ${r.current_length}m | Kelgan: $${r.cost_price_per_m2} | Sotish: $${r.price_per_m2 || 8}/m²)`;
+        } else {
+          opt.innerText = `${r.roll_code} — ${r.color} ${r.width}m (Qoldiq: ${r.current_length}m, $${r.price_per_m2 || 8}/m²)`;
+        }
         select.appendChild(opt);
       });
     }
@@ -1723,7 +1764,7 @@
       }
       const width = parseFloat(opt.dataset.width) || 1.2;
       const len = parseFloat(document.getElementById('sale-length').value) || 0;
-      const costPerM2 = parseFloat(opt.dataset.price) || 8.0;
+      const costPerM2 = parseFloat(opt.dataset.costPrice || opt.dataset.price) || 8.0;
       const price = parseFloat(document.getElementById('sale-price').value) || costPerM2;
       const area = Math.round(width * len * 100) / 100;
       const total = Math.round(area * price * 100) / 100;
@@ -1745,7 +1786,7 @@
         const derivedPrice = Math.round((total / area) * 100) / 100;
         document.getElementById('sale-price').value = derivedPrice;
       }
-      const costPerM2 = parseFloat(opt.dataset.price) || 8.0;
+      const costPerM2 = parseFloat(opt.dataset.costPrice || opt.dataset.price) || 8.0;
       const cost = Math.round(area * costPerM2 * 100) / 100;
       updateSaleCalcPreview(area, total, cost, len, `Rezinka: ${opt.dataset.color} (${width}m × ${len}m = ${area} m²)`);
     }
@@ -1761,7 +1802,7 @@
       const total = Math.round(area * price * 100) / 100;
       const totalInput = document.getElementById('sale-total-price');
       if (totalInput && len > 0) totalInput.value = total.toFixed(2);
-      const costPerM2 = parseFloat(opt.dataset.price) || 8.0;
+      const costPerM2 = parseFloat(opt.dataset.costPrice || opt.dataset.price) || 8.0;
       const cost = Math.round(area * costPerM2 * 100) / 100;
       updateSaleCalcPreview(area, total, cost, len, `Rezinka: ${opt.dataset.color} (${width}m × ${len}m = ${area} m²)`);
     }
@@ -1978,7 +2019,6 @@
         const w = parseFloat(document.getElementById('import-width').value);
         const col = document.getElementById('import-color').value;
         const len = parseFloat(document.getElementById('import-length').value);
-        const pr = parseFloat(document.getElementById('import-price').value);
         if (!len) {
           showToast("Uzunlikni kiriting!", true);
           return;
@@ -1986,7 +2026,25 @@
         body.width = w;
         body.color = col;
         body.length = len;
-        body.price_per_m2 = pr;
+
+        if (isRezinkaRestricted()) {
+          const costPr = parseFloat(document.getElementById('import-cost-price').value);
+          const sellPr = parseFloat(document.getElementById('import-sell-price').value);
+          if (!costPr || isNaN(costPr) || costPr <= 0) {
+            showToast("Kelgan tannarxini to'g'ri kiriting!", true);
+            return;
+          }
+          if (!sellPr || isNaN(sellPr) || sellPr <= 0) {
+            showToast("Sotilish narxini to'g'ri kiriting!", true);
+            return;
+          }
+          body.cost_price_per_m2 = costPr;
+          body.price_per_m2 = sellPr;
+        } else {
+          const pr = parseFloat(document.getElementById('import-price').value) || 8.0;
+          body.price_per_m2 = pr;
+          body.cost_price_per_m2 = pr;
+        }
       } else if (CURRENT_IMPORT_PRODUCT === 'leather') {
         const col = document.getElementById('import-leather-color').value;
         const qty = parseInt(document.getElementById('import-leather-qty').value);
@@ -2413,6 +2471,19 @@
       document.getElementById('edit-carpet-color').value = roll.color;
       document.getElementById('edit-carpet-length').value = roll.current_length;
       document.getElementById('edit-carpet-price').value = roll.price_per_m2 || 8;
+
+      const wrapCost = document.getElementById('wrap-edit-carpet-cost-price');
+      const labelPrice = document.getElementById('edit-carpet-price-label');
+      if (wrapCost) {
+        if (isRezinkaRestricted()) {
+          wrapCost.classList.remove('hidden');
+          document.getElementById('edit-carpet-cost-price').value = roll.cost_price_per_m2 || roll.price_per_m2 || 8;
+          if (labelPrice) labelPrice.innerText = "1 m² sotilish narxi ($):";
+        } else {
+          wrapCost.classList.add('hidden');
+          if (labelPrice) labelPrice.innerText = "1 m² narxi ($):";
+        }
+      }
       document.getElementById('modal-edit-carpet').classList.remove('hidden');
     }
 
@@ -2424,13 +2495,22 @@
       const current_length = parseFloat(document.getElementById('edit-carpet-length').value);
       const price_per_m2 = parseFloat(document.getElementById('edit-carpet-price').value);
 
-      const res = await apiRequest('/api/stock/edit-roll', 'POST', {
+      const payload = {
         roll_id: rollId,
         width,
         color,
         current_length,
         price_per_m2
-      });
+      };
+
+      if (isRezinkaRestricted()) {
+        const cost_price_per_m2 = parseFloat(document.getElementById('edit-carpet-cost-price').value);
+        if (!isNaN(cost_price_per_m2) && cost_price_per_m2 > 0) {
+          payload.cost_price_per_m2 = cost_price_per_m2;
+        }
+      }
+
+      const res = await apiRequest('/api/stock/edit-roll', 'POST', payload);
 
       if (res && res.success) {
         showToast("Rulon muvaffaqiyatli tahrirlandi!");

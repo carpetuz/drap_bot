@@ -218,6 +218,9 @@ async def init_db():
                 cols = [row[1] for row in await cur.fetchall()]
                 if "price_per_m2" not in cols:
                     await db.execute("ALTER TABLE rolls ADD COLUMN price_per_m2 REAL NOT NULL DEFAULT 8.0")
+                if "cost_price_per_m2" not in cols:
+                    await db.execute("ALTER TABLE rolls ADD COLUMN cost_price_per_m2 REAL DEFAULT 0.0")
+                    await db.execute("UPDATE rolls SET cost_price_per_m2 = price_per_m2 WHERE cost_price_per_m2 IS NULL OR cost_price_per_m2 = 0.0")
         except Exception:
             pass
 
@@ -388,15 +391,22 @@ async def get_transfers_history(branch_id: int = None, limit: int = 50) -> list[
             rows = await cur.fetchall()
             return [dict(r) for r in rows]
 
-async def update_roll(roll_id: int, width: float, color: str, current_length: float, price_per_m2: float) -> dict:
+async def update_roll(roll_id: int, width: float, color: str, current_length: float, price_per_m2: float, cost_price_per_m2: float | None = None) -> dict:
     area_m2 = round(width * current_length, 2)
     total_price = round(area_m2 * price_per_m2, 2)
     async with aiosqlite.connect(DB_PATH) as db:
-        await db.execute("""
-            UPDATE rolls
-            SET width = ?, color = ?, current_length = ?, area_m2 = ?, price_per_m2 = ?, total_price = ?
-            WHERE id = ?
-        """, (width, color, current_length, area_m2, price_per_m2, total_price, roll_id))
+        if cost_price_per_m2 is not None and float(cost_price_per_m2) > 0:
+            await db.execute("""
+                UPDATE rolls
+                SET width = ?, color = ?, current_length = ?, area_m2 = ?, price_per_m2 = ?, cost_price_per_m2 = ?, total_price = ?
+                WHERE id = ?
+            """, (width, color, current_length, area_m2, price_per_m2, float(cost_price_per_m2), total_price, roll_id))
+        else:
+            await db.execute("""
+                UPDATE rolls
+                SET width = ?, color = ?, current_length = ?, area_m2 = ?, price_per_m2 = ?, total_price = ?
+                WHERE id = ?
+            """, (width, color, current_length, area_m2, price_per_m2, total_price, roll_id))
         await db.commit()
     return {"success": True, "roll_id": roll_id, "width": width, "color": color, "current_length": current_length, "area_m2": area_m2, "price_per_m2": price_per_m2, "total_price": total_price}
 
@@ -441,10 +451,22 @@ async def delete_kavralan_roll(roll_id: int) -> bool:
 
 # --- GILAM FUNKSIYALARI ---
 
-async def add_roll(width: float, color: str, length: float, branch_id: int = 1, price_per_m2: float = PRICE_PER_M2) -> dict:
+async def add_roll(
+    width: float, 
+    color: str, 
+    length: float, 
+    branch_id: int = 1, 
+    price_per_m2: float = PRICE_PER_M2,
+    cost_price_per_m2: float | None = None
+) -> dict:
     created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     area_m2 = round(width * length, 2)
     total_price = round(area_m2 * price_per_m2, 2)
+    
+    if cost_price_per_m2 is None or float(cost_price_per_m2) <= 0:
+        cost_price_per_m2 = price_per_m2
+    else:
+        cost_price_per_m2 = float(cost_price_per_m2)
     
     async with aiosqlite.connect(DB_PATH) as db:
         async with db.execute("SELECT MAX(id) FROM rolls") as cursor:
@@ -453,9 +475,9 @@ async def add_roll(width: float, color: str, length: float, branch_id: int = 1, 
             roll_code = f"#F{branch_id}-{1000 + next_id}"
         
         await db.execute("""
-            INSERT INTO rolls (branch_id, roll_code, width, color, initial_length, current_length, area_m2, price_per_m2, total_price, status, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
-        """, (branch_id, roll_code, width, color, length, length, area_m2, price_per_m2, total_price, created_at))
+            INSERT INTO rolls (branch_id, roll_code, width, color, initial_length, current_length, area_m2, price_per_m2, cost_price_per_m2, total_price, status, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', ?)
+        """, (branch_id, roll_code, width, color, length, length, area_m2, price_per_m2, cost_price_per_m2, total_price, created_at))
         await db.commit()
         
         return {
@@ -468,6 +490,7 @@ async def add_roll(width: float, color: str, length: float, branch_id: int = 1, 
             "current_length": length,
             "area_m2": area_m2,
             "price_per_m2": price_per_m2,
+            "cost_price_per_m2": cost_price_per_m2,
             "total_price": total_price,
             "created_at": created_at
         }
@@ -547,10 +570,10 @@ async def make_sale(
             if sold_length > roll["current_length"]:
                 raise ValueError(f"Rulonda yetarli uzunlik yo'q! Mavjud qoldiq: {roll['current_length']} m")
         
-        roll_cost_price = float(roll["price_per_m2"]) if ("price_per_m2" in roll.keys() and roll["price_per_m2"]) else 8.0
+        roll_cost_price = float(roll["cost_price_per_m2"]) if ("cost_price_per_m2" in roll.keys() and roll["cost_price_per_m2"] and float(roll["cost_price_per_m2"]) > 0) else float(roll.get("price_per_m2", 8.0))
         new_length = round(roll["current_length"] - sold_length, 2)
         new_area = round(roll["width"] * new_length, 2)
-        new_total_price = round(new_area * roll_cost_price, 2)
+        new_total_price = round(new_area * float(roll.get("price_per_m2", 8.0)), 2)
         new_status = "finished" if new_length <= 0 else "active"
         
         await db.execute("""

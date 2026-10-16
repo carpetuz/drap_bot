@@ -211,9 +211,10 @@ async def api_add_roll(request: web.Request):
             color = str(body.get("color", "")).strip()
             length = float(body.get("length", 0))
             price_per_m2 = float(body.get("price_per_m2", 8.0))
-            if width <= 0 or length <= 0 or price_per_m2 <= 0 or not color:
+            cost_price_per_m2 = float(body.get("cost_price_per_m2", price_per_m2))
+            if width <= 0 or length <= 0 or price_per_m2 <= 0 or cost_price_per_m2 <= 0 or not color:
                 return json_response({"error": "Noto'g'ri o'lcham yoki narx kiritildi"}, status=400)
-            res = await local_db.add_roll(width, color, length, branch_id, price_per_m2)
+            res = await local_db.add_roll(width, color, length, branch_id, price_per_m2, cost_price_per_m2)
             return json_response({"success": True, "item": res})
         elif product_type == "kavralan":
             length = float(body.get("length", 0))
@@ -482,7 +483,8 @@ async def api_edit_roll(request: web.Request):
     color = str(body["color"]).strip()
     current_length = float(body["current_length"])
     price_per_m2 = float(body["price_per_m2"])
-    res = await local_db.update_roll(roll_id, width, color, current_length, price_per_m2)
+    cost_price_per_m2 = float(body.get("cost_price_per_m2")) if body.get("cost_price_per_m2") else None
+    res = await local_db.update_roll(roll_id, width, color, current_length, price_per_m2, cost_price_per_m2)
     return json_response(res)
 
 @auth_required
