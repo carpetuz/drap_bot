@@ -309,7 +309,15 @@
               </div>
             </div>
 
-            <div class="overflow-x-auto">
+            <!-- Product Category Tabs (visible in 1-Filial) -->
+            <div id="stock-product-tabs" class="inline-flex p-1 bg-neutral-100 rounded-xl text-xs font-medium mb-5">
+              <button type="button" onclick="setStockTab('carpet')" id="stock-tab-carpet" class="px-3 py-1.5 rounded-lg bg-white shadow-xs text-neutral-900 font-semibold transition">🌀 Rezinka Gilam</button>
+              <button type="button" onclick="setStockTab('leather')" id="stock-tab-leather" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition">🐑 Teri</button>
+              <button type="button" onclick="setStockTab('kavralan')" id="stock-tab-kavralan" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition">🧶 Asl Kavralan</button>
+            </div>
+
+            <!-- 1. Rezinka Gilam Table -->
+            <div id="stock-carpet-table" class="overflow-x-auto">
               <table class="w-full text-left text-xs">
                 <thead>
                   <tr class="border-b border-ghostBorder text-ghostMuted font-medium">
@@ -322,9 +330,39 @@
                     <th class="pb-2.5">Jami qiymati</th>
                   </tr>
                 </thead>
-                <tbody id="stock-tbody" class="divide-y divide-ghostBorder">
-                  <!-- Dynamic rows -->
-                </tbody>
+                <tbody id="stock-tbody" class="divide-y divide-ghostBorder"></tbody>
+              </table>
+            </div>
+
+            <!-- 2. Teri Table -->
+            <div id="stock-leather-table" class="hidden overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="border-b border-ghostBorder text-ghostMuted font-medium">
+                    <th class="pb-2.5">Rangi</th>
+                    <th class="pb-2.5">Mavjud qoldiq</th>
+                    <th class="pb-2.5">1 dona narxi</th>
+                    <th class="pb-2.5">Jami qiymati</th>
+                  </tr>
+                </thead>
+                <tbody id="stock-leather-tbody" class="divide-y divide-ghostBorder"></tbody>
+              </table>
+            </div>
+
+            <!-- 3. Asl Kavralan Table -->
+            <div id="stock-kavralan-table" class="hidden overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="border-b border-ghostBorder text-ghostMuted font-medium">
+                    <th class="pb-2.5">Rulon kodi</th>
+                    <th class="pb-2.5">Eni</th>
+                    <th class="pb-2.5">Qoldiq (m)</th>
+                    <th class="pb-2.5">Maydon (m²)</th>
+                    <th class="pb-2.5">1 m² narxi</th>
+                    <th class="pb-2.5">Jami qiymati</th>
+                  </tr>
+                </thead>
+                <tbody id="stock-kavralan-tbody" class="divide-y divide-ghostBorder"></tbody>
               </table>
             </div>
           </div>
@@ -334,74 +372,174 @@
         <section id="view-import" class="hidden space-y-6">
           <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-sm max-w-xl">
             <h2 class="text-base font-semibold text-neutral-900">Yangi tovar kirimi</h2>
-            <p class="text-xs text-ghostMuted mb-5">Omborga yangi rezinka gilam rulonini kiritish</p>
+            <p class="text-xs text-ghostMuted mb-5">Omborga yangi mahsulot qabul qilish</p>
 
-            <form onsubmit="submitRollImport(event)" class="space-y-4">
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-xs font-medium text-neutral-600 mb-1">Eni (metr):</label>
-                  <select id="import-width" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                    <option value="0.8">0.8 metr</option>
-                    <option value="1.0">1.0 metr</option>
-                    <option value="1.2" selected>1.2 metr</option>
-                    <option value="1.6">1.6 metr</option>
-                    <option value="2.0">2.0 metr</option>
-                  </select>
+            <!-- Product Category Tabs (visible in 1-Filial) -->
+            <div id="import-product-tabs" class="inline-flex p-1 bg-neutral-100 rounded-xl text-xs font-medium mb-5">
+              <button type="button" onclick="setImportProduct('carpet')" id="import-tab-carpet" class="px-3 py-1.5 rounded-lg bg-white shadow-xs text-neutral-900 font-semibold transition">🌀 Rezinka Gilam</button>
+              <button type="button" onclick="setImportProduct('leather')" id="import-tab-leather" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition">🐑 Teri</button>
+              <button type="button" onclick="setImportProduct('kavralan')" id="import-tab-kavralan" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition">🧶 Asl Kavralan</button>
+            </div>
+
+            <form onsubmit="submitUnifiedImport(event)" class="space-y-4">
+              <!-- CARPET IMPORT FIELDS -->
+              <div id="import-carpet-fields" class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-600 mb-1">Eni (metr):</label>
+                    <select id="import-width" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                      <option value="0.8">0.8 metr</option>
+                      <option value="1.0">1.0 metr</option>
+                      <option value="1.2" selected>1.2 metr</option>
+                      <option value="1.6">1.6 metr</option>
+                      <option value="2.0">2.0 metr</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-600 mb-1">Rangi:</label>
+                    <select id="import-color" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                      <option value="Seriy">Seriy</option>
+                      <option value="Kofe">Kofe</option>
+                      <option value="Qizil">Qizil</option>
+                      <option value="Bordo">Bordo</option>
+                      <option value="Qora">Qora</option>
+                      <option value="Yashil">Yashil</option>
+                      <option value="Ko'k">Ko'k</option>
+                    </select>
+                  </div>
                 </div>
-                <div>
-                  <label class="block text-xs font-medium text-neutral-600 mb-1">Rangi:</label>
-                  <select id="import-color" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                    <option value="Seriy">Seriy</option>
-                    <option value="Kofe">Kofe</option>
-                    <option value="Qizil">Qizil</option>
-                    <option value="Bordo">Bordo</option>
-                    <option value="Qora">Qora</option>
-                    <option value="Yashil">Yashil</option>
-                    <option value="Ko'k">Ko'k</option>
-                  </select>
+
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-600 mb-1">Uzunligi (metr):</label>
+                    <input type="number" step="0.1" id="import-length" placeholder="30" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-600 mb-1">1 m² narxi ($):</label>
+                    <input type="number" step="0.5" id="import-price" value="8" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                  </div>
                 </div>
               </div>
 
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-xs font-medium text-neutral-600 mb-1">Uzunligi (metr):</label>
-                  <input type="number" step="0.1" id="import-length" required placeholder="30" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+              <!-- LEATHER IMPORT FIELDS -->
+              <div id="import-leather-fields" class="hidden space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-600 mb-1">Teri rangi:</label>
+                    <select id="import-leather-color" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                      <option value="Oppoq">Oppoq</option>
+                      <option value="Bejiviy">Bejiviy</option>
+                      <option value="Seriy">Seriy</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-600 mb-1">Soni (dona):</label>
+                    <input type="number" id="import-leather-qty" placeholder="10" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                  </div>
                 </div>
                 <div>
-                  <label class="block text-xs font-medium text-neutral-600 mb-1">1 m² narxi ($):</label>
-                  <input type="number" step="0.5" id="import-price" value="8" required class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                  <label class="block text-xs font-medium text-neutral-600 mb-1">1 dona narxi ($):</label>
+                  <input type="number" step="0.5" id="import-leather-price" value="50" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                </div>
+              </div>
+
+              <!-- KAVRALAN IMPORT FIELDS -->
+              <div id="import-kavralan-fields" class="hidden space-y-4">
+                <div class="p-3 bg-neutral-50 rounded-xl border border-ghostBorder text-xs text-neutral-600">
+                  ℹ️ Asl Kavralan eni doimiy <strong>4.0 metr</strong> qilib belgilanadi.
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-600 mb-1">Rulon uzunligi (m):</label>
+                    <input type="number" step="0.1" id="import-kavralan-length" placeholder="25" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-600 mb-1">1 m² narxi ($):</label>
+                    <input type="number" step="0.5" id="import-kavralan-price" value="30" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                  </div>
                 </div>
               </div>
 
               <button type="submit" class="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-medium text-sm py-3 px-4 rounded-xl transition duration-150">
-                📥 Rulonni omborga qabul qilish
+                📥 Omborga qabul qilish
               </button>
             </form>
           </div>
         </section>
 
-        <!-- TAB: GILAM SOTUV -->
+        <!-- TAB: SOTUV -->
         <section id="view-sale" class="hidden space-y-6">
           <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-sm max-w-xl">
-            <h2 class="text-base font-semibold text-neutral-900">Rezinka Gilam Sotuv</h2>
-            <p class="text-xs text-ghostMuted mb-5">Rulonni tanlang va sotilayotgan metrni kiriting</p>
+            <h2 id="sale-title" class="text-base font-semibold text-neutral-900">Sotuv qilish</h2>
+            <p class="text-xs text-ghostMuted mb-5">Mahsulotni tanlang va sotuvni amalga oshiring</p>
 
-            <form onsubmit="submitCarpetSale(event)" class="space-y-4">
-              <div>
-                <label class="block text-xs font-medium text-neutral-600 mb-1">Ombordagi faol rulon:</label>
-                <select id="sale-roll-select" onchange="onRollSelected()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                  <option value="">Rulonni tanlang...</option>
-                </select>
+            <!-- Product Category Tabs (visible in 1-Filial) -->
+            <div id="sale-product-tabs" class="inline-flex p-1 bg-neutral-100 rounded-xl text-xs font-medium mb-5">
+              <button type="button" onclick="setSaleProduct('carpet')" id="sale-tab-carpet" class="px-3 py-1.5 rounded-lg bg-white shadow-xs text-neutral-900 font-semibold transition">🌀 Rezinka Gilam</button>
+              <button type="button" onclick="setSaleProduct('leather')" id="sale-tab-leather" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition">🐑 Teri</button>
+              <button type="button" onclick="setSaleProduct('kavralan')" id="sale-tab-kavralan" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition">🧶 Asl Kavralan</button>
+            </div>
+
+            <form onsubmit="submitUnifiedSale(event)" class="space-y-4">
+              <!-- CARPET SALE FIELDS -->
+              <div id="sale-carpet-fields" class="space-y-4">
+                <div>
+                  <label class="block text-xs font-medium text-neutral-600 mb-1">Ombordagi faol rulon:</label>
+                  <select id="sale-roll-select" onchange="onRollSelected()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                    <option value="">Rulonni tanlang...</option>
+                  </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-600 mb-1">Sotiladigan uzunlik (m):</label>
+                    <input type="number" step="0.1" id="sale-length" oninput="calcCarpetSaleTotal()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-600 mb-1">1 m² narxi ($):</label>
+                    <input type="number" step="0.5" id="sale-price" oninput="calcCarpetSaleTotal()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                  </div>
+                </div>
               </div>
 
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-xs font-medium text-neutral-600 mb-1">Sotiladigan uzunlik (m):</label>
-                  <input type="number" step="0.1" id="sale-length" required oninput="calcCarpetSaleTotal()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+              <!-- LEATHER SALE FIELDS -->
+              <div id="sale-leather-fields" class="hidden space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-600 mb-1">Teri rangi:</label>
+                    <select id="sale-leather-color" onchange="calcLeatherSaleTotal()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                      <option value="">Tanlang...</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-600 mb-1">Soni (dona):</label>
+                    <input type="number" id="sale-leather-qty" oninput="calcLeatherSaleTotal()" min="1" placeholder="1" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                  </div>
                 </div>
                 <div>
-                  <label class="block text-xs font-medium text-neutral-600 mb-1">1 m² narxi ($):</label>
-                  <input type="number" step="0.5" id="sale-price" required oninput="calcCarpetSaleTotal()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                  <label class="block text-xs font-medium text-neutral-600 mb-1">1 dona narxi ($):</label>
+                  <input type="number" step="0.5" id="sale-leather-price" value="50" oninput="calcLeatherSaleTotal()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                </div>
+              </div>
+
+              <!-- KAVRALAN SALE FIELDS -->
+              <div id="sale-kavralan-fields" class="hidden space-y-4">
+                <div>
+                  <label class="block text-xs font-medium text-neutral-600 mb-1">Asl Kavralan ruloni (Eni: 4m):</label>
+                  <select id="sale-kavralan-select" onchange="onKavralanSelected()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                    <option value="">Rulonni tanlang...</option>
+                  </select>
+                </div>
+
+                <div class="grid grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-600 mb-1">Sotiladigan uzunlik (m):</label>
+                    <input type="number" step="0.1" id="sale-kavralan-length" oninput="calcKavralanSaleTotal()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-neutral-600 mb-1">1 m² narxi ($):</label>
+                    <input type="number" step="0.5" id="sale-kavralan-price" value="30" oninput="calcKavralanSaleTotal()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                  </div>
                 </div>
               </div>
 
@@ -642,7 +780,12 @@
     let CURRENT_USER = null;
     let ACTIVE_BRANCH = 1;
     let ACTIVE_VIEW = 'b3-sale'; // or stock, sale, import, cashbox, debts
+    let CURRENT_SALE_PRODUCT = 'carpet';
+    let CURRENT_IMPORT_PRODUCT = 'carpet';
+    let CURRENT_STOCK_TAB = 'carpet';
     let ALL_ROLLS = [];
+    let ALL_LEATHER = [];
+    let ALL_KAVRALAN = [];
     let B3_COLLECTION = 'Craft';
     let B3_PRICE = 45;
     let QR_POLL_INTERVAL = null;
@@ -836,6 +979,19 @@
           <button onclick="switchView('import')" id="nav-import" class="nav-item text-left py-1.5">📥 Kirim qilish</button>
           <button onclick="switchView('stock')" id="nav-stock" class="nav-item text-left py-1.5">📦 Ombor qoldig'i</button>
         `;
+        // Show product tabs for 1-Filial (Gilam, Teri, Kavralan), hide for 2-Filial (only Gilam)
+        const isBranch1 = (ACTIVE_BRANCH === 1);
+        const stockTabs = document.getElementById('stock-product-tabs');
+        const importTabs = document.getElementById('import-product-tabs');
+        const saleTabs = document.getElementById('sale-product-tabs');
+        if (stockTabs) stockTabs.style.display = isBranch1 ? 'inline-flex' : 'none';
+        if (importTabs) importTabs.style.display = isBranch1 ? 'inline-flex' : 'none';
+        if (saleTabs) saleTabs.style.display = isBranch1 ? 'inline-flex' : 'none';
+
+        setSaleProduct('carpet');
+        setImportProduct('carpet');
+        setStockTab('carpet');
+
         loadStockData();
         loadCashboxData();
         loadDebtsData();
@@ -985,21 +1141,86 @@
       }
     }
 
-    // ==================== 1- & 2-FILIAL LOGIC ====================
+    // ==================== MULTI-PRODUCT SWITCHERS ====================
+    function setStockTab(type) {
+      CURRENT_STOCK_TAB = type;
+      ['carpet', 'leather', 'kavralan'].forEach(t => {
+        const tab = document.getElementById(`stock-tab-${t}`);
+        const table = document.getElementById(`stock-${t}-table`);
+        if (tab && table) {
+          if (t === type) {
+            tab.className = "px-3 py-1.5 rounded-lg bg-white shadow-xs text-neutral-900 font-semibold transition";
+            table.classList.remove('hidden');
+          } else {
+            tab.className = "px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition";
+            table.classList.add('hidden');
+          }
+        }
+      });
+    }
+
+    function setImportProduct(type) {
+      CURRENT_IMPORT_PRODUCT = type;
+      ['carpet', 'leather', 'kavralan'].forEach(t => {
+        const tab = document.getElementById(`import-tab-${t}`);
+        const fields = document.getElementById(`import-${t}-fields`);
+        if (tab && fields) {
+          if (t === type) {
+            tab.className = "px-3 py-1.5 rounded-lg bg-white shadow-xs text-neutral-900 font-semibold transition";
+            fields.classList.remove('hidden');
+          } else {
+            tab.className = "px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition";
+            fields.classList.add('hidden');
+          }
+        }
+      });
+    }
+
+    function setSaleProduct(type) {
+      CURRENT_SALE_PRODUCT = type;
+      ['carpet', 'leather', 'kavralan'].forEach(t => {
+        const tab = document.getElementById(`sale-tab-${t}`);
+        const fields = document.getElementById(`sale-${t}-fields`);
+        if (tab && fields) {
+          if (t === type) {
+            tab.className = "px-3 py-1.5 rounded-lg bg-white shadow-xs text-neutral-900 font-semibold transition";
+            fields.classList.remove('hidden');
+          } else {
+            tab.className = "px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition";
+            fields.classList.add('hidden');
+          }
+        }
+      });
+
+      if (type === 'carpet') calcCarpetSaleTotal();
+      else if (type === 'leather') calcLeatherSaleTotal();
+      else if (type === 'kavralan') calcKavralanSaleTotal();
+    }
+
+    // ==================== 1- & 2-FILIAL STOCK & SALES LOGIC ====================
     async function loadStockData() {
       const data = await apiRequest('/api/stock');
       if (!data) return;
 
       ALL_ROLLS = data.rolls || [];
+      ALL_LEATHER = data.leather || [];
+      ALL_KAVRALAN = data.kavralan_rolls || [];
+
       renderStockTable(ALL_ROLLS);
+      renderLeatherStockTable(ALL_LEATHER);
+      renderKavralanStockTable(ALL_KAVRALAN);
+
       populateSaleRollDropdown(ALL_ROLLS);
+      populateLeatherColorDropdown(ALL_LEATHER);
+      populateKavralanRollDropdown(ALL_KAVRALAN);
     }
 
     function renderStockTable(rolls) {
       const tbody = document.getElementById('stock-tbody');
+      if (!tbody) return;
       tbody.innerHTML = '';
       if (rolls.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-ghostMuted">Omborda faol rulonlar yo\'q</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-ghostMuted">Omborda faol gilam rulonlari yo\'q</td></tr>';
         return;
       }
       rolls.forEach(r => {
@@ -1018,16 +1239,72 @@
       });
     }
 
+    function renderLeatherStockTable(leathers) {
+      const tbody = document.getElementById('stock-leather-tbody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      if (leathers.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="py-4 text-center text-ghostMuted">Omborda teri mavjud emas</td></tr>';
+        return;
+      }
+      leathers.forEach(l => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-neutral-50 transition";
+        const tot = Math.round(l.quantity * (l.price_per_item || 50) * 100) / 100;
+        tr.innerHTML = `
+          <td class="py-2.5 font-medium text-neutral-900">${l.color}</td>
+          <td class="py-2.5 font-bold text-neutral-900">${l.quantity} dona</td>
+          <td class="py-2.5 text-neutral-600">$${l.price_per_item || 50}</td>
+          <td class="py-2.5 font-semibold text-neutral-900">$${tot}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderKavralanStockTable(kavralans) {
+      const tbody = document.getElementById('stock-kavralan-tbody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      if (kavralans.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-ghostMuted">Omborda Kavralan rulonlari yo\'q</td></tr>';
+        return;
+      }
+      kavralans.forEach(k => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-neutral-50 transition";
+        tr.innerHTML = `
+          <td class="py-2.5 font-medium text-neutral-900">${k.roll_code}</td>
+          <td class="py-2.5 text-neutral-600">${k.width || 4.0} m</td>
+          <td class="py-2.5 font-medium text-neutral-900">${k.current_length} m</td>
+          <td class="py-2.5 text-neutral-600">${k.area_m2} m²</td>
+          <td class="py-2.5 text-neutral-600">$${k.price_per_m2 || 30}</td>
+          <td class="py-2.5 font-semibold text-neutral-900">$${k.total_price}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
     function filterStockTable() {
       const q = document.getElementById('stock-search').value.toLowerCase();
-      const filtered = ALL_ROLLS.filter(r => 
+      const filteredRolls = ALL_ROLLS.filter(r => 
         r.roll_code.toLowerCase().includes(q) || r.color.toLowerCase().includes(q)
       );
-      renderStockTable(filtered);
+      renderStockTable(filteredRolls);
+      
+      const filteredLeather = ALL_LEATHER.filter(l => 
+        l.color.toLowerCase().includes(q)
+      );
+      renderLeatherStockTable(filteredLeather);
+
+      const filteredKav = ALL_KAVRALAN.filter(k => 
+        k.roll_code.toLowerCase().includes(q)
+      );
+      renderKavralanStockTable(filteredKav);
     }
 
     function populateSaleRollDropdown(rolls) {
       const select = document.getElementById('sale-roll-select');
+      if (!select) return;
       select.innerHTML = '<option value="">Rulonni tanlang...</option>';
       rolls.forEach(r => {
         const opt = document.createElement('option');
@@ -1041,6 +1318,35 @@
       });
     }
 
+    function populateLeatherColorDropdown(leathers) {
+      const select = document.getElementById('sale-leather-color');
+      if (!select) return;
+      select.innerHTML = '<option value="">Rangni tanlang...</option>';
+      leathers.forEach(l => {
+        const opt = document.createElement('option');
+        opt.value = l.color;
+        opt.dataset.qty = l.quantity;
+        opt.dataset.price = l.price_per_item || 50;
+        opt.innerText = `${l.color} (${l.quantity} dona mavjud, $${l.price_per_item || 50}/dona)`;
+        select.appendChild(opt);
+      });
+    }
+
+    function populateKavralanRollDropdown(kavralans) {
+      const select = document.getElementById('sale-kavralan-select');
+      if (!select) return;
+      select.innerHTML = '<option value="">Kavralan rulonini tanlang...</option>';
+      kavralans.forEach(k => {
+        const opt = document.createElement('option');
+        opt.value = k.id;
+        opt.dataset.width = k.width || 4.0;
+        opt.dataset.remain = k.current_length;
+        opt.dataset.price = k.price_per_m2 || 30;
+        opt.innerText = `${k.roll_code} — 4.0m (Qoldiq: ${k.current_length}m, $${k.price_per_m2 || 30}/m²)`;
+        select.appendChild(opt);
+      });
+    }
+
     function onRollSelected() {
       const select = document.getElementById('sale-roll-select');
       const opt = select.options[select.selectedIndex];
@@ -1050,10 +1356,23 @@
       }
     }
 
+    function onKavralanSelected() {
+      const select = document.getElementById('sale-kavralan-select');
+      const opt = select.options[select.selectedIndex];
+      if (opt && opt.value) {
+        document.getElementById('sale-kavralan-price').value = opt.dataset.price || 30;
+        calcKavralanSaleTotal();
+      }
+    }
+
     function calcCarpetSaleTotal() {
       const select = document.getElementById('sale-roll-select');
-      const opt = select.options[select.selectedIndex];
-      if (!opt || !opt.value) return;
+      const opt = select ? select.options[select.selectedIndex] : null;
+      if (!opt || !opt.value) {
+        document.getElementById('carpet-calc-text').innerText = "Rulon tanlanmagan";
+        document.getElementById('carpet-calc-total').innerText = "$0.00";
+        return;
+      }
 
       const width = parseFloat(opt.dataset.width) || 1.2;
       const len = parseFloat(document.getElementById('sale-length').value) || 0;
@@ -1061,7 +1380,40 @@
       const area = Math.round(width * len * 100) / 100;
       const total = Math.round(area * price * 100) / 100;
 
-      document.getElementById('carpet-calc-text').innerText = `${opt.dataset.color} (${width}x${len}m = ${area} m²)`;
+      document.getElementById('carpet-calc-text').innerText = `Rezinka: ${opt.dataset.color} (${width}x${len}m = ${area} m²)`;
+      document.getElementById('carpet-calc-total').innerText = `$${total.toFixed(2)}`;
+    }
+
+    function calcLeatherSaleTotal() {
+      const select = document.getElementById('sale-leather-color');
+      const opt = select ? select.options[select.selectedIndex] : null;
+      if (!opt || !opt.value) {
+        document.getElementById('carpet-calc-text').innerText = "Teri rangi tanlanmagan";
+        document.getElementById('carpet-calc-total').innerText = "$0.00";
+        return;
+      }
+      const qty = parseInt(document.getElementById('sale-leather-qty').value) || 0;
+      const price = parseFloat(document.getElementById('sale-leather-price').value) || 50;
+      const total = Math.round(qty * price * 100) / 100;
+
+      document.getElementById('carpet-calc-text').innerText = `Teri: ${opt.value} (${qty} dona × $${price})`;
+      document.getElementById('carpet-calc-total').innerText = `$${total.toFixed(2)}`;
+    }
+
+    function calcKavralanSaleTotal() {
+      const select = document.getElementById('sale-kavralan-select');
+      const opt = select ? select.options[select.selectedIndex] : null;
+      if (!opt || !opt.value) {
+        document.getElementById('carpet-calc-text').innerText = "Kavralan ruloni tanlanmagan";
+        document.getElementById('carpet-calc-total').innerText = "$0.00";
+        return;
+      }
+      const len = parseFloat(document.getElementById('sale-kavralan-length').value) || 0;
+      const price = parseFloat(document.getElementById('sale-kavralan-price').value) || 30;
+      const area = Math.round(4.0 * len * 100) / 100;
+      const total = Math.round(area * price * 100) / 100;
+
+      document.getElementById('carpet-calc-text').innerText = `Asl Kavralan: 4.0x${len}m (${area} m² × $${price})`;
       document.getElementById('carpet-calc-total').innerText = `$${total.toFixed(2)}`;
     }
 
@@ -1071,32 +1423,59 @@
       else df.classList.add('hidden');
     }
 
-    async function submitCarpetSale(e) {
+    async function submitUnifiedSale(e) {
       e.preventDefault();
-      const rollId = document.getElementById('sale-roll-select').value;
-      const len = parseFloat(document.getElementById('sale-length').value);
-      const pr = parseFloat(document.getElementById('sale-price').value);
       const isDebt = document.querySelector('input[name="sale_pay_type"]:checked').value === 'debt';
-      
-      if (!rollId || !len) {
-        showToast("Rulon va uzunlikni tanlang!", true);
-        return;
-      }
+      const custName = document.getElementById('debt-customer-name').value;
+      const custPhone = document.getElementById('debt-customer-phone').value;
+      const initPaid = parseFloat(document.getElementById('debt-initial-paid').value) || 0;
 
-      const body = {
-        product_type: 'carpet',
-        roll_id: parseInt(rollId),
-        sold_length: len,
-        price_per_m2: pr,
+      let body = {
+        product_type: CURRENT_SALE_PRODUCT,
         is_debt: isDebt,
-        customer_name: document.getElementById('debt-customer-name').value,
-        customer_phone: document.getElementById('debt-customer-phone').value,
-        initial_paid: parseFloat(document.getElementById('debt-initial-paid').value) || 0
+        customer_name: custName,
+        customer_phone: custPhone,
+        initial_paid: initPaid
       };
+
+      if (CURRENT_SALE_PRODUCT === 'carpet') {
+        const rollId = document.getElementById('sale-roll-select').value;
+        const len = parseFloat(document.getElementById('sale-length').value);
+        const pr = parseFloat(document.getElementById('sale-price').value);
+        if (!rollId || !len) {
+          showToast("Rulon va uzunlikni kiriting!", true);
+          return;
+        }
+        body.roll_id = parseInt(rollId);
+        body.sold_length = len;
+        body.price_per_m2 = pr;
+      } else if (CURRENT_SALE_PRODUCT === 'leather') {
+        const color = document.getElementById('sale-leather-color').value;
+        const qty = parseInt(document.getElementById('sale-leather-qty').value);
+        const pr = parseFloat(document.getElementById('sale-leather-price').value);
+        if (!color || !qty) {
+          showToast("Teri rangi va sonini kiriting!", true);
+          return;
+        }
+        body.color = color;
+        body.quantity = qty;
+        body.price_per_item = pr;
+      } else if (CURRENT_SALE_PRODUCT === 'kavralan') {
+        const rollId = document.getElementById('sale-kavralan-select').value;
+        const len = parseFloat(document.getElementById('sale-kavralan-length').value);
+        const pr = parseFloat(document.getElementById('sale-kavralan-price').value);
+        if (!rollId || !len) {
+          showToast("Kavralan ruloni va uzunlikni kiriting!", true);
+          return;
+        }
+        body.roll_id = parseInt(rollId);
+        body.sold_length = len;
+        body.price_per_m2 = pr;
+      }
 
       const res = await apiRequest('/api/sales', 'POST', body);
       if (res && res.success) {
-        showToast("Gilam sotuvi muvaffaqiyatli saqlandi!");
+        showToast("Sotuv muvaffaqiyatli saqlandi!");
         e.target.reset();
         calcCarpetSaleTotal();
         loadStockData();
@@ -1104,19 +1483,48 @@
       }
     }
 
-    async function submitRollImport(e) {
+    async function submitUnifiedImport(e) {
       e.preventDefault();
-      const body = {
-        product_type: 'carpet',
-        width: parseFloat(document.getElementById('import-width').value),
-        color: document.getElementById('import-color').value,
-        length: parseFloat(document.getElementById('import-length').value),
-        price_per_m2: parseFloat(document.getElementById('import-price').value)
-      };
+      let body = { product_type: CURRENT_IMPORT_PRODUCT };
+
+      if (CURRENT_IMPORT_PRODUCT === 'carpet') {
+        const w = parseFloat(document.getElementById('import-width').value);
+        const col = document.getElementById('import-color').value;
+        const len = parseFloat(document.getElementById('import-length').value);
+        const pr = parseFloat(document.getElementById('import-price').value);
+        if (!len) {
+          showToast("Uzunlikni kiriting!", true);
+          return;
+        }
+        body.width = w;
+        body.color = col;
+        body.length = len;
+        body.price_per_m2 = pr;
+      } else if (CURRENT_IMPORT_PRODUCT === 'leather') {
+        const col = document.getElementById('import-leather-color').value;
+        const qty = parseInt(document.getElementById('import-leather-qty').value);
+        const pr = parseFloat(document.getElementById('import-leather-price').value);
+        if (!qty) {
+          showToast("Dona sonini kiriting!", true);
+          return;
+        }
+        body.color = col;
+        body.quantity = qty;
+        body.price_per_item = pr;
+      } else if (CURRENT_IMPORT_PRODUCT === 'kavralan') {
+        const len = parseFloat(document.getElementById('import-kavralan-length').value);
+        const pr = parseFloat(document.getElementById('import-kavralan-price').value);
+        if (!len) {
+          showToast("Uzunlikni kiriting!", true);
+          return;
+        }
+        body.length = len;
+        body.price_per_m2 = pr;
+      }
 
       const res = await apiRequest('/api/rolls', 'POST', body);
       if (res && res.success) {
-        showToast("Rulon omborga qabul qilindi!");
+        showToast("Mahsulot omborga muvaffaqiyatli qabul qilindi!");
         e.target.reset();
         loadStockData();
         switchView('stock');
