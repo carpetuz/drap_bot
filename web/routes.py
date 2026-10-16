@@ -271,14 +271,14 @@ async def api_make_sale(request: web.Request):
     if initial_paid < 0:
         return json_response({"error": "Boshlang'ich to'lov manfiy bo'lishi mumkin emas"}, status=400)
     
-    raw_total = body.get("total_price")
-    custom_total_price = float(raw_total) if raw_total is not None and str(raw_total).strip() != "" and float(raw_total) > 0 else None
+    raw_total = str(body.get("total_price") or "").replace(",", ".").strip()
+    custom_total_price = float(raw_total) if raw_total and float(raw_total) > 0 else None
     
     try:
         if product_type == "carpet":
             roll_id = int(body.get("roll_id", 0))
-            sold_length = float(body.get("sold_length", 0))
-            price_per_m2 = float(body.get("price_per_m2", 0))
+            sold_length = float(str(body.get("sold_length", 0)).replace(",", "."))
+            price_per_m2 = float(str(body.get("price_per_m2", 0)).replace(",", "."))
             if roll_id <= 0 or sold_length <= 0 or price_per_m2 <= 0:
                 return json_response({"error": "Sotuv parametri noto'g'ri kiritildi"}, status=400)
             res = await local_db.make_sale(

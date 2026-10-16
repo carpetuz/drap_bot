@@ -793,10 +793,11 @@ async def make_sale(
                 else:
                     raise ValueError(f"Rulonda yetarli uzunlik yo'q! Mavjud qoldiq: {roll['current_length']} m")
         
-        roll_cost_price = float(roll["cost_price_per_m2"]) if ("cost_price_per_m2" in roll.keys() and roll["cost_price_per_m2"] and float(roll["cost_price_per_m2"]) > 0) else float(roll.get("price_per_m2", 8.0))
+        roll_price_per_m2 = float(roll["price_per_m2"]) if ("price_per_m2" in roll.keys() and roll["price_per_m2"]) else 8.0
+        roll_cost_price = float(roll["cost_price_per_m2"]) if ("cost_price_per_m2" in roll.keys() and roll["cost_price_per_m2"] and float(roll["cost_price_per_m2"]) > 0) else roll_price_per_m2
         new_length = round(roll["current_length"] - sold_length, 2)
         new_area = round(roll["width"] * new_length, 2)
-        new_total_price = round(new_area * float(roll.get("price_per_m2", 8.0)), 2)
+        new_total_price = round(new_area * roll_price_per_m2, 2)
         new_status = "finished" if new_length <= 0 else "active"
         
         await db.execute("""

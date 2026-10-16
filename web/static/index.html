@@ -1887,6 +1887,9 @@
       let q = String(rawQuery).toLowerCase().trim();
       if (!q) return true;
 
+      // Vergul (,) va nuqta (.) ni bir xil decimal ko'rinishga keltirish (masalan: 0,8x -> 0.8x, 1,2 -> 1.2, 2,0 -> 2.0)
+      q = q.replace(/(\d+),(\d+)?/g, (m, g1, g2) => g2 ? `${g1}.${g2}` : `${g1}.`);
+
       const rWidth = parseFloat(r.width) || 0;
       const widthStr = String(r.width || "");
       const colorStr = (r.color || "").toLowerCase();
@@ -2163,9 +2166,9 @@
         return;
       }
       const width = parseFloat(opt.dataset.width) || 1.2;
-      const len = parseFloat(document.getElementById('sale-length').value) || 0;
+      const len = parseFloat(String(document.getElementById('sale-length').value || '').replace(',', '.')) || 0;
       const costPerM2 = parseFloat(opt.dataset.costPrice || opt.dataset.price) || 8.0;
-      const price = parseFloat(document.getElementById('sale-price').value) || costPerM2;
+      const price = parseFloat(String(document.getElementById('sale-price').value || '').replace(',', '.')) || costPerM2;
       const area = Math.round(width * len * 100) / 100;
       const total = Math.round(area * price * 100) / 100;
       const totalInput = document.getElementById('sale-total-price');
@@ -2179,8 +2182,8 @@
       const opt = select ? select.options[select.selectedIndex] : null;
       if (!opt || !opt.value) return;
       const width = parseFloat(opt.dataset.width) || 1.2;
-      const len = parseFloat(document.getElementById('sale-length').value) || 0;
-      const total = parseFloat(document.getElementById('sale-total-price').value) || 0;
+      const len = parseFloat(String(document.getElementById('sale-length').value || '').replace(',', '.')) || 0;
+      const total = parseFloat(String(document.getElementById('sale-total-price').value || '').replace(',', '.')) || 0;
       const area = Math.round(width * len * 100) / 100;
       if (area > 0 && total > 0) {
         const derivedPrice = Math.round((total / area) * 100) / 100;
@@ -2196,8 +2199,8 @@
       const opt = select ? select.options[select.selectedIndex] : null;
       if (!opt || !opt.value) return;
       const width = parseFloat(opt.dataset.width) || 1.2;
-      const len = parseFloat(document.getElementById('sale-length').value) || 0;
-      const price = parseFloat(document.getElementById('sale-price').value) || 0;
+      const len = parseFloat(String(document.getElementById('sale-length').value || '').replace(',', '.')) || 0;
+      const price = parseFloat(String(document.getElementById('sale-price').value || '').replace(',', '.')) || 0;
       const area = Math.round(width * len * 100) / 100;
       const total = Math.round(area * price * 100) / 100;
       const totalInput = document.getElementById('sale-total-price');
@@ -2362,9 +2365,9 @@
 
       if (CURRENT_SALE_PRODUCT === 'carpet') {
         const rollId = document.getElementById('sale-roll-select').value;
-        const len = parseFloat(document.getElementById('sale-length').value);
-        const pr = parseFloat(document.getElementById('sale-price').value);
-        const tot = parseFloat(document.getElementById('sale-total-price').value);
+        const len = parseFloat(String(document.getElementById('sale-length').value || '').replace(',', '.'));
+        const pr = parseFloat(String(document.getElementById('sale-price').value || '').replace(',', '.'));
+        const tot = parseFloat(String(document.getElementById('sale-total-price').value || '').replace(',', '.'));
         if (!rollId || !len) {
           showToast("Rulon va uzunlikni kiriting!", true);
           return;
