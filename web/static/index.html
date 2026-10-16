@@ -2563,7 +2563,8 @@
       e.preventDefault();
       const rollId = parseInt(document.getElementById('transfer-roll-select').value);
       const toBranch = parseInt(document.getElementById('transfer-to-branch').value);
-      const transferLength = parseFloat(document.getElementById('transfer-length').value);
+      const rawTransferLen = document.getElementById('transfer-length').value;
+      const transferLength = parseFloat(String(rawTransferLen).replace(',', '.'));
       const note = document.getElementById('transfer-note').value;
       if (!rollId || !toBranch) {
         showToast("Rulon va qabul qiluvchi filialni tanlang!", true);

@@ -2,7 +2,8 @@ import json
 import logging
 from aiohttp import web
 from config import (
-    BRANCH_NAMES, BRANCH3_COLLECTIONS, BRANCH3_WIDTH, 
+    BRANCH_NAMES, BRANCH_USERS, SUPER_ADMIN_IDS,
+    BRANCH3_COLLECTIONS, BRANCH3_WIDTH, 
     AVAILABLE_WIDTHS, AVAILABLE_COLORS, LEATHER_COLORS, KAVRALAN_WIDTH
 )
 from database import local_db
@@ -451,7 +452,7 @@ async def api_transfer_roll(request: web.Request):
     transfer_length = None
     if transfer_length_raw is not None and str(transfer_length_raw).strip() != "":
         try:
-            transfer_length = float(transfer_length_raw)
+            transfer_length = float(str(transfer_length_raw).replace(",", "."))
             if transfer_length <= 0:
                 return json_response({"error": "O'tkaziladigan miqdor (uzunlik) musbat son bo'lishi kerak"}, status=400)
         except ValueError:
