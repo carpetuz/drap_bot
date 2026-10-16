@@ -62,7 +62,8 @@ async def api_auth_webapp(request: web.Request):
         resp = json_response({
             "success": True,
             "token": session["token"],
-            "user": session
+            "user": session,
+            "branch_names": BRANCH_NAMES
         })
         resp.set_cookie("crm_session", session["token"], max_age=86400*30, httponly=False)
         return resp
@@ -93,7 +94,8 @@ async def api_auth_qr_check(request: web.Request):
         resp = json_response({
             "status": "approved",
             "token": req["session_token"],
-            "user": session
+            "user": session,
+            "branch_names": BRANCH_NAMES
         })
         resp.set_cookie("crm_session", req["session_token"], max_age=86400*30, httponly=False)
         return resp

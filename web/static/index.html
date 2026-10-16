@@ -1060,6 +1060,7 @@
   <script>
     let CURRENT_USER = null;
     let ACTIVE_BRANCH = 1;
+    let BRANCH_NAMES = { 1: "Labzak", 2: "Kartal", 3: "3-Filial" };
     let ACTIVE_VIEW = 'b3-sale'; // or stock, sale, import, cashbox, debts
     let CURRENT_SALE_PRODUCT = 'carpet';
     let CURRENT_IMPORT_PRODUCT = 'carpet';
@@ -1125,6 +1126,7 @@
     async function loginWithTelegramWebApp(initData) {
       const data = await apiRequest('/api/auth/webapp', 'POST', { initData });
       if (data && data.success) {
+        if (data.branch_names) BRANCH_NAMES = data.branch_names;
         setupUserInterface(data.user);
         return true;
       }
@@ -1134,6 +1136,7 @@
     // Fetch current user
     async function fetchCurrentUser() {
       const data = await apiRequest('/api/auth/me');
+      if (data && data.branch_names) BRANCH_NAMES = data.branch_names;
       return data ? data.user : null;
     }
 
@@ -1166,6 +1169,7 @@
           if (check.status === 'approved') {
             clearInterval(QR_POLL_INTERVAL);
             showToast("Muvaffaqiyatli kirdingiz!");
+            if (check.branch_names) BRANCH_NAMES = check.branch_names;
             setupUserInterface(check.user);
           }
         }
