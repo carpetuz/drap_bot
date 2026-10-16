@@ -1940,9 +1940,16 @@
         const isSelected = SELECTED_SALE_ROLL && SELECTED_SALE_ROLL.id === r.id;
         if (isSelected) item.classList.add('bg-neutral-50', 'font-semibold');
 
+        const avail = Math.round(((r.current_length || 0) - (r.pending_length || 0)) * 100) / 100;
+        let pendingBadge = '';
+        if (r.pending_length && r.pending_length > 0) {
+          pendingBadge = `<span class="text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">⏳ ${r.pending_length}m transferda</span>`;
+        }
+
         item.innerHTML = `
           <div class="flex items-center gap-2">
-            <span class="font-medium text-neutral-900">${r.width}x - ${r.current_length} ${r.color}</span>
+            <span class="font-medium text-neutral-900">${r.width}x - ${avail} ${r.color}</span>
+            ${pendingBadge}
           </div>
           <span class="text-xs text-ghostMuted">$${r.price_per_m2 || 8}/m²</span>
         `;
@@ -1978,9 +1985,10 @@
       if (select) {
         select.value = r.id;
       }
+      const avail = Math.round(((r.current_length || 0) - (r.pending_length || 0)) * 100) / 100;
       const input = document.getElementById('sale-roll-input');
       if (input) {
-        input.value = `${r.width}x - ${r.current_length} ${r.color}`;
+        input.value = `${r.width}x - ${avail} ${r.color}`;
       }
       const menu = document.getElementById('sale-roll-dropdown-menu');
       if (menu) menu.classList.add('hidden');
@@ -2000,15 +2008,17 @@
       const prevVal = select.value;
       select.innerHTML = '<option value="">Rulonni tanlang...</option>';
       rolls.forEach(r => {
+        const avail = Math.round(((r.current_length || 0) - (r.pending_length || 0)) * 100) / 100;
+        if (avail <= 0) return;
         const opt = document.createElement('option');
         opt.value = r.id;
         opt.dataset.width = r.width;
         opt.dataset.color = r.color;
-        opt.dataset.remain = r.current_length;
+        opt.dataset.remain = avail;
         opt.dataset.price = r.price_per_m2 || 8;
         opt.dataset.costPrice = (r.cost_price_per_m2 && r.cost_price_per_m2 > 0) ? r.cost_price_per_m2 : (r.price_per_m2 || 8);
         opt.dataset.rollCode = r.roll_code;
-        opt.innerText = `${r.width}x - ${r.current_length} ${r.color}`;
+        opt.innerText = `${r.width}x - ${avail} ${r.color}`;
         select.appendChild(opt);
       });
       if (prevVal) {
@@ -2016,8 +2026,9 @@
         const found = rolls.find(r => r.id == prevVal);
         if (found) {
           SELECTED_SALE_ROLL = found;
+          const avail = Math.round(((found.current_length || 0) - (found.pending_length || 0)) * 100) / 100;
           const input = document.getElementById('sale-roll-input');
-          if (input && !input.value) input.value = `${found.width}x - ${found.current_length} ${found.color}`;
+          if (input && !input.value) input.value = `${found.width}x - ${avail} ${found.color}`;
         }
       }
     }
@@ -2487,11 +2498,18 @@
         const isSelected = SELECTED_TRANSFER_ROLL && SELECTED_TRANSFER_ROLL.id === r.id;
         if (isSelected) item.classList.add('bg-neutral-50', 'font-semibold');
 
+        const avail = Math.round(((r.current_length || 0) - (r.pending_length || 0)) * 100) / 100;
+        let pendingNote = '';
+        if (r.pending_length && r.pending_length > 0) {
+          pendingNote = `<span class="text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">⏳ ${r.pending_length}m yo'lda</span>`;
+        }
+
         item.innerHTML = `
           <div class="flex items-center gap-2">
-            <span class="font-medium text-neutral-900">${r.width}x - ${r.current_length} ${r.color}</span>
+            <span class="font-medium text-neutral-900">${r.width}x - ${avail} ${r.color}</span>
+            ${pendingNote}
           </div>
-          <span class="text-xs text-emerald-700 font-medium">Qoldiq: ${r.current_length} m</span>
+          <span class="text-xs text-emerald-700 font-medium">Mavjud: ${avail} m</span>
         `;
         item.onmousedown = (e) => {
           e.preventDefault();
@@ -2531,9 +2549,10 @@
       if (select) {
         select.value = r.id;
       }
+      const avail = Math.round(((r.current_length || 0) - (r.pending_length || 0)) * 100) / 100;
       const input = document.getElementById('transfer-roll-input');
       if (input) {
-        input.value = `${r.width}x - ${r.current_length} ${r.color}`;
+        input.value = `${r.width}x - ${avail} ${r.color}`;
       }
       const menu = document.getElementById('transfer-roll-dropdown-menu');
       if (menu) menu.classList.add('hidden');
@@ -2554,13 +2573,15 @@
       const prevVal = select.value;
       select.innerHTML = '<option value="">Rulonni tanlang...</option>';
       rolls.forEach(r => {
+        const avail = Math.round(((r.current_length || 0) - (r.pending_length || 0)) * 100) / 100;
+        if (avail <= 0) return; // Butunlay transferda bo'lgan rulonlarni o'tkazishga qo'ymaslik
         const opt = document.createElement('option');
         opt.value = r.id;
         opt.dataset.rollCode = r.roll_code;
-        opt.dataset.remain = r.current_length;
+        opt.dataset.remain = avail;
         opt.dataset.width = r.width;
         opt.dataset.color = r.color;
-        opt.innerText = `${r.width}x - ${r.current_length} ${r.color}`;
+        opt.innerText = `${r.width}x - ${avail} ${r.color}`;
         select.appendChild(opt);
       });
       if (prevVal) {
@@ -2568,8 +2589,9 @@
         const found = rolls.find(r => r.id == prevVal);
         if (found) {
           SELECTED_TRANSFER_ROLL = found;
+          const avail = Math.round(((found.current_length || 0) - (found.pending_length || 0)) * 100) / 100;
           const input = document.getElementById('transfer-roll-input');
-          if (input && !input.value) input.value = `${found.width}x - ${found.current_length} ${found.color}`;
+          if (input && !input.value) input.value = `${found.width}x - ${avail} ${found.color}`;
         }
       }
     }
@@ -2585,7 +2607,7 @@
           lengthInput.value = remain;
         }
         if (lengthInput) lengthInput.max = remain;
-        if (hint) hint.innerText = `Omborda mavjud: ${remain} m`;
+        if (hint) hint.innerText = `O'tkazish uchun mavjud: ${remain} m`;
       } else {
         if (lengthInput) lengthInput.value = '';
         if (hint) hint.innerText = '';
@@ -2610,25 +2632,100 @@
         });
       }
 
-      // Load Transfer History
+      // Load Transfers (History + Pending)
       const thRes = await apiRequest('/api/transfers');
+      if (!thRes) return;
+
+      // 1. Pending Incoming Transfers (Qabul qilish)
+      const inCard = document.getElementById('transfer-pending-incoming-card');
+      const inBody = document.getElementById('transfer-pending-incoming-tbody');
+      const inBadge = document.getElementById('transfer-pending-incoming-badge');
+      const incList = thRes.pending_incoming || [];
+      if (inCard && inBody) {
+        if (incList.length > 0) {
+          inCard.classList.remove('hidden');
+          if (inBadge) inBadge.innerText = `${incList.length} ta`;
+          inBody.innerHTML = '';
+          incList.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-amber-50/50 transition";
+            const fromName = BRANCH_NAMES[t.from_branch] || `${t.from_branch}-Filial`;
+            tr.innerHTML = `
+              <td class="py-2.5 px-3 whitespace-nowrap text-neutral-500">${t.created_at || ''}</td>
+              <td class="py-2.5 px-3 font-semibold text-neutral-900">${fromName}</td>
+              <td class="py-2.5 px-3 font-medium text-neutral-900">${t.width}x ${t.color}</td>
+              <td class="py-2.5 px-3 font-bold text-amber-950">${t.length} m</td>
+              <td class="py-2.5 px-3 text-neutral-500">${t.note || '-'}</td>
+              <td class="py-2.5 px-3 text-right space-x-1.5 whitespace-nowrap">
+                <button onclick="acceptTransferAction(${t.id}, '${t.length}', '${t.color} (${t.width}m)')" class="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-xs transition shadow-sm">✅ Qabul qilish</button>
+                <button onclick="rejectTransferAction(${t.id})" class="px-2.5 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg font-medium text-xs transition">❌ Rad etish</button>
+              </td>
+            `;
+            inBody.appendChild(tr);
+          });
+        } else {
+          inCard.classList.add('hidden');
+        }
+      }
+
+      // 2. Pending Outgoing Transfers (Yuborilgan va kutilayotgan)
+      const outCard = document.getElementById('transfer-pending-outgoing-card');
+      const outBody = document.getElementById('transfer-pending-outgoing-tbody');
+      const outList = thRes.pending_outgoing || [];
+      if (outCard && outBody) {
+        if (outList.length > 0) {
+          outCard.classList.remove('hidden');
+          outBody.innerHTML = '';
+          outList.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.className = "hover:bg-neutral-50 transition";
+            const toName = BRANCH_NAMES[t.to_branch] || `${t.to_branch}-Filial`;
+            tr.innerHTML = `
+              <td class="py-2 px-3 whitespace-nowrap text-neutral-500">${t.created_at || ''}</td>
+              <td class="py-2 px-3 font-semibold text-neutral-900">${toName}</td>
+              <td class="py-2 px-3 font-medium text-neutral-900">${t.width}x ${t.color}</td>
+              <td class="py-2 px-3 font-bold text-neutral-900">${t.length} m</td>
+              <td class="py-2 px-3"><span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">⏳ Tasdiqlash kutilmoqda</span></td>
+              <td class="py-2 px-3 text-right">
+                <button onclick="cancelTransferAction(${t.id})" class="px-2 py-0.5 text-xs text-red-600 hover:bg-red-50 rounded border border-red-200 font-medium transition">Bekor qilish</button>
+              </td>
+            `;
+            outBody.appendChild(tr);
+          });
+        } else {
+          outCard.classList.add('hidden');
+        }
+      }
+
+      // 3. History
       const thBody = document.getElementById('transfer-history-tbody');
-      if (thBody && thRes && thRes.transfers) {
+      if (thBody && thRes.transfers) {
         thBody.innerHTML = '';
         if (thRes.transfers.length === 0) {
-          thBody.innerHTML = '<tr><td colspan="6" class="py-4 text-center text-ghostMuted">Hozircha transferlar mavjud emas</td></tr>';
+          thBody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-ghostMuted">Hozircha transferlar mavjud emas</td></tr>';
         } else {
           thRes.transfers.forEach(t => {
             const tr = document.createElement('tr');
             tr.className = "hover:bg-neutral-50 transition";
             const fromName = BRANCH_NAMES[t.from_branch] || `${t.from_branch}-Filial`;
             const toName = BRANCH_NAMES[t.to_branch] || `${t.to_branch}-Filial`;
+
+            let statusBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">✅ Qabul qilingan</span>`;
+            if (t.status === 'pending') {
+              statusBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">⏳ Kutilmoqda</span>`;
+            } else if (t.status === 'rejected') {
+              statusBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">❌ Rad etilgan</span>`;
+            } else if (t.status === 'cancelled') {
+              statusBadge = `<span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-neutral-100 text-neutral-600 border border-neutral-200">❌ Bekor qilingan</span>`;
+            }
+
             tr.innerHTML = `
               <td class="py-2.5 text-neutral-500 whitespace-nowrap">${t.created_at || ''}</td>
               <td class="py-2.5 text-neutral-700">${fromName}</td>
               <td class="py-2.5 font-medium text-emerald-700">${toName}</td>
               <td class="py-2.5 font-medium text-neutral-900">${t.width}x ${t.color}</td>
               <td class="py-2.5 font-semibold text-neutral-900">${t.length} m</td>
+              <td class="py-2.5">${statusBadge}</td>
               <td class="py-2.5 text-neutral-500">${t.note || '-'}</td>
             `;
             thBody.appendChild(tr);
@@ -2666,7 +2763,7 @@
         note: note
       });
       if (res && res.success) {
-        showToast(`${transferLength} metr muvaffaqiyatli transfer qilindi va filialga xabar yuborildi!`);
+        showToast(`Transfer yuborildi! Qabul qiluvchi filial xodimi qabul qilmagunicha tovar sizning balansingizda turadi.`);
         e.target.reset();
         SELECTED_TRANSFER_ROLL = null;
         const transferInput = document.getElementById('transfer-roll-input');
@@ -2675,6 +2772,37 @@
         if (hint) hint.innerText = '';
         loadStockData();
         loadTransferData();
+      }
+    }
+
+    async function acceptTransferAction(transferId, length, product) {
+      if (!confirm(`Ushbu mahsulotni (${length}m ${product}) filial omboriga qabul qilasizmi?`)) return;
+      const res = await apiRequest('/api/transfer/accept', 'POST', { transfer_id: transferId });
+      if (res && res.success) {
+        showToast("✅ Transfer muvaffaqiyatli qabul qilindi va omborga qo'shildi!");
+        loadTransferData();
+        loadStockData();
+      }
+    }
+
+    async function rejectTransferAction(transferId) {
+      const reason = prompt("Rad etish sababini kiriting (ixtiyoriy):");
+      if (reason === null) return;
+      const res = await apiRequest('/api/transfer/reject', 'POST', { transfer_id: transferId, reason: reason });
+      if (res && res.success) {
+        showToast("Transfer rad etildi.");
+        loadTransferData();
+        loadStockData();
+      }
+    }
+
+    async function cancelTransferAction(transferId) {
+      if (!confirm("Haqiqatan ham ushbu transferni bekor qilmoqchimisiz?")) return;
+      const res = await apiRequest('/api/transfer/cancel', 'POST', { transfer_id: transferId });
+      if (res && res.success) {
+        showToast("Transfer bekor qilindi.");
+        loadTransferData();
+        loadStockData();
       }
     }
 
