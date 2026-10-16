@@ -102,6 +102,31 @@ async def process_switch_branch(callback: CallbackQuery, state: FSMContext):
 @router.message(CommandStart())
 async def cmd_start(message: Message, state: FSMContext):
     user_id = message.from_user.id
+    
+    # 1. QR kod yoki brauzerdan kirish so'rovi tekshiruvi (/start login_<token>)
+    text_parts = (message.text or "").split(maxsplit=1)
+    if len(text_parts) > 1 and text_parts[1].startswith("login_"):
+        qr_token = text_parts[1].replace("login_", "").strip()
+        role, branch_id = get_user_role(user_id)
+        if not role:
+            await message.answer("❌ Kechirasiz, sizga CRM tizimidan foydalanishga ruxsat berilmagan.")
+            return
+
+        kb = InlineKeyboardMarkup(inline_keyboard=[
+            [
+                InlineKeyboardButton(text="✅ Ha, kirishga ruxsat berish", callback_data=f"qr_approve:{qr_token}"),
+                InlineKeyboardButton(text="❌ Bekor qilish", callback_data=f"qr_reject:{qr_token}")
+            ]
+        ])
+        await message.answer(
+            "🖥 *Kompyuterdan tizimga kirish so'rovi!*\n\n"
+            "Siz hozirgina kompyuteringizda DRAP CRM tizimiga kirish uchun QR-kodni skaner qildingiz.\n\n"
+            "Tizimga kirishga ruxsat berasizmi?",
+            parse_mode="Markdown",
+            reply_markup=kb
+        )
+        return
+
     if user_id in SUPER_ADMIN_IDS:
         ADMIN_ACTIVE_BRANCH.pop(user_id, None)
         await state.clear()
@@ -195,3 +220,52 @@ async def cb_back_to_main(callback: CallbackQuery, state: FSMContext):
     menu = get_user_menu(role, branch_id, user_id=callback.from_user.id)
     await callback.message.answer("Asosiy menyu:", reply_markup=menu)
     await callback.answer()
+
+# --- QR KOD BILAN KIRISHNI TASDIQLASH HANDLERLARI ---
+
+@router.callback_query(F.data.startswith("qr_approve:"))
+async def cb_qr_approve(callback: CallbackQuery):
+    qr_token = callback.data.split(":", 1)[1]
+    user_id = callback.from_user.id
+    user_info = {
+        "id": user_id,
+        "first_name": callback.from_user.first_name,
+        "username": callback.from_user.username
+    }
+    from web.auth import approve_qr_request
+    success = approve_qr_request(qr_token, user_id, user_info)
+    if success:
+        await callback.message.edit_text(
+            "✅ *Muvaffaqiyatli!* Kompyuteringizdagi tizimga kirdingiz.\n\nEndi brauzer orqali ishlashingiz mumkin.",
+            parse_mode="Markdown"
+        )
+    else:
+        await callback.message.edit_text(
+            "❌ Xatolik: Kirish so'rovi topilmadi yoki muddati o'tib ketgan.",
+            parse_mode="Markdown"
+        )
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("qr_reject:"))
+async def cb_qr_reject(callback: CallbackQuery):
+    await callback.message.edit_text("❌ Tizimga kirish so'rovi bekor qilindi.")
+    await callback.answer()
+
+@router.message(Command("crm"))
+@router.message(F.text == "🌐 CRM Veb-tizimni ochish")
+async def cmd_open_crm(message: Message):
+    role, branch_id = get_user_role(message.from_user.id)
+    if not role:
+        return
+    from config import WEBAPP_URL
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🌐 DRAP CRM Saytini ochish", url=WEBAPP_URL)]
+    ])
+    await message.answer(
+        f"🌐 *DRAP CRM Veb-Tizimi:*\n\n"
+        f"🔗 Manzil: {WEBAPP_URL}\n\n"
+        f"Kompyuterdan kirmoqchi bo'lsangiz, havolani brauzerda oching va ekrandagi QR kodni Telegram orqali tasdiqlang.",
+        parse_mode="Markdown",
+        reply_markup=kb
+    )
+

@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN", "").strip()
+WEBAPP_URL = os.getenv("WEBAPP_URL", "http://189.74.99.55:8080").strip()
 
 # Super Admin (Barcha filiallarni nazorat qiluvchi)
 SUPER_ADMIN_IDS = [8525787653]

@@ -18,16 +18,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-async def start_dummy_web_server():
-    port = int(os.getenv("PORT", 8080))
-    app = web.Application()
-    app.router.add_get("/", lambda r: web.Response(text="DRAP BOT is running!"))
-    app.router.add_get("/health", lambda r: web.Response(text="OK"))
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, "0.0.0.0", port)
-    await site.start()
-    logger.info(f"Healthcheck web server {port}-portda ishga tushdi.")
+from web.server import start_web_server
 
 async def send_weekly_backup(bot: Bot):
     logger.info("Haftalik backup faqat Bosh Adminga yuborilmoqda...")
@@ -90,8 +81,8 @@ async def main():
     scheduler.start()
     logger.info("Haftalik backup scheduler (Yakshanba 23:59) faol!")
 
-    # 5. Render healthcheck server
-    await start_dummy_web_server()
+    # 5. DRAP CRM Ghost-style Web Server (8080-port)
+    await start_web_server(bot)
 
     logger.info("Bot polling rejimida ishga tushmoqda...")
     await bot.delete_webhook(drop_pending_updates=True)

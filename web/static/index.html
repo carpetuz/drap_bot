@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="uz" class="h-full bg-[#f6f6f5] text-[#111827]">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>DRAP CRM — Zamonaviy Boshqaruv Tizimi</title>
+  
+  <!-- Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Tailwind CSS via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- QRCode.js via CDN for desktop QR login -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ghostBg: '#f6f6f5',
+            ghostBorder: '#e5e5e3',
+            ghostMuted: '#8c8c88',
+            ghostActive: '#111827',
+            ghostCard: '#ffffff'
+          },
+          fontFamily: {
+            sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Display"', '"Segoe UI"', 'Roboto', 'Helvetica', 'Arial', 'sans-serif']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Ghost.ai minimalist aesthetics */
+    body {
+      background-color: #f6f6f5;
+      font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    /* Delicate vertical line for ghost navigation */
+    .ghost-nav-border {
+      position: relative;
+    }
+    .ghost-nav-border::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 6px;
+      bottom: 6px;
+      width: 1.5px;
+      background-color: #e5e5e3;
+    }
+    
+    .nav-item {
+      position: relative;
+      transition: all 0.15s ease;
+      color: #8c8c88;
+      padding-left: 1rem;
+    }
+    .nav-item:hover {
+      color: #111827;
+    }
+    .nav-item.active {
+      color: #111827;
+      font-weight: 600;
+    }
+    .nav-item.active::before {
+      content: '';
+      position: absolute;
+      left: -0.5px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 2.5px;
+      height: 16px;
+      background-color: #111827;
+      border-radius: 2px;
+    }
+
+    /* Custom minimalist scrollbars */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #d8d8d6;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #b5b5b2;
+    }
+  </style>
+</head>
+<body class="h-full flex flex-col font-sans selection:bg-neutral-200 selection:text-black">
+
+  <!-- ==================== LOGIN VIEW ==================== -->
+  <div id="login-view" class="hidden min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-white border border-ghostBorder rounded-2xl p-8 shadow-sm text-center">
+      <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-neutral-900 text-white font-bold text-lg mb-4">
+        D
+      </div>
+      <h1 class="text-xl font-semibold tracking-tight text-ghostActive">DRAP CRM</h1>
+      <p class="text-sm text-ghostMuted mt-1 mb-6">Telegram orqali xavfsiz avtorizatsiya</p>
+
+      <!-- QR Code Container -->
+      <div class="flex flex-col items-center justify-center p-4 bg-ghostBg border border-ghostBorder rounded-xl mb-6">
+        <div id="qrcode" class="p-2 bg-white rounded-lg border border-ghostBorder"></div>
+        <p class="text-xs text-ghostMuted mt-3 flex items-center gap-1.5">
+          <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          Kamerani yoki Telegramni QR kodga qarating
+        </p>
+      </div>
+
+      <!-- Action Button -->
+      <a id="tg-direct-link" href="#" target="_blank" class="w-full inline-flex items-center justify-center gap-2 bg-neutral-900 hover:bg-neutral-800 text-white text-sm font-medium py-3 px-4 rounded-xl transition duration-150">
+        <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.19-.08-.05-.19-.02-.27 0-.12.03-1.99 1.27-5.62 3.72-.53.36-1.01.54-1.44.53-.47-.01-1.38-.27-2.06-.49-.83-.27-1.49-.42-1.43-.88.03-.24.37-.49 1.02-.75 3.98-1.73 6.64-2.87 7.97-3.44 3.79-1.63 4.58-1.91 5.1-1.92.11 0 .37.03.54.17.14.12.18.28.2.45-.02.07-.02.2-.04.38z"/></svg>
+        Telegram orqali kirish
+      </a>
+
+      <div id="login-status-msg" class="text-xs text-ghostMuted mt-4">
+        Avtorizatsiya kutilmoqda...
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MAIN APP VIEW ==================== -->
+  <div id="app-view" class="hidden flex-1 flex flex-col min-h-screen">
+    
+    <!-- TOP HEADER -->
+    <header class="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-ghostBorder px-4 lg:px-8 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span class="w-8 h-8 rounded-lg bg-neutral-900 text-white font-bold flex items-center justify-center text-sm">D</span>
+        <div>
+          <span class="text-sm font-semibold tracking-tight text-neutral-900">DRAP CRM</span>
+          <span id="header-branch-badge" class="ml-2 px-2 py-0.5 rounded text-[11px] font-medium bg-neutral-100 text-neutral-600 border border-neutral-200">Filial</span>
+        </div>
+      </div>
+
+      <!-- Right header actions: Superadmin branch switcher & user info -->
+      <div class="flex items-center gap-3">
+        <!-- SuperAdmin Branch Selector -->
+        <div id="admin-branch-switcher" class="hidden items-center gap-1 bg-neutral-100 p-0.5 rounded-lg border border-neutral-200 text-xs">
+          <button onclick="switchBranch(1)" data-branch="1" class="branch-pill px-2.5 py-1 rounded-md transition text-neutral-600 font-medium">1-Filial</button>
+          <button onclick="switchBranch(2)" data-branch="2" class="branch-pill px-2.5 py-1 rounded-md transition text-neutral-600 font-medium">2-Filial</button>
+          <button onclick="switchBranch(3)" data-branch="3" class="branch-pill px-2.5 py-1 rounded-md transition text-neutral-600 font-medium">3-Filial</button>
+        </div>
+
+        <div class="flex items-center gap-2 pl-2 border-l border-ghostBorder">
+          <span id="user-display-name" class="text-xs font-medium text-neutral-700 hidden sm:inline">Admin</span>
+          <button onclick="logout()" title="Chiqish" class="text-ghostMuted hover:text-neutral-900 text-xs p-1.5 rounded hover:bg-neutral-100 transition">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN BODY: LEFT SIDEBAR + RIGHT CONTENT -->
+    <div class="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-6 flex flex-col md:flex-row gap-8">
+      
+      <!-- LEFT GHOST SIDEBAR -->
+      <aside class="w-full md:w-56 shrink-0 md:sticky md:top-20 self-start">
+        <div class="text-[11px] font-semibold uppercase tracking-wider text-ghostMuted mb-3 px-1">
+          Bo'limlar
+        </div>
+        <nav id="sidebar-nav" class="ghost-nav-border flex md:flex-col gap-1 overflow-x-auto pb-2 md:pb-0 text-sm">
+          <!-- Dynamically filled based on branch -->
+        </nav>
+      </aside>
+
+      <!-- RIGHT WORKSPACE CONTENT -->
+      <main class="flex-1 min-w-0">
+        
+        <!-- ==================== 3-FILIAL VIEW ==================== -->
+        <section id="view-branch3" class="hidden space-y-6">
+          
+          <!-- Quick Sale Card -->
+          <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-sm">
+            <h2 class="text-base font-semibold text-neutral-900 tracking-tight mb-1">Tezkor Sotuv (3-Filial)</h2>
+            <p class="text-xs text-ghostMuted mb-5">Kolleksiya va uzunlikni tanlang, narx avtomatik hisoblanadi.</p>
+
+            <!-- Collection Cards -->
+            <label class="block text-xs font-medium text-neutral-600 mb-2">1. Kolleksiyani tanlang:</label>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+              <div onclick="selectB3Coll('Laughton', 30)" id="coll-Laughton" class="b3-card cursor-pointer border border-ghostBorder rounded-xl p-4 text-center hover:border-neutral-900 transition">
+                <div class="font-semibold text-neutral-900 text-sm">Laughton</div>
+                <div class="text-xs text-ghostMuted mt-1">$30 / m²</div>
+                <div class="text-[11px] text-neutral-400 mt-0.5">Eni: 4 metr</div>
+              </div>
+              <div onclick="selectB3Coll('Craft', 45)" id="coll-Craft" class="b3-card cursor-pointer border border-ghostBorder rounded-xl p-4 text-center hover:border-neutral-900 transition">
+                <div class="font-semibold text-neutral-900 text-sm">Craft</div>
+                <div class="text-xs text-ghostMuted mt-1">$45 / m²</div>
+                <div class="text-[11px] text-neutral-400 mt-0.5">Eni: 4 metr</div>
+              </div>
+              <div onclick="selectB3Coll('Pretty', 38)" id="coll-Pretty" class="b3-card cursor-pointer border border-ghostBorder rounded-xl p-4 text-center hover:border-neutral-900 transition">
+                <div class="font-semibold text-neutral-900 text-sm">Pretty</div>
+                <div class="text-xs text-ghostMuted mt-1">$38 / m²</div>
+                <div class="text-[11px] text-neutral-400 mt-0.5">Eni: 4 metr</div>
+              </div>
+            </div>
+
+            <!-- Length input & live calculation -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+              <div>
+                <label class="block text-xs font-medium text-neutral-600 mb-1.5">2. Uzunligi (metr):</label>
+                <input type="number" id="b3-length-input" step="0.1" min="0.1" placeholder="Masalan: 5 yoki 7.5" oninput="calcB3Total()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3.5 py-2.5 text-sm font-medium focus:outline-none focus:border-neutral-900 transition">
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-neutral-600 mb-1.5">3. Narx (1 m² uchun $):</label>
+                <input type="number" id="b3-price-input" step="0.5" oninput="calcB3Total()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3.5 py-2.5 text-sm font-medium focus:outline-none focus:border-neutral-900 transition">
+              </div>
+            </div>
+
+            <!-- Live Receipt Preview Box -->
+            <div class="bg-ghostBg border border-ghostBorder rounded-xl p-4 mb-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <div class="text-xs text-ghostMuted">Hisob-kitob cheki:</div>
+                <div id="b3-calc-details" class="text-sm font-medium text-neutral-800 mt-0.5">Kolleksiya va uzunlik kiritilmagan</div>
+              </div>
+              <div class="text-right">
+                <div class="text-xs text-ghostMuted">Jami summa:</div>
+                <div id="b3-calc-total" class="text-2xl font-bold tracking-tight text-neutral-900">$0.00</div>
+              </div>
+            </div>
+
+            <button onclick="submitB3Sale()" id="b3-submit-btn" class="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-medium text-sm py-3 px-4 rounded-xl transition duration-150">
+              ✅ Sotuvni tasdiqlash va saqlash
+            </button>
+          </div>
+
+          <!-- Metrics summary cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="bg-white border border-ghostBorder rounded-2xl p-5">
+              <div class="text-xs text-ghostMuted font-medium">Qo'ldagi kassa mablag'i</div>
+              <div id="b3-metric-cash" class="text-xl font-bold text-neutral-900 mt-1">$0.00</div>
+              <div class="text-[11px] text-emerald-600 font-medium mt-1">Naqd to'lovlar</div>
+            </div>
+            <div class="bg-white border border-ghostBorder rounded-2xl p-5">
+              <div class="text-xs text-ghostMuted font-medium">Jami sotilgan maydon</div>
+              <div id="b3-metric-m2" class="text-xl font-bold text-neutral-900 mt-1">0.0 m²</div>
+              <div class="text-[11px] text-ghostMuted mt-1">Barcha sotuvlar bo'yicha</div>
+            </div>
+            <div class="bg-white border border-ghostBorder rounded-2xl p-5">
+              <div class="text-xs text-ghostMuted font-medium">Bugungi sotuvlar</div>
+              <div id="b3-metric-today" class="text-xl font-bold text-neutral-900 mt-1">$0.00</div>
+              <div id="b3-metric-today-m2" class="text-[11px] text-ghostMuted mt-1">0.0 m²</div>
+            </div>
+          </div>
+
+          <!-- Sales History Table -->
+          <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-sm">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="text-sm font-semibold text-neutral-900">Sotuvlar tarixi</h3>
+              <button onclick="loadBranch3Data()" class="text-xs text-ghostMuted hover:text-neutral-900 transition">Yangilash ↻</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="border-b border-ghostBorder text-ghostMuted font-medium">
+                    <th class="pb-2.5">Sana</th>
+                    <th class="pb-2.5">Kolleksiya</th>
+                    <th class="pb-2.5">O'lchami</th>
+                    <th class="pb-2.5">Maydoni</th>
+                    <th class="pb-2.5">1 m²</th>
+                    <th class="pb-2.5">Jami</th>
+                    <th class="pb-2.5">To'lov</th>
+                  </tr>
+                </thead>
+                <tbody id="b3-sales-tbody" class="divide-y divide-ghostBorder">
+                  <!-- Dynamic rows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- ==================== 1- & 2-FILIAL VIEWS ==================== -->
+        
+        <!-- TAB: OMBOR QOLDIQLARI -->
+        <section id="view-stock" class="hidden space-y-6">
+          <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-sm">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
+              <div>
+                <h2 class="text-base font-semibold text-neutral-900">Ombor qoldiqlari</h2>
+                <p class="text-xs text-ghostMuted mt-0.5">Mavjud rulonlar va tovarlar ro'yxati</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="text" id="stock-search" oninput="filterStockTable()" placeholder="Kodi yoki rang bo'yicha qidiruv..." class="bg-ghostBg border border-ghostBorder rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-neutral-900">
+                <button onclick="loadStockData()" class="px-3 py-1.5 text-xs bg-neutral-100 hover:bg-neutral-200 rounded-xl transition">↻</button>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="border-b border-ghostBorder text-ghostMuted font-medium">
+                    <th class="pb-2.5">Rulon kodi</th>
+                    <th class="pb-2.5">Eni</th>
+                    <th class="pb-2.5">Rangi</th>
+                    <th class="pb-2.5">Qoldiq (m)</th>
+                    <th class="pb-2.5">Maydon (m²)</th>
+                    <th class="pb-2.5">1 m² narxi</th>
+                    <th class="pb-2.5">Jami qiymati</th>
+                  </tr>
+                </thead>
+                <tbody id="stock-tbody" class="divide-y divide-ghostBorder">
+                  <!-- Dynamic rows -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: KIRIM (YANGI MAHSULOT) -->
+        <section id="view-import" class="hidden space-y-6">
+          <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-sm max-w-xl">
+            <h2 class="text-base font-semibold text-neutral-900">Yangi tovar kirimi</h2>
+            <p class="text-xs text-ghostMuted mb-5">Omborga yangi rezinka gilam rulonini kiritish</p>
+
+            <form onsubmit="submitRollImport(event)" class="space-y-4">
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-medium text-neutral-600 mb-1">Eni (metr):</label>
+                  <select id="import-width" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                    <option value="0.8">0.8 metr</option>
+                    <option value="1.0">1.0 metr</option>
+                    <option value="1.2" selected>1.2 metr</option>
+                    <option value="1.6">1.6 metr</option>
+                    <option value="2.0">2.0 metr</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-neutral-600 mb-1">Rangi:</label>
+                  <select id="import-color" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                    <option value="Seriy">Seriy</option>
+                    <option value="Kofe">Kofe</option>
+                    <option value="Qizil">Qizil</option>
+                    <option value="Bordo">Bordo</option>
+                    <option value="Qora">Qora</option>
+                    <option value="Yashil">Yashil</option>
+                    <option value="Ko'k">Ko'k</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-medium text-neutral-600 mb-1">Uzunligi (metr):</label>
+                  <input type="number" step="0.1" id="import-length" required placeholder="30" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-neutral-600 mb-1">1 m² narxi ($):</label>
+                  <input type="number" step="0.5" id="import-price" value="8" required class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                </div>
+              </div>
+
+              <button type="submit" class="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-medium text-sm py-3 px-4 rounded-xl transition duration-150">
+                📥 Rulonni omborga qabul qilish
+              </button>
+            </form>
+          </div>
+        </section>
+
+        <!-- TAB: GILAM SOTUV -->
+        <section id="view-sale" class="hidden space-y-6">
+          <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-sm max-w-xl">
+            <h2 class="text-base font-semibold text-neutral-900">Rezinka Gilam Sotuv</h2>
+            <p class="text-xs text-ghostMuted mb-5">Rulonni tanlang va sotilayotgan metrni kiriting</p>
+
+            <form onsubmit="submitCarpetSale(event)" class="space-y-4">
+              <div>
+                <label class="block text-xs font-medium text-neutral-600 mb-1">Ombordagi faol rulon:</label>
+                <select id="sale-roll-select" onchange="onRollSelected()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                  <option value="">Rulonni tanlang...</option>
+                </select>
+              </div>
+
+              <div class="grid grid-cols-2 gap-4">
+                <div>
+                  <label class="block text-xs font-medium text-neutral-600 mb-1">Sotiladigan uzunlik (m):</label>
+                  <input type="number" step="0.1" id="sale-length" required oninput="calcCarpetSaleTotal()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-neutral-600 mb-1">1 m² narxi ($):</label>
+                  <input type="number" step="0.5" id="sale-price" required oninput="calcCarpetSaleTotal()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                </div>
+              </div>
+
+              <!-- Calculation Preview -->
+              <div class="bg-ghostBg border border-ghostBorder rounded-xl p-3 flex justify-between items-center text-xs">
+                <span id="carpet-calc-text" class="text-ghostMuted">Hisob: -</span>
+                <span id="carpet-calc-total" class="font-bold text-neutral-900 text-sm">$0.00</span>
+              </div>
+
+              <!-- Payment Type Toggle -->
+              <div class="pt-2">
+                <label class="block text-xs font-medium text-neutral-600 mb-1.5">To'lov turi:</label>
+                <div class="flex gap-4 text-xs">
+                  <label class="flex items-center gap-1.5 cursor-pointer">
+                    <input type="radio" name="sale_pay_type" value="cash" checked onchange="toggleDebtFields(false)">
+                    <span>Naqd to'lov</span>
+                  </label>
+                  <label class="flex items-center gap-1.5 cursor-pointer">
+                    <input type="radio" name="sale_pay_type" value="debt" onchange="toggleDebtFields(true)">
+                    <span>Nasiya (Qarz)</span>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Debt extra fields -->
+              <div id="debt-fields" class="hidden space-y-3 p-3 bg-neutral-50 rounded-xl border border-ghostBorder">
+                <div>
+                  <label class="block text-[11px] font-medium text-neutral-600 mb-1">Mijoz ismi:</label>
+                  <input type="text" id="debt-customer-name" placeholder="Ism sharifi" class="w-full bg-white border border-ghostBorder rounded-lg px-2.5 py-1.5 text-xs">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div>
+                    <label class="block text-[11px] font-medium text-neutral-600 mb-1">Telefon:</label>
+                    <input type="text" id="debt-customer-phone" placeholder="+998..." class="w-full bg-white border border-ghostBorder rounded-lg px-2.5 py-1.5 text-xs">
+                  </div>
+                  <div>
+                    <label class="block text-[11px] font-medium text-neutral-600 mb-1">Boshlang'ich to'lov ($):</label>
+                    <input type="number" step="0.5" id="debt-initial-paid" value="0" class="w-full bg-white border border-ghostBorder rounded-lg px-2.5 py-1.5 text-xs">
+                  </div>
+                </div>
+              </div>
+
+              <button type="submit" class="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-medium text-sm py-3 px-4 rounded-xl transition duration-150">
+                ✅ Sotuvni tasdiqlash
+              </button>
+            </form>
+          </div>
+        </section>
+
+        <!-- TAB: KASSA -->
+        <section id="view-cashbox" class="hidden space-y-6">
+          <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-sm">
+            <h2 class="text-base font-semibold text-neutral-900 mb-1">Kassa mablag'lari</h2>
+            <p class="text-xs text-ghostMuted mb-5">Har bir toifadagi alohida kassa qoldiqlari</p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+              <div class="bg-ghostBg border border-ghostBorder rounded-xl p-4">
+                <div class="text-xs text-ghostMuted">🌀 Rezinka Gilam</div>
+                <div id="cash-carpet" class="text-lg font-bold text-neutral-900 mt-1">$0.00</div>
+              </div>
+              <div class="bg-ghostBg border border-ghostBorder rounded-xl p-4">
+                <div class="text-xs text-ghostMuted">🐑 Teri kassasi</div>
+                <div id="cash-leather" class="text-lg font-bold text-neutral-900 mt-1">$0.00</div>
+              </div>
+              <div class="bg-ghostBg border border-ghostBorder rounded-xl p-4">
+                <div class="text-xs text-ghostMuted">🧶 Asl Kavralan</div>
+                <div id="cash-kavralan" class="text-lg font-bold text-neutral-900 mt-1">$0.00</div>
+              </div>
+              <div class="bg-neutral-900 text-white rounded-xl p-4">
+                <div class="text-xs text-neutral-400">Jami qoldiq</div>
+                <div id="cash-total" class="text-lg font-bold text-white mt-1">$0.00</div>
+              </div>
+            </div>
+
+            <!-- Cash Withdrawal Modal/Form -->
+            <div class="border-t border-ghostBorder pt-5">
+              <h3 class="text-sm font-semibold text-neutral-900 mb-3">Kassa topshirish (Chiqim qilish)</h3>
+              <form onsubmit="submitCashWithdraw(event)" class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <select id="withdraw-category" class="bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-xs">
+                  <option value="carpet">Rezinka Gilam</option>
+                  <option value="leather">Teri</option>
+                  <option value="kavralan">Asl Kavralan</option>
+                  <option value="branch3">3-Filial</option>
+                </select>
+                <input type="number" step="0.5" id="withdraw-amount" required placeholder="Chiqim summasi ($)" class="bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-xs">
+                <input type="text" id="withdraw-note" placeholder="Izoh (masalan: Bosh kassaga topshirildi)" class="bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-xs">
+                <button type="submit" class="bg-neutral-900 hover:bg-neutral-800 text-white font-medium text-xs px-4 py-2 rounded-xl transition">
+                  Chiqimni saqlash
+                </button>
+              </form>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: NASIYALAR -->
+        <section id="view-debts" class="hidden space-y-6">
+          <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-sm">
+            <h2 class="text-base font-semibold text-neutral-900 mb-1">Nasiya (Qarz) daftari</h2>
+            <p class="text-xs text-ghostMuted mb-5">Faol qarzdorlar va to'lovlarni qabul qilish</p>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-xs">
+                <thead>
+                  <tr class="border-b border-ghostBorder text-ghostMuted font-medium">
+                    <th class="pb-2.5">ID</th>
+                    <th class="pb-2.5">Mijoz</th>
+                    <th class="pb-2.5">Telefon</th>
+                    <th class="pb-2.5">Mahsulot</th>
+                    <th class="pb-2.5">Jami</th>
+                    <th class="pb-2.5">To'langan</th>
+                    <th class="pb-2.5">Qolgan qarz</th>
+                    <th class="pb-2.5">Harakat</th>
+                  </tr>
+                </thead>
+                <tbody id="debts-tbody" class="divide-y divide-ghostBorder">
+                  <!-- Dynamic debts -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="fixed bottom-4 right-4 z-50 transform translate-y-10 opacity-0 transition-all duration-200 bg-neutral-900 text-white text-xs px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 pointer-events-none">
+    <span id="toast-text">Xabar</span>
+  </div>
+
+  <!-- APPLICATION JAVASCRIPT LOGIC -->
+  <script>
+    let CURRENT_USER = null;
+    let ACTIVE_BRANCH = 1;
+    let ACTIVE_VIEW = 'b3-sale'; // or stock, sale, import, cashbox, debts
+    let ALL_ROLLS = [];
+    let B3_COLLECTION = 'Craft';
+    let B3_PRICE = 45;
+    let QR_POLL_INTERVAL = null;
+
+    // Toast helper
+    function showToast(msg, isError = false) {
+      const toast = document.getElementById('toast');
+      const text = document.getElementById('toast-text');
+      text.innerText = msg;
+      toast.className = `fixed bottom-4 right-4 z-50 transform translate-y-0 opacity-100 transition-all duration-200 text-xs px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 ${isError ? 'bg-rose-700 text-white' : 'bg-neutral-900 text-white'}`;
+      setTimeout(() => {
+        toast.className = 'fixed bottom-4 right-4 z-50 transform translate-y-10 opacity-0 transition-all duration-200 bg-neutral-900 text-white text-xs px-4 py-3 rounded-xl shadow-lg flex items-center gap-2 pointer-events-none';
+      }, 3000);
+    }
+
+    // Initialize App
+    window.addEventListener('DOMContentLoaded', async () => {
+      // 1. Check if Telegram WebApp is active
+      if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
+        window.Telegram.WebApp.ready();
+        window.Telegram.WebApp.expand();
+        const success = await loginWithTelegramWebApp(window.Telegram.WebApp.initData);
+        if (success) return;
+      }
+
+      // 2. Check existing session cookie/token
+      const user = await fetchCurrentUser();
+      if (user) {
+        setupUserInterface(user);
+      } else {
+        showLoginView();
+      }
+    });
+
+    // API Helper with credentials
+    async function apiRequest(url, method = 'GET', body = null) {
+      const opts = {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin'
+      };
+      if (body) opts.body = JSON.stringify(body);
+      try {
+        const res = await fetch(url, opts);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Server xatoligi');
+        return data;
+      } catch (err) {
+        console.error(err);
+        showToast(err.message, true);
+        return null;
+      }
+    }
+
+    // Telegram WebApp Auto-login
+    async function loginWithTelegramWebApp(initData) {
+      const data = await apiRequest('/api/auth/webapp', 'POST', { initData });
+      if (data && data.success) {
+        setupUserInterface(data.user);
+        return true;
+      }
+      return false;
+    }
+
+    // Fetch current user
+    async function fetchCurrentUser() {
+      const data = await apiRequest('/api/auth/me');
+      return data ? data.user : null;
+    }
+
+    // Show Login View & Setup QR
+    async function showLoginView() {
+      document.getElementById('login-view').classList.remove('hidden');
+      document.getElementById('app-view').classList.add('hidden');
+
+      const qrData = await apiRequest('/api/auth/qr/create', 'POST');
+      if (!qrData) return;
+
+      document.getElementById('tg-direct-link').href = qrData.login_url;
+      const qrEl = document.getElementById('qrcode');
+      qrEl.innerHTML = '';
+      new QRCode(qrEl, {
+        text: qrData.login_url,
+        width: 160,
+        height: 160,
+        colorDark: "#111827",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.M
+      });
+
+      // Start Polling QR approval
+      if (QR_POLL_INTERVAL) clearInterval(QR_POLL_INTERVAL);
+      QR_POLL_INTERVAL = setInterval(async () => {
+        const res = await fetch(`/api/auth/qr/check?token=${qrData.qr_token}`);
+        if (res.ok) {
+          const check = await res.json();
+          if (check.status === 'approved') {
+            clearInterval(QR_POLL_INTERVAL);
+            showToast("Muvaffaqiyatli kirdingiz!");
+            setupUserInterface(check.user);
+          }
+        }
+      }, 1500);
+    }
+
+    // Setup User Interface after Login
+    function setupUserInterface(user) {
+      CURRENT_USER = user;
+      ACTIVE_BRANCH = user.active_branch || user.branch_id || 1;
+
+      document.getElementById('login-view').classList.add('hidden');
+      document.getElementById('app-view').classList.remove('hidden');
+      
+      document.getElementById('user-display-name').innerText = user.first_name || 'Xodim';
+      
+      // Super Admin Controls
+      if (user.role === 'superadmin') {
+        document.getElementById('admin-branch-switcher').classList.remove('hidden');
+        document.getElementById('admin-branch-switcher').classList.add('flex');
+        updateBranchPills();
+      } else {
+        document.getElementById('admin-branch-switcher').classList.add('hidden');
+      }
+
+      renderBranchLayout();
+    }
+
+    // Branch Switcher for SuperAdmin
+    async function switchBranch(bId) {
+      if (!CURRENT_USER || CURRENT_USER.role !== 'superadmin') return;
+      const res = await apiRequest('/api/switch-branch', 'POST', { branch_id: bId });
+      if (res && res.success) {
+        ACTIVE_BRANCH = bId;
+        CURRENT_USER.active_branch = bId;
+        updateBranchPills();
+        renderBranchLayout();
+        showToast(`${bId}-Filialga o'tildi`);
+      }
+    }
+
+    function updateBranchPills() {
+      document.querySelectorAll('.branch-pill').forEach(btn => {
+        const b = parseInt(btn.dataset.branch);
+        if (b === ACTIVE_BRANCH) {
+          btn.className = "branch-pill px-2.5 py-1 rounded-md transition bg-white text-neutral-900 font-semibold shadow-xs";
+        } else {
+          btn.className = "branch-pill px-2.5 py-1 rounded-md transition text-neutral-600 font-medium hover:text-neutral-900";
+        }
+      });
+    }
+
+    // Render navigation & view according to active branch
+    function renderBranchLayout() {
+      const badge = document.getElementById('header-branch-badge');
+      const nav = document.getElementById('sidebar-nav');
+      badge.innerText = `${ACTIVE_BRANCH}-Filial`;
+
+      nav.innerHTML = '';
+
+      if (ACTIVE_BRANCH === 3) {
+        // 3-Filial: minimal 2 items (Ghost.ai style)
+        nav.innerHTML = `
+          <button onclick="switchView('b3-sale')" id="nav-b3-sale" class="nav-item text-left py-1.5 active">🛒 Sotuv (Kassa)</button>
+          <button onclick="switchView('b3-history')" id="nav-b3-history" class="nav-item text-left py-1.5">📊 Hisobot va Tarix</button>
+        `;
+        selectB3Coll('Craft', 45);
+        loadBranch3Data();
+        switchView('b3-sale');
+      } else {
+        // 1- and 2-Filial
+        nav.innerHTML = `
+          <button onclick="switchView('sale')" id="nav-sale" class="nav-item text-left py-1.5 active">🛒 Sotuv</button>
+          <button onclick="switchView('stock')" id="nav-stock" class="nav-item text-left py-1.5">📦 Ombor qoldiqlari</button>
+          <button onclick="switchView('import')" id="nav-import" class="nav-item text-left py-1.5">📥 Kirim qilish</button>
+          <button onclick="switchView('cashbox')" id="nav-cashbox" class="nav-item text-left py-1.5">💵 Kassa</button>
+          <button onclick="switchView('debts')" id="nav-debts" class="nav-item text-left py-1.5">📒 Nasiyalar</button>
+        `;
+        loadStockData();
+        loadCashboxData();
+        loadDebtsData();
+        switchView('sale');
+      }
+    }
+
+    // Switch view tabs
+    function switchView(viewId) {
+      ACTIVE_VIEW = viewId;
+      document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+      const activeNav = document.getElementById(`nav-${viewId}`);
+      if (activeNav) activeNav.classList.add('active');
+
+      // Hide all sections
+      document.getElementById('view-branch3').classList.add('hidden');
+      document.getElementById('view-stock').classList.add('hidden');
+      document.getElementById('view-import').classList.add('hidden');
+      document.getElementById('view-sale').classList.add('hidden');
+      document.getElementById('view-cashbox').classList.add('hidden');
+      document.getElementById('view-debts').classList.add('hidden');
+
+      if (viewId === 'b3-sale' || viewId === 'b3-history') {
+        document.getElementById('view-branch3').classList.remove('hidden');
+        if (viewId === 'b3-history') {
+          document.getElementById('b3-sales-tbody').scrollIntoView({ behavior: 'smooth' });
+        }
+      } else if (viewId === 'stock') {
+        document.getElementById('view-stock').classList.remove('hidden');
+      } else if (viewId === 'import') {
+        document.getElementById('view-import').classList.remove('hidden');
+      } else if (viewId === 'sale') {
+        document.getElementById('view-sale').classList.remove('hidden');
+      } else if (viewId === 'cashbox') {
+        document.getElementById('view-cashbox').classList.remove('hidden');
+      } else if (viewId === 'debts') {
+        document.getElementById('view-debts').classList.remove('hidden');
+      }
+    }
+
+    // ==================== 3-FILIAL LOGIC ====================
+    function selectB3Coll(name, price) {
+      B3_COLLECTION = name;
+      B3_PRICE = price;
+
+      document.querySelectorAll('.b3-card').forEach(c => {
+        c.className = "b3-card cursor-pointer border border-ghostBorder rounded-xl p-4 text-center hover:border-neutral-900 transition";
+      });
+      const activeCard = document.getElementById(`coll-${name}`);
+      if (activeCard) {
+        activeCard.className = "b3-card cursor-pointer border-2 border-neutral-900 bg-neutral-50 rounded-xl p-4 text-center transition";
+      }
+
+      document.getElementById('b3-price-input').value = price;
+      calcB3Total();
+    }
+
+    function calcB3Total() {
+      const len = parseFloat(document.getElementById('b3-length-input').value) || 0;
+      const pr = parseFloat(document.getElementById('b3-price-input').value) || B3_PRICE;
+      const width = 4.0;
+      const area = Math.round(width * len * 100) / 100;
+      const total = Math.round(area * pr * 100) / 100;
+
+      if (len > 0) {
+        document.getElementById('b3-calc-details').innerText = `${B3_COLLECTION}: 4.0m × ${len}m = ${area} m² ($${pr}/m²)`;
+        document.getElementById('b3-calc-total').innerText = `$${total.toFixed(2)}`;
+      } else {
+        document.getElementById('b3-calc-details').innerText = "Uzunlik kiritilmadi";
+        document.getElementById('b3-calc-total').innerText = "$0.00";
+      }
+    }
+
+    async function submitB3Sale() {
+      const len = parseFloat(document.getElementById('b3-length-input').value);
+      const pr = parseFloat(document.getElementById('b3-price-input').value);
+
+      if (!len || len <= 0) {
+        showToast("Iltimos, uzunlikni kiriting!", true);
+        return;
+      }
+
+      const btn = document.getElementById('b3-submit-btn');
+      btn.disabled = true;
+      btn.innerText = "Saqlanmoqda...";
+
+      const res = await apiRequest('/api/branch3/sales', 'POST', {
+        collection_name: B3_COLLECTION,
+        length: len,
+        price_per_m2: pr
+      });
+
+      btn.disabled = false;
+      btn.innerText = "✅ Sotuvni tasdiqlash va saqlash";
+
+      if (res && res.success) {
+        showToast("Sotuv muvaffaqiyatli saqlandi!");
+        document.getElementById('b3-length-input').value = '';
+        calcB3Total();
+        loadBranch3Data();
+      }
+    }
+
+    async function loadBranch3Data() {
+      const stats = await apiRequest('/api/branch3/stats');
+      if (stats) {
+        document.getElementById('b3-metric-cash').innerText = `$${stats.cash_balance.toFixed(2)}`;
+        document.getElementById('b3-metric-m2').innerText = `${stats.total_m2} m²`;
+        document.getElementById('b3-metric-today').innerText = `$${stats.today_rev.toFixed(2)}`;
+        document.getElementById('b3-metric-today-m2').innerText = `${stats.today_m2} m²`;
+      }
+
+      const historyData = await apiRequest('/api/branch3/sales');
+      if (historyData && historyData.sales) {
+        const tbody = document.getElementById('b3-sales-tbody');
+        tbody.innerHTML = '';
+        if (historyData.sales.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-ghostMuted">Hozircha sotuvlar mavjud emas</td></tr>';
+          return;
+        }
+        historyData.sales.forEach(s => {
+          const tr = document.createElement('tr');
+          tr.className = "hover:bg-neutral-50 transition";
+          tr.innerHTML = `
+            <td class="py-2.5 text-neutral-500">${s.created_at.substring(5, 16)}</td>
+            <td class="py-2.5 font-medium text-neutral-900">${s.collection_name}</td>
+            <td class="py-2.5 text-neutral-600">${s.width}x${s.length}m</td>
+            <td class="py-2.5 text-neutral-600">${s.area_m2} m²</td>
+            <td class="py-2.5 text-neutral-600">$${s.price_per_m2}</td>
+            <td class="py-2.5 font-semibold text-neutral-900">$${s.total_price}</td>
+            <td class="py-2.5"><span class="px-2 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-700 font-medium border border-emerald-200">Naqd</span></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+    }
+
+    // ==================== 1- & 2-FILIAL LOGIC ====================
+    async function loadStockData() {
+      const data = await apiRequest('/api/stock');
+      if (!data) return;
+
+      ALL_ROLLS = data.rolls || [];
+      renderStockTable(ALL_ROLLS);
+      populateSaleRollDropdown(ALL_ROLLS);
+    }
+
+    function renderStockTable(rolls) {
+      const tbody = document.getElementById('stock-tbody');
+      tbody.innerHTML = '';
+      if (rolls.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-ghostMuted">Omborda faol rulonlar yo\'q</td></tr>';
+        return;
+      }
+      rolls.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-neutral-50 transition";
+        tr.innerHTML = `
+          <td class="py-2.5 font-medium text-neutral-900">${r.roll_code}</td>
+          <td class="py-2.5 text-neutral-600">${r.width} m</td>
+          <td class="py-2.5 text-neutral-600">${r.color}</td>
+          <td class="py-2.5 font-medium text-neutral-900">${r.current_length} m</td>
+          <td class="py-2.5 text-neutral-600">${r.area_m2} m²</td>
+          <td class="py-2.5 text-neutral-600">$${r.price_per_m2 || 8}</td>
+          <td class="py-2.5 font-semibold text-neutral-900">$${r.total_price}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function filterStockTable() {
+      const q = document.getElementById('stock-search').value.toLowerCase();
+      const filtered = ALL_ROLLS.filter(r => 
+        r.roll_code.toLowerCase().includes(q) || r.color.toLowerCase().includes(q)
+      );
+      renderStockTable(filtered);
+    }
+
+    function populateSaleRollDropdown(rolls) {
+      const select = document.getElementById('sale-roll-select');
+      select.innerHTML = '<option value="">Rulonni tanlang...</option>';
+      rolls.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.id;
+        opt.dataset.width = r.width;
+        opt.dataset.color = r.color;
+        opt.dataset.remain = r.current_length;
+        opt.dataset.price = r.price_per_m2 || 8;
+        opt.innerText = `${r.roll_code} — ${r.color} ${r.width}m (Qoldiq: ${r.current_length}m, $${r.price_per_m2 || 8}/m²)`;
+        select.appendChild(opt);
+      });
+    }
+
+    function onRollSelected() {
+      const select = document.getElementById('sale-roll-select');
+      const opt = select.options[select.selectedIndex];
+      if (opt && opt.value) {
+        document.getElementById('sale-price').value = opt.dataset.price || 8;
+        calcCarpetSaleTotal();
+      }
+    }
+
+    function calcCarpetSaleTotal() {
+      const select = document.getElementById('sale-roll-select');
+      const opt = select.options[select.selectedIndex];
+      if (!opt || !opt.value) return;
+
+      const width = parseFloat(opt.dataset.width) || 1.2;
+      const len = parseFloat(document.getElementById('sale-length').value) || 0;
+      const price = parseFloat(document.getElementById('sale-price').value) || 8;
+      const area = Math.round(width * len * 100) / 100;
+      const total = Math.round(area * price * 100) / 100;
+
+      document.getElementById('carpet-calc-text').innerText = `${opt.dataset.color} (${width}x${len}m = ${area} m²)`;
+      document.getElementById('carpet-calc-total').innerText = `$${total.toFixed(2)}`;
+    }
+
+    function toggleDebtFields(show) {
+      const df = document.getElementById('debt-fields');
+      if (show) df.classList.remove('hidden');
+      else df.classList.add('hidden');
+    }
+
+    async function submitCarpetSale(e) {
+      e.preventDefault();
+      const rollId = document.getElementById('sale-roll-select').value;
+      const len = parseFloat(document.getElementById('sale-length').value);
+      const pr = parseFloat(document.getElementById('sale-price').value);
+      const isDebt = document.querySelector('input[name="sale_pay_type"]:checked').value === 'debt';
+      
+      if (!rollId || !len) {
+        showToast("Rulon va uzunlikni tanlang!", true);
+        return;
+      }
+
+      const body = {
+        product_type: 'carpet',
+        roll_id: parseInt(rollId),
+        sold_length: len,
+        price_per_m2: pr,
+        is_debt: isDebt,
+        customer_name: document.getElementById('debt-customer-name').value,
+        customer_phone: document.getElementById('debt-customer-phone').value,
+        initial_paid: parseFloat(document.getElementById('debt-initial-paid').value) || 0
+      };
+
+      const res = await apiRequest('/api/sales', 'POST', body);
+      if (res && res.success) {
+        showToast("Gilam sotuvi muvaffaqiyatli saqlandi!");
+        e.target.reset();
+        calcCarpetSaleTotal();
+        loadStockData();
+        loadCashboxData();
+      }
+    }
+
+    async function submitRollImport(e) {
+      e.preventDefault();
+      const body = {
+        product_type: 'carpet',
+        width: parseFloat(document.getElementById('import-width').value),
+        color: document.getElementById('import-color').value,
+        length: parseFloat(document.getElementById('import-length').value),
+        price_per_m2: parseFloat(document.getElementById('import-price').value)
+      };
+
+      const res = await apiRequest('/api/rolls', 'POST', body);
+      if (res && res.success) {
+        showToast("Rulon omborga qabul qilindi!");
+        e.target.reset();
+        loadStockData();
+        switchView('stock');
+      }
+    }
+
+    async function loadCashboxData() {
+      const data = await apiRequest('/api/cashbox');
+      if (!data) return;
+      document.getElementById('cash-carpet').innerText = `$${data.balances.carpet.toFixed(2)}`;
+      document.getElementById('cash-leather').innerText = `$${data.balances.leather.toFixed(2)}`;
+      document.getElementById('cash-kavralan').innerText = `$${data.balances.kavralan.toFixed(2)}`;
+      document.getElementById('cash-total').innerText = `$${data.balances.total.toFixed(2)}`;
+    }
+
+    async function submitCashWithdraw(e) {
+      e.preventDefault();
+      const body = {
+        category: document.getElementById('withdraw-category').value,
+        amount: parseFloat(document.getElementById('withdraw-amount').value),
+        note: document.getElementById('withdraw-note').value
+      };
+      const res = await apiRequest('/api/cashbox/withdraw', 'POST', body);
+      if (res && res.success) {
+        showToast("Chiqim muvaffaqiyatli amalga oshirildi!");
+        e.target.reset();
+        loadCashboxData();
+      }
+    }
+
+    async function loadDebtsData() {
+      const data = await apiRequest('/api/debts');
+      if (!data || !data.debts) return;
+      const tbody = document.getElementById('debts-tbody');
+      tbody.innerHTML = '';
+      if (data.debts.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="py-4 text-center text-ghostMuted">Faol qarzdorlar yo\'q</td></tr>';
+        return;
+      }
+      data.debts.forEach(d => {
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-neutral-50 transition";
+        tr.innerHTML = `
+          <td class="py-2.5 text-neutral-500">#${d.id}</td>
+          <td class="py-2.5 font-semibold text-neutral-900">${d.customer_name}</td>
+          <td class="py-2.5 text-neutral-600">${d.customer_phone || '-'}</td>
+          <td class="py-2.5 text-neutral-600">${d.item_details}</td>
+          <td class="py-2.5 text-neutral-600">$${d.total_amount}</td>
+          <td class="py-2.5 text-emerald-600 font-medium">$${d.paid_amount}</td>
+          <td class="py-2.5 font-bold text-rose-600">$${d.remaining_amount}</td>
+          <td class="py-2.5">
+            <button onclick="payDebtPrompt(${d.id}, ${d.remaining_amount})" class="px-2.5 py-1 text-[11px] font-medium bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg transition">
+              To'lov
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function payDebtPrompt(debtId, maxAmount) {
+      const amtStr = prompt(`Qarzni so'ndirish uchun summani kiriting (Maksimal: $${maxAmount}):`, maxAmount);
+      if (!amtStr) return;
+      const amt = parseFloat(amtStr);
+      if (!amt || amt <= 0 || amt > maxAmount) {
+        showToast("Noto'g'ri summa kiritildi!", true);
+        return;
+      }
+      const res = await apiRequest('/api/debts/pay', 'POST', { debt_id: debtId, amount: amt });
+      if (res && res.success) {
+        showToast("Qarz to'lovi qabul qilindi!");
+        loadDebtsData();
+        loadCashboxData();
+      }
+    }
+
+    function logout() {
+      document.cookie = "crm_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+      CURRENT_USER = null;
+      showLoginView();
+    }
+  </script>
+</body>
+</html>
