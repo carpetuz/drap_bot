@@ -633,6 +633,50 @@
                 </div>
               </div>
 
+              <!-- Chekka qo'shish (yana mahsulot qo'shish) tugmasi -->
+              <div class="pt-0.5">
+                <button type="button" onclick="addCurrentItemToCart()" class="w-full bg-neutral-100 hover:bg-neutral-200 text-neutral-900 border border-neutral-300 font-semibold text-xs py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5 shadow-xs">
+                  <span>➕ Chekka qo'shish (yana mahsulot qo'shish)</span>
+                </button>
+              </div>
+
+              <!-- CHEKDAGI MAHSULOTLAR RO'YXATI (SAVAT) -->
+              <div id="sale-cart-card" class="hidden bg-white border border-neutral-200 rounded-xl p-3.5 shadow-xs space-y-2.5">
+                <div class="flex items-center justify-between border-b border-neutral-100 pb-2">
+                  <div class="flex items-center gap-2 font-bold text-xs text-neutral-900">
+                    <span class="text-sm">🧾</span>
+                    <span>Chekdagi mahsulotlar</span>
+                    <span id="sale-cart-badge" class="px-2 py-0.5 text-[10px] bg-neutral-900 text-white rounded-full">0 ta</span>
+                  </div>
+                  <button type="button" onclick="clearSaleCart()" class="text-[11px] text-red-600 hover:underline font-medium">Chekni tozalash</button>
+                </div>
+                
+                <div class="overflow-x-auto">
+                  <table class="w-full text-left text-xs">
+                    <thead>
+                      <tr class="text-neutral-500 border-b border-neutral-100 text-[11px]">
+                        <th class="py-1 px-1.5">#</th>
+                        <th class="py-1 px-1.5">Mahsulot</th>
+                        <th class="py-1 px-1.5">O'lchami</th>
+                        <th class="py-1 px-1.5">m²</th>
+                        <th class="py-1 px-1.5">Narxi</th>
+                        <th class="py-1 px-1.5 font-semibold text-neutral-900">Summa</th>
+                        <th class="py-1 px-1.5 text-right"></th>
+                      </tr>
+                    </thead>
+                    <tbody id="sale-cart-tbody" class="divide-y divide-neutral-100 text-neutral-800"></tbody>
+                  </table>
+                </div>
+
+                <div class="pt-2 border-t border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
+                  <span class="text-neutral-500 font-medium" id="sale-cart-summary-text">Jami: 0 ta mahsulot (0 m²)</span>
+                  <div class="flex items-center gap-2">
+                    <span class="font-medium text-neutral-500">Chek summasi:</span>
+                    <span id="sale-cart-total-price" class="font-bold text-base text-neutral-900">$0.00</span>
+                  </div>
+                </div>
+              </div>
+
               <!-- Payment Type Toggle -->
               <div class="pt-2">
                 <label class="block text-xs font-medium text-neutral-600 mb-1.5">To'lov turi:</label>
@@ -666,7 +710,7 @@
                 </div>
               </div>
 
-              <button type="submit" class="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-medium text-sm py-3 px-4 rounded-xl transition duration-150">
+              <button type="submit" id="sale-submit-btn" class="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-medium text-sm py-3 px-4 rounded-xl transition duration-150">
                 ✅ Sotuvni tasdiqlash
               </button>
             </form>
@@ -1378,6 +1422,7 @@
         CURRENT_USER.active_branch = bId;
         SELECTED_SALE_ROLL = null;
         SELECTED_TRANSFER_ROLL = null;
+        clearSaleCart();
         const sInput = document.getElementById('sale-roll-input');
         if (sInput) sInput.value = '';
         const tInput = document.getElementById('transfer-roll-input');
@@ -1966,27 +2011,54 @@
     }
 
     let SELECTED_SALE_ROLL = null;
+    let SALE_CART = [];
+
+    function getCartUsedLength(rollId) {
+      return (SALE_CART || [])
+        .filter(it => it.product_type === 'carpet' && String(it.roll_id) === String(rollId))
+        .reduce((sum, it) => sum + (parseFloat(it.sold_length) || 0), 0);
+    }
+
+    function getCartUsedLeatherQty(color) {
+      return (SALE_CART || [])
+        .filter(it => it.product_type === 'leather' && it.color === color)
+        .reduce((sum, it) => sum + (parseInt(it.quantity) || 0), 0);
+    }
+
+    function getCartUsedKavralanLength(rollId) {
+      return (SALE_CART || [])
+        .filter(it => it.product_type === 'kavralan' && String(it.roll_id) === String(rollId))
+        .reduce((sum, it) => sum + (parseFloat(it.sold_length) || 0), 0);
+    }
 
     function renderSaleRollDropdown(rolls) {
       const menu = document.getElementById('sale-roll-dropdown-menu');
       if (!menu) return;
       menu.innerHTML = '';
-      const countEl = document.getElementById('sale-roll-count');
-      if (countEl) countEl.innerText = `${rolls.length} ta rulon`;
 
-      if (!rolls || rolls.length === 0) {
+      const validRolls = (rolls || []).filter(r => {
+        const cartUsed = getCartUsedLength(r.id);
+        const avail = Math.round(((r.current_length || 0) - (r.pending_length || 0) - cartUsed) * 100) / 100;
+        return avail > 0;
+      });
+
+      const countEl = document.getElementById('sale-roll-count');
+      if (countEl) countEl.innerText = `${validRolls.length} ta rulon`;
+
+      if (validRolls.length === 0) {
         menu.innerHTML = '<div class="px-3 py-3 text-xs text-ghostMuted text-center">Mos keluvchi rulon topilmadi</div>';
         menu.classList.remove('hidden');
         return;
       }
 
-      rolls.forEach(r => {
+      validRolls.forEach(r => {
         const item = document.createElement('div');
         item.className = "px-3 py-2.5 text-sm text-neutral-800 hover:bg-neutral-100 cursor-pointer transition flex items-center justify-between";
         const isSelected = SELECTED_SALE_ROLL && SELECTED_SALE_ROLL.id === r.id;
         if (isSelected) item.classList.add('bg-neutral-50', 'font-semibold');
 
-        const avail = Math.round(((r.current_length || 0) - (r.pending_length || 0)) * 100) / 100;
+        const cartUsed = getCartUsedLength(r.id);
+        const avail = Math.round(((r.current_length || 0) - (r.pending_length || 0) - cartUsed) * 100) / 100;
         let pendingBadge = '';
         if (r.pending_length && r.pending_length > 0) {
           pendingBadge = `<span class="text-[10px] text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">⏳ ${r.pending_length}m transferda</span>`;
@@ -2021,7 +2093,8 @@
       }
       let q = input ? input.value : '';
       if (SELECTED_SALE_ROLL) {
-        const avail = Math.round(((SELECTED_SALE_ROLL.current_length || 0) - (SELECTED_SALE_ROLL.pending_length || 0)) * 100) / 100;
+        const cartUsed = getCartUsedLength(SELECTED_SALE_ROLL.id);
+        const avail = Math.round(((SELECTED_SALE_ROLL.current_length || 0) - (SELECTED_SALE_ROLL.pending_length || 0) - cartUsed) * 100) / 100;
         const selectedLabel = `${SELECTED_SALE_ROLL.width}x - ${avail} ${SELECTED_SALE_ROLL.color}`;
         if (q.trim() === selectedLabel.trim()) {
           q = '';
@@ -2054,7 +2127,8 @@
       if (select) {
         select.value = r.id;
       }
-      const avail = Math.round(((r.current_length || 0) - (r.pending_length || 0)) * 100) / 100;
+      const cartUsed = getCartUsedLength(r.id);
+      const avail = Math.round(((r.current_length || 0) - (r.pending_length || 0) - cartUsed) * 100) / 100;
       const input = document.getElementById('sale-roll-input');
       if (input) {
         input.value = `${r.width}x - ${avail} ${r.color}`;
@@ -2068,7 +2142,8 @@
       const input = document.getElementById('sale-roll-input');
       let q = input ? input.value : '';
       if (SELECTED_SALE_ROLL) {
-        const avail = Math.round(((SELECTED_SALE_ROLL.current_length || 0) - (SELECTED_SALE_ROLL.pending_length || 0)) * 100) / 100;
+        const cartUsed = getCartUsedLength(SELECTED_SALE_ROLL.id);
+        const avail = Math.round(((SELECTED_SALE_ROLL.current_length || 0) - (SELECTED_SALE_ROLL.pending_length || 0) - cartUsed) * 100) / 100;
         const selectedLabel = `${SELECTED_SALE_ROLL.width}x - ${avail} ${SELECTED_SALE_ROLL.color}`;
         if (q.trim() === selectedLabel.trim()) {
           q = '';
@@ -2085,7 +2160,8 @@
       const prevVal = select.value;
       select.innerHTML = '<option value="">Rulonni tanlang...</option>';
       rolls.forEach(r => {
-        const avail = Math.round(((r.current_length || 0) - (r.pending_length || 0)) * 100) / 100;
+        const cartUsed = getCartUsedLength(r.id);
+        const avail = Math.round(((r.current_length || 0) - (r.pending_length || 0) - cartUsed) * 100) / 100;
         if (avail <= 0) return;
         const opt = document.createElement('option');
         opt.value = r.id;
@@ -2103,7 +2179,8 @@
         const found = rolls.find(r => r.id == prevVal);
         if (found) {
           SELECTED_SALE_ROLL = found;
-          const avail = Math.round(((found.current_length || 0) - (found.pending_length || 0)) * 100) / 100;
+          const cartUsed = getCartUsedLength(found.id);
+          const avail = Math.round(((found.current_length || 0) - (found.pending_length || 0) - cartUsed) * 100) / 100;
           const input = document.getElementById('sale-roll-input');
           if (input && !input.value) input.value = `${found.width}x - ${avail} ${found.color}`;
         }
@@ -2115,11 +2192,14 @@
       if (!select) return;
       select.innerHTML = '<option value="">Rangni tanlang...</option>';
       leathers.forEach(l => {
+        const cartUsed = getCartUsedLeatherQty(l.color);
+        const avail = (l.quantity || 0) - cartUsed;
+        if (avail <= 0) return;
         const opt = document.createElement('option');
         opt.value = l.color;
-        opt.dataset.qty = l.quantity;
+        opt.dataset.qty = avail;
         opt.dataset.price = l.price_per_item || 50;
-        opt.innerText = `${l.color} (${l.quantity} dona mavjud, $${l.price_per_item || 50}/dona)`;
+        opt.innerText = `${l.color} (${avail} dona mavjud, $${l.price_per_item || 50}/dona)`;
         select.appendChild(opt);
       });
     }
@@ -2129,12 +2209,15 @@
       if (!select) return;
       select.innerHTML = '<option value="">Kavralan rulonini tanlang...</option>';
       kavralans.forEach(k => {
+        const cartUsed = getCartUsedKavralanLength(k.id);
+        const avail = Math.round(((k.current_length || 0) - cartUsed) * 100) / 100;
+        if (avail <= 0) return;
         const opt = document.createElement('option');
         opt.value = k.id;
         opt.dataset.width = k.width || 4.0;
-        opt.dataset.remain = k.current_length;
+        opt.dataset.remain = avail;
         opt.dataset.price = k.price_per_m2 || 30;
-        opt.innerText = `${k.roll_code} — 4.0m (Qoldiq: ${k.current_length}m, $${k.price_per_m2 || 30}/m²)`;
+        opt.innerText = `${k.roll_code} — 4.0m (Qoldiq: ${avail}m, $${k.price_per_m2 || 30}/m²)`;
         select.appendChild(opt);
       });
     }
@@ -2348,12 +2431,259 @@
       else df.classList.add('hidden');
     }
 
+    function addCurrentItemToCart(isSilent = false) {
+      if (CURRENT_SALE_PRODUCT === 'carpet') {
+        const select = document.getElementById('sale-roll-select');
+        const opt = select ? select.options[select.selectedIndex] : null;
+        const rollId = select ? select.value : '';
+        const len = parseFloat(String(document.getElementById('sale-length').value || '').replace(',', '.'));
+        const pr = parseFloat(String(document.getElementById('sale-price').value || '').replace(',', '.'));
+        const tot = parseFloat(String(document.getElementById('sale-total-price').value || '').replace(',', '.'));
+
+        if (!rollId || !len || len <= 0) {
+          if (!isSilent) showToast("Rulon va sotilayotgan metrni kiriting!", true);
+          return false;
+        }
+
+        const width = parseFloat(opt ? opt.dataset.width : (SELECTED_SALE_ROLL ? SELECTED_SALE_ROLL.width : 1.2)) || 1.2;
+        const color = opt ? opt.dataset.color : (SELECTED_SALE_ROLL ? SELECTED_SALE_ROLL.color : '');
+        const rollCode = opt ? opt.dataset.rollCode : (SELECTED_SALE_ROLL ? SELECTED_SALE_ROLL.roll_code : '');
+        const remain = parseFloat(opt ? opt.dataset.remain : (SELECTED_SALE_ROLL ? SELECTED_SALE_ROLL.current_length : 9999)) || 0;
+
+        if (len > remain) {
+          showToast(`Ushbu rulonda faqat ${remain}m qolgan!`, true);
+          return false;
+        }
+
+        const area = Math.round(width * len * 100) / 100;
+        const totalPrice = (tot && tot > 0) ? Math.round(tot * 100) / 100 : Math.round(area * pr * 100) / 100;
+
+        SALE_CART.push({
+          product_type: 'carpet',
+          roll_id: parseInt(rollId),
+          roll_code: rollCode,
+          width: width,
+          color: color,
+          sold_length: len,
+          area_m2: area,
+          price_per_m2: pr,
+          total_price: totalPrice
+        });
+
+        // Maydonlarni tozalash va rulon qidiruvga qaytarish
+        document.getElementById('sale-roll-select').value = '';
+        const rInp = document.getElementById('sale-roll-input');
+        if (rInp) {
+          rInp.value = '';
+          rInp.focus();
+        }
+        document.getElementById('sale-length').value = '';
+        document.getElementById('sale-total-price').value = '';
+        SELECTED_SALE_ROLL = null;
+        calcCarpetSaleByLength();
+
+      } else if (CURRENT_SALE_PRODUCT === 'leather') {
+        const select = document.getElementById('sale-leather-color');
+        const opt = select ? select.options[select.selectedIndex] : null;
+        const color = select ? select.value : '';
+        const qty = parseInt(document.getElementById('sale-leather-qty').value);
+        const pr = parseFloat(document.getElementById('sale-leather-price').value);
+        const tot = parseFloat(document.getElementById('sale-leather-total-price').value);
+
+        if (!color || !qty || qty <= 0) {
+          if (!isSilent) showToast("Teri rangi va sonini kiriting!", true);
+          return false;
+        }
+
+        const remain = parseInt(opt ? opt.dataset.qty : 9999) || 0;
+        if (qty > remain) {
+          showToast(`Ushbu rangli teridan faqat ${remain} dona qolgan!`, true);
+          return false;
+        }
+
+        const totalPrice = (tot && tot > 0) ? Math.round(tot * 100) / 100 : Math.round(qty * pr * 100) / 100;
+
+        SALE_CART.push({
+          product_type: 'leather',
+          color: color,
+          quantity: qty,
+          price_per_item: pr,
+          total_price: totalPrice
+        });
+
+        document.getElementById('sale-leather-color').value = '';
+        document.getElementById('sale-leather-qty').value = '';
+        document.getElementById('sale-leather-total-price').value = '';
+        calcLeatherSaleByQty();
+
+      } else if (CURRENT_SALE_PRODUCT === 'kavralan') {
+        const select = document.getElementById('sale-kavralan-select');
+        const opt = select ? select.options[select.selectedIndex] : null;
+        const rollId = select ? select.value : '';
+        const len = parseFloat(document.getElementById('sale-kavralan-length').value);
+        const pr = parseFloat(document.getElementById('sale-kavralan-price').value);
+        const tot = parseFloat(document.getElementById('sale-kavralan-total-price').value);
+
+        if (!rollId || !len || len <= 0) {
+          if (!isSilent) showToast("Kavralan ruloni va uzunlikni kiriting!", true);
+          return false;
+        }
+
+        const remain = parseFloat(opt ? opt.dataset.remain : 9999) || 0;
+        if (len > remain) {
+          showToast(`Ushbu kavralanda faqat ${remain}m qolgan!`, true);
+          return false;
+        }
+
+        const area = Math.round(4.0 * len * 100) / 100;
+        const totalPrice = (tot && tot > 0) ? Math.round(tot * 100) / 100 : Math.round(area * pr * 100) / 100;
+
+        SALE_CART.push({
+          product_type: 'kavralan',
+          roll_id: parseInt(rollId),
+          sold_length: len,
+          area_m2: area,
+          price_per_m2: pr,
+          total_price: totalPrice
+        });
+
+        document.getElementById('sale-kavralan-select').value = '';
+        document.getElementById('sale-kavralan-length').value = '';
+        document.getElementById('sale-kavralan-total-price').value = '';
+        calcKavralanSaleByLength();
+      }
+
+      renderSaleCart();
+      filterSaleRollDropdown();
+      if (!isSilent) {
+        showToast("Mahsulot chekka qo'shildi!");
+      }
+      return true;
+    }
+
+    function removeSaleCartItem(idx) {
+      SALE_CART.splice(idx, 1);
+      renderSaleCart();
+      filterSaleRollDropdown();
+    }
+
+    function clearSaleCart() {
+      SALE_CART = [];
+      renderSaleCart();
+      filterSaleRollDropdown();
+    }
+
+    function renderSaleCart() {
+      const card = document.getElementById('sale-cart-card');
+      const badge = document.getElementById('sale-cart-badge');
+      const tbody = document.getElementById('sale-cart-tbody');
+      const summaryText = document.getElementById('sale-cart-summary-text');
+      const totalEl = document.getElementById('sale-cart-total-price');
+      const submitBtn = document.getElementById('sale-submit-btn');
+
+      if (!card || !tbody) return;
+
+      if (!SALE_CART || SALE_CART.length === 0) {
+        card.classList.add('hidden');
+        if (submitBtn) {
+          submitBtn.innerText = "✅ Sotuvni tasdiqlash";
+        }
+        return;
+      }
+
+      card.classList.remove('hidden');
+      if (badge) badge.innerText = `${SALE_CART.length} ta`;
+
+      let totalSum = 0;
+      let totalM2 = 0;
+      tbody.innerHTML = '';
+
+      SALE_CART.forEach((it, idx) => {
+        totalSum += (it.total_price || 0);
+        let nameStr = '';
+        let sizeStr = '';
+        let m2Str = '-';
+        let prStr = '';
+
+        if (it.product_type === 'carpet') {
+          nameStr = `Rezinka (${it.color})`;
+          sizeStr = `${it.width}m × ${it.sold_length}m`;
+          m2Str = `${it.area_m2} m²`;
+          totalM2 += (it.area_m2 || 0);
+          prStr = `$${it.price_per_m2}/m²`;
+        } else if (it.product_type === 'leather') {
+          nameStr = `Teri (${it.color})`;
+          sizeStr = `${it.quantity} dona`;
+          m2Str = `${it.quantity} dona`;
+          prStr = `$${it.price_per_item}/dona`;
+        } else if (it.product_type === 'kavralan') {
+          nameStr = `Kavralan`;
+          sizeStr = `4.0m × ${it.sold_length}m`;
+          m2Str = `${it.area_m2} m²`;
+          totalM2 += (it.area_m2 || 0);
+          prStr = `$${it.price_per_m2}/m²`;
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-neutral-50 transition";
+        tr.innerHTML = `
+          <td class="py-1.5 px-1.5 text-neutral-400 font-mono text-[11px]">${idx + 1}</td>
+          <td class="py-1.5 px-1.5 font-semibold text-neutral-900">${nameStr}</td>
+          <td class="py-1.5 px-1.5 text-neutral-600">${sizeStr}</td>
+          <td class="py-1.5 px-1.5 text-neutral-600">${m2Str}</td>
+          <td class="py-1.5 px-1.5 text-neutral-500">${prStr}</td>
+          <td class="py-1.5 px-1.5 font-bold text-neutral-900">$${(it.total_price || 0).toFixed(2)}</td>
+          <td class="py-1.5 px-1.5 text-right">
+            <button type="button" onclick="removeSaleCartItem(${idx})" class="text-rose-600 hover:text-rose-800 p-1 text-xs" title="O'chirish">✕</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      totalSum = Math.round(totalSum * 100) / 100;
+      totalM2 = Math.round(totalM2 * 100) / 100;
+
+      if (summaryText) {
+        summaryText.innerText = `Jami: ${SALE_CART.length} ta mahsulot ${totalM2 > 0 ? `(${totalM2} m²)` : ''}`;
+      }
+      if (totalEl) {
+        totalEl.innerText = `$${totalSum.toFixed(2)}`;
+      }
+      if (submitBtn) {
+        submitBtn.innerText = `✅ Sotuvni tasdiqlash (${SALE_CART.length} ta mahsulot — $${totalSum.toFixed(2)})`;
+      }
+    }
+
     async function submitUnifiedSale(e) {
       e.preventDefault();
       const isDebt = document.querySelector('input[name="sale_pay_type"]:checked').value === 'debt';
       const custName = document.getElementById('debt-customer-name').value;
       const custPhone = document.getElementById('debt-customer-phone').value;
       const initPaid = parseFloat(document.getElementById('debt-initial-paid').value) || 0;
+
+      // Agar chekda mahsulotlar bo'lsa va hozir kiritish maydonida ham to'ldirilgan mahsulot bo'lsa,
+      // uni ham avtomatik chekka qo'shib ketamiz
+      if (SALE_CART && SALE_CART.length > 0) {
+        if (CURRENT_SALE_PRODUCT === 'carpet') {
+          const rollId = document.getElementById('sale-roll-select').value;
+          const len = parseFloat(String(document.getElementById('sale-length').value || '').replace(',', '.'));
+          if (rollId && len > 0) {
+            addCurrentItemToCart(true);
+          }
+        } else if (CURRENT_SALE_PRODUCT === 'leather') {
+          const col = document.getElementById('sale-leather-color').value;
+          const qty = parseInt(document.getElementById('sale-leather-qty').value);
+          if (col && qty > 0) {
+            addCurrentItemToCart(true);
+          }
+        } else if (CURRENT_SALE_PRODUCT === 'kavralan') {
+          const rId = document.getElementById('sale-kavralan-select').value;
+          const len = parseFloat(document.getElementById('sale-kavralan-length').value);
+          if (rId && len > 0) {
+            addCurrentItemToCart(true);
+          }
+        }
+      }
 
       let body = {
         product_type: CURRENT_SALE_PRODUCT,
@@ -2363,51 +2693,67 @@
         initial_paid: initPaid
       };
 
-      if (CURRENT_SALE_PRODUCT === 'carpet') {
-        const rollId = document.getElementById('sale-roll-select').value;
-        const len = parseFloat(String(document.getElementById('sale-length').value || '').replace(',', '.'));
-        const pr = parseFloat(String(document.getElementById('sale-price').value || '').replace(',', '.'));
-        const tot = parseFloat(String(document.getElementById('sale-total-price').value || '').replace(',', '.'));
-        if (!rollId || !len) {
-          showToast("Rulon va uzunlikni kiriting!", true);
-          return;
+      if (SALE_CART && SALE_CART.length > 0) {
+        body.items = SALE_CART;
+      } else {
+        if (CURRENT_SALE_PRODUCT === 'carpet') {
+          const rollId = document.getElementById('sale-roll-select').value;
+          const len = parseFloat(String(document.getElementById('sale-length').value || '').replace(',', '.'));
+          const pr = parseFloat(String(document.getElementById('sale-price').value || '').replace(',', '.'));
+          const tot = parseFloat(String(document.getElementById('sale-total-price').value || '').replace(',', '.'));
+          if (!rollId || !len) {
+            showToast("Rulon va uzunlikni kiriting!", true);
+            return;
+          }
+          body.roll_id = parseInt(rollId);
+          body.sold_length = len;
+          body.price_per_m2 = pr;
+          if (tot && tot > 0) body.total_price = tot;
+        } else if (CURRENT_SALE_PRODUCT === 'leather') {
+          const color = document.getElementById('sale-leather-color').value;
+          const qty = parseInt(document.getElementById('sale-leather-qty').value);
+          const pr = parseFloat(document.getElementById('sale-leather-price').value);
+          const tot = parseFloat(document.getElementById('sale-leather-total-price').value);
+          if (!color || !qty) {
+            showToast("Teri rangi va sonini kiriting!", true);
+            return;
+          }
+          body.color = color;
+          body.quantity = qty;
+          body.price_per_item = pr;
+          if (tot && tot > 0) body.total_price = tot;
+        } else if (CURRENT_SALE_PRODUCT === 'kavralan') {
+          const rollId = document.getElementById('sale-kavralan-select').value;
+          const len = parseFloat(document.getElementById('sale-kavralan-length').value);
+          const pr = parseFloat(document.getElementById('sale-kavralan-price').value);
+          const tot = parseFloat(document.getElementById('sale-kavralan-total-price').value);
+          if (!rollId || !len) {
+            showToast("Kavralan ruloni va uzunlikni kiriting!", true);
+            return;
+          }
+          body.roll_id = parseInt(rollId);
+          body.sold_length = len;
+          body.price_per_m2 = pr;
+          if (tot && tot > 0) body.total_price = tot;
         }
-        body.roll_id = parseInt(rollId);
-        body.sold_length = len;
-        body.price_per_m2 = pr;
-        if (tot && tot > 0) body.total_price = tot;
-      } else if (CURRENT_SALE_PRODUCT === 'leather') {
-        const color = document.getElementById('sale-leather-color').value;
-        const qty = parseInt(document.getElementById('sale-leather-qty').value);
-        const pr = parseFloat(document.getElementById('sale-leather-price').value);
-        const tot = parseFloat(document.getElementById('sale-leather-total-price').value);
-        if (!color || !qty) {
-          showToast("Teri rangi va sonini kiriting!", true);
-          return;
-        }
-        body.color = color;
-        body.quantity = qty;
-        body.price_per_item = pr;
-        if (tot && tot > 0) body.total_price = tot;
-      } else if (CURRENT_SALE_PRODUCT === 'kavralan') {
-        const rollId = document.getElementById('sale-kavralan-select').value;
-        const len = parseFloat(document.getElementById('sale-kavralan-length').value);
-        const pr = parseFloat(document.getElementById('sale-kavralan-price').value);
-        const tot = parseFloat(document.getElementById('sale-kavralan-total-price').value);
-        if (!rollId || !len) {
-          showToast("Kavralan ruloni va uzunlikni kiriting!", true);
-          return;
-        }
-        body.roll_id = parseInt(rollId);
-        body.sold_length = len;
-        body.price_per_m2 = pr;
-        if (tot && tot > 0) body.total_price = tot;
+      }
+
+      const btn = document.getElementById('sale-submit-btn');
+      if (btn) {
+        btn.disabled = true;
+        btn.innerText = "Saqlanmoqda...";
       }
 
       const res = await apiRequest('/api/sales', 'POST', body);
+      if (btn) {
+        btn.disabled = false;
+        btn.innerText = "✅ Sotuvni tasdiqlash";
+      }
+
       if (res && res.success) {
         showToast("Sotuv muvaffaqiyatli saqlandi!");
         e.target.reset();
+        clearSaleCart();
         SELECTED_SALE_ROLL = null;
         const rollInput = document.getElementById('sale-roll-input');
         if (rollInput) rollInput.value = '';

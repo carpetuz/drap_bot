@@ -885,6 +885,278 @@ async def make_sale(
             "new_cash_balance": new_balance
         }
 
+async def make_batch_sale(
+    items: list[dict],
+    branch_id: int = 1,
+    is_debt: bool = False,
+    customer_name: str = "",
+    customer_phone: str = "",
+    initial_paid: float = 0.0
+) -> dict:
+    if not items or len(items) == 0:
+        raise ValueError("Chekda kamida bitta mahsulot bo'lishi kerak!")
+        
+    created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        
+        batch_total = 0.0
+        batch_cost = 0.0
+        batch_profit = 0.0
+        item_descriptions = []
+        sale_records = []
+        
+        # 1. Oldindan barcha mahsulotlarni tekshirib chiqish
+        # Bir xil rulondan bir nechta bo'lsa, umumiy so'ralgan uzunlikni yig'ish
+        roll_requested_lens = {}
+        for item in items:
+            p_type = item.get("product_type", "carpet")
+            if p_type == "carpet":
+                r_id = int(item["roll_id"])
+                s_len = float(str(item["sold_length"]).replace(",", "."))
+                if s_len <= 0:
+                    raise ValueError("Sotiladigan uzunlik 0 dan katta bo'lishi kerak!")
+                roll_requested_lens[r_id] = roll_requested_lens.get(r_id, 0.0) + s_len
+            elif p_type == "leather":
+                color = str(item.get("color", "")).strip()
+                qty = int(item.get("quantity", 0))
+                if qty <= 0:
+                    raise ValueError("Teri soni 0 dan katta bo'lishi kerak!")
+                async with db.execute("SELECT quantity FROM leather_inventory WHERE branch_id = ? AND color = ?", (branch_id, color)) as cur:
+                    row = await cur.fetchone()
+                    curr_qty = row[0] if row else 0
+                    if qty > curr_qty:
+                        raise ValueError(f"Omborda yetarli teri yo'q! ({color}: mavjud {curr_qty} dona, so'ralgan: {qty} dona)")
+            elif p_type == "kavralan":
+                r_id = int(item["roll_id"])
+                s_len = float(str(item["sold_length"]).replace(",", "."))
+                if s_len <= 0:
+                    raise ValueError("Kavralan uzunligi 0 dan katta bo'lishi kerak!")
+                async with db.execute("SELECT * FROM kavralan_rolls WHERE id = ? AND branch_id = ?", (r_id, branch_id)) as cur:
+                    k_roll = await cur.fetchone()
+                    if not k_roll or s_len > k_roll["current_length"]:
+                        raise ValueError("Kavralan rulonida yetarli uzunlik yo'q!")
+
+        # Gilam rulonlari bo'yicha qoldiqlarni tekshirish
+        for r_id, total_req_len in roll_requested_lens.items():
+            async with db.execute("SELECT * FROM rolls WHERE id = ? AND branch_id = ?", (r_id, branch_id)) as cur:
+                roll = await cur.fetchone()
+                if not roll:
+                    raise ValueError(f"Rulon (ID: {r_id}) topilmadi yoki boshqa filialga tegishli!")
+            async with db.execute("SELECT COALESCE(SUM(length), 0.0) FROM transfers WHERE roll_id = ? AND status = 'pending'", (r_id,)) as cur_p:
+                p_row = await cur_p.fetchone()
+                pending_len = float(p_row[0] or 0.0)
+            avail_len = round(roll["current_length"] - pending_len, 2)
+            if round(total_req_len, 2) > avail_len:
+                raise ValueError(f"Rulonda ({roll['roll_code']} {roll['width']}x {roll['color']}) yetarli uzunlik yo'q! Mavjud: {avail_len}m, chekda jami so'ralgan: {total_req_len}m")
+
+        # 2. Barcha mahsulotlarni sotuvga chiqarish
+        for item in items:
+            p_type = item.get("product_type", "carpet")
+            if p_type == "carpet":
+                roll_id = int(item["roll_id"])
+                sold_length = float(str(item["sold_length"]).replace(",", "."))
+                raw_price = item.get("price_per_m2", 8.0)
+                price_per_m2 = float(str(raw_price).replace(",", ".")) if raw_price else 8.0
+                raw_custom = item.get("total_price") or item.get("custom_total_price")
+                custom_total = float(str(raw_custom).replace(",", ".")) if raw_custom and float(str(raw_custom).replace(",", ".")) > 0 else None
+                
+                async with db.execute("SELECT * FROM rolls WHERE id = ?", (roll_id,)) as cur:
+                    roll = await cur.fetchone()
+                    
+                roll_price_per_m2 = float(roll["price_per_m2"]) if ("price_per_m2" in roll.keys() and roll["price_per_m2"]) else 8.0
+                roll_cost_price = float(roll["cost_price_per_m2"]) if ("cost_price_per_m2" in roll.keys() and roll["cost_price_per_m2"] and float(roll["cost_price_per_m2"]) > 0) else roll_price_per_m2
+                
+                new_length = round(roll["current_length"] - sold_length, 2)
+                new_area = round(roll["width"] * new_length, 2)
+                new_total_price = round(new_area * roll_price_per_m2, 2)
+                new_status = "finished" if new_length <= 0 else "active"
+                
+                await db.execute("""
+                    UPDATE rolls 
+                    SET current_length = ?, area_m2 = ?, total_price = ?, status = ?
+                    WHERE id = ?
+                """, (new_length, new_area, new_total_price, new_status, roll_id))
+                
+                sold_area = round(roll["width"] * sold_length, 2)
+                if custom_total is not None and custom_total > 0:
+                    sale_total_price = round(custom_total, 2)
+                    actual_price_per_m2 = round(sale_total_price / sold_area, 2) if sold_area > 0 else price_per_m2
+                else:
+                    actual_price_per_m2 = price_per_m2
+                    sale_total_price = round(sold_area * actual_price_per_m2, 2)
+                    
+                cost_price = round(sold_area * roll_cost_price, 2)
+                profit = round(sale_total_price - cost_price, 2)
+                
+                async with db.execute("""
+                    INSERT INTO sales (branch_id, roll_id, roll_code, width, color, sold_length, area_m2, price_per_m2, total_price, cost_price, profit, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (branch_id, roll_id, roll["roll_code"], roll["width"], roll["color"], sold_length, sold_area, actual_price_per_m2, sale_total_price, cost_price, profit, created_at)) as cur_s:
+                    sale_id = cur_s.lastrowid
+                    
+                batch_total += sale_total_price
+                batch_cost += cost_price
+                batch_profit += profit
+                item_descriptions.append(f"{roll['width']:g}x{sold_length}m {roll['color']}")
+                sale_records.append({
+                    "sale_id": sale_id,
+                    "product_type": "carpet",
+                    "roll_code": roll["roll_code"],
+                    "width": roll["width"],
+                    "color": roll["color"],
+                    "sold_length": sold_length,
+                    "sold_area": sold_area,
+                    "sale_total_price": sale_total_price,
+                    "profit": profit
+                })
+            elif p_type == "leather":
+                color = str(item.get("color", "")).strip()
+                qty = int(item.get("quantity", 0))
+                pr_item = float(str(item.get("price_per_item", 50.0)).replace(",", "."))
+                raw_custom = item.get("total_price") or item.get("custom_total_price")
+                custom_total = float(str(raw_custom).replace(",", ".")) if raw_custom and float(str(raw_custom).replace(",", ".")) > 0 else None
+                
+                await db.execute("""
+                    UPDATE leather_inventory
+                    SET quantity = quantity - ?, updated_at = ?
+                    WHERE branch_id = ? AND color = ?
+                """, (qty, created_at, branch_id, color))
+                
+                if custom_total is not None and custom_total > 0:
+                    item_total = round(custom_total, 2)
+                    actual_price_per_item = round(item_total / qty, 2) if qty > 0 else pr_item
+                else:
+                    actual_price_per_item = pr_item
+                    item_total = round(qty * actual_price_per_item, 2)
+                    
+                item_cost = round(qty * 50.0, 2)
+                item_profit = round(item_total - item_cost, 2)
+                
+                async with db.execute("""
+                    INSERT INTO leather_sales (branch_id, color, quantity, price_per_item, total_price, cost_price, profit, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (branch_id, color, qty, actual_price_per_item, item_total, item_cost, item_profit, created_at)) as cur_l:
+                    sale_id = cur_l.lastrowid
+                    
+                batch_total += item_total
+                batch_cost += item_cost
+                batch_profit += item_profit
+                item_descriptions.append(f"{qty} dona {color} teri")
+                sale_records.append({
+                    "sale_id": sale_id,
+                    "product_type": "leather",
+                    "color": color,
+                    "quantity": qty,
+                    "sale_total_price": item_total,
+                    "profit": item_profit
+                })
+            elif p_type == "kavralan":
+                roll_id = int(item["roll_id"])
+                sold_len = float(str(item["sold_length"]).replace(",", "."))
+                pr_m2 = float(str(item.get("price_per_m2", 30.0)).replace(",", "."))
+                raw_custom = item.get("total_price") or item.get("custom_total_price")
+                custom_total = float(str(raw_custom).replace(",", ".")) if raw_custom and float(str(raw_custom).replace(",", ".")) > 0 else None
+                
+                async with db.execute("SELECT * FROM kavralan_rolls WHERE id = ?", (roll_id,)) as cur:
+                    k_roll = await cur.fetchone()
+                    
+                new_len = round(k_roll["current_length"] - sold_len, 2)
+                new_area = round(4.0 * new_len, 2)
+                new_tot = round(new_area * 30.0, 2)
+                new_stat = "finished" if new_len <= 0 else "active"
+                
+                await db.execute("""
+                    UPDATE kavralan_rolls
+                    SET current_length = ?, area_m2 = ?, total_price = ?, status = ?
+                    WHERE id = ?
+                """, (new_len, new_area, new_tot, new_stat, roll_id))
+                
+                sold_area = round(4.0 * sold_len, 2)
+                if custom_total is not None and custom_total > 0:
+                    sale_total_price = round(custom_total, 2)
+                    actual_price_per_m2 = round(sale_total_price / sold_area, 2) if sold_area > 0 else pr_m2
+                else:
+                    actual_price_per_m2 = pr_m2
+                    sale_total_price = round(sold_area * actual_price_per_m2, 2)
+                    
+                item_cost = round(sold_area * 30.0, 2)
+                item_profit = round(sale_total_price - item_cost, 2)
+                
+                async with db.execute("""
+                    INSERT INTO kavralan_sales (branch_id, roll_id, roll_code, width, sold_length, area_m2, price_per_m2, total_price, cost_price, profit, created_at)
+                    VALUES (?, ?, ?, 4.0, ?, ?, ?, ?, ?, ?, ?)
+                """, (branch_id, roll_id, k_roll["roll_code"], sold_len, sold_area, actual_price_per_m2, sale_total_price, item_cost, item_profit, created_at)) as cur_k:
+                    sale_id = cur_k.lastrowid
+                    
+                batch_total += sale_total_price
+                batch_cost += item_cost
+                batch_profit += item_profit
+                item_descriptions.append(f"4.0x{sold_len}m Kavralan")
+                sale_records.append({
+                    "sale_id": sale_id,
+                    "product_type": "kavralan",
+                    "roll_code": k_roll["roll_code"],
+                    "sold_length": sold_len,
+                    "sale_total_price": sale_total_price,
+                    "profit": item_profit
+                })
+
+        batch_total = round(batch_total, 2)
+        batch_cost = round(batch_cost, 2)
+        batch_profit = round(batch_profit, 2)
+        items_summary = ", ".join(item_descriptions)
+        
+        debt_id = None
+        if is_debt:
+            initial_paid = round(float(initial_paid), 2)
+            remaining_amount = round(batch_total - initial_paid, 2)
+            debt_status = "partial" if initial_paid > 0 else "unpaid"
+            
+            async with db.execute("""
+                INSERT INTO debts (branch_id, category, customer_name, customer_phone, item_details, total_amount, initial_paid, paid_amount, remaining_amount, status, created_at, updated_at)
+                VALUES (?, 'carpet', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (branch_id, customer_name, customer_phone, f"Chek ({len(items)} ta): {items_summary}", batch_total, initial_paid, initial_paid, remaining_amount, debt_status, created_at, created_at)) as cur_d:
+                debt_id = cur_d.lastrowid
+                
+            cur_bal = await get_cash_balance(branch_id=branch_id, category="carpet")
+            if initial_paid > 0:
+                new_bal = round(cur_bal + initial_paid, 2)
+                await db.execute("""
+                    INSERT INTO cashbox (branch_id, category, operation_type, amount, note, balance_after, created_at)
+                    VALUES (?, 'carpet', 'INCOME', ?, ?, ?, ?)
+                """, (branch_id, initial_paid, f"Nasiya boshlang'ich to'lov (Chek #{debt_id}): {customer_name}", new_bal, created_at))
+                
+                await db.execute("""
+                    INSERT INTO debt_payments (debt_id, branch_id, category, amount, note, created_at)
+                    VALUES (?, ?, 'carpet', ?, ?, ?)
+                """, (debt_id, branch_id, initial_paid, "Boshlang'ich to'lov", created_at))
+            else:
+                new_bal = cur_bal
+        else:
+            cur_bal = await get_cash_balance(branch_id=branch_id, category="carpet")
+            new_bal = round(cur_bal + batch_total, 2)
+            await db.execute("""
+                INSERT INTO cashbox (branch_id, category, operation_type, amount, note, balance_after, created_at)
+                VALUES (?, 'carpet', 'INCOME', ?, ?, ?, ?)
+            """, (branch_id, batch_total, f"Savdo (Chek: {len(items)} ta mahsulot: {items_summary})", new_bal, created_at))
+            
+        await db.commit()
+        
+        return {
+            "success": True,
+            "total_amount": batch_total,
+            "cost_price": batch_cost,
+            "profit": batch_profit,
+            "items_count": len(items),
+            "debt_id": debt_id,
+            "is_debt": is_debt,
+            "items_summary": items_summary,
+            "sales": sale_records,
+            "new_cash_balance": new_bal
+        }
+
 # --- TERI FUNKSIYALARI ($50 / DONA) ---
 
 async def add_leather(color: str, quantity: int, branch_id: int = 1, price_per_item: float = LEATHER_PRICE) -> dict:

@@ -274,7 +274,23 @@ async def api_make_sale(request: web.Request):
     raw_total = str(body.get("total_price") or "").replace(",", ".").strip()
     custom_total_price = float(raw_total) if raw_total and float(raw_total) > 0 else None
     
+    items = body.get("items")
     try:
+        if items and isinstance(items, list) and len(items) > 0:
+            if is_rezinka_only:
+                for it in items:
+                    if it.get("product_type", "carpet") != "carpet":
+                        return json_response({"error": "Sizning hisobingizda faqat rezinka gilam sotiladi"}, status=403)
+            res = await local_db.make_batch_sale(
+                items=items,
+                branch_id=branch_id,
+                is_debt=is_debt,
+                customer_name=customer_name,
+                customer_phone=customer_phone,
+                initial_paid=initial_paid
+            )
+            return json_response({"success": True, "sale": res})
+
         if product_type == "carpet":
             roll_id = int(body.get("roll_id", 0))
             sold_length = float(str(body.get("sold_length", 0)).replace(",", "."))
