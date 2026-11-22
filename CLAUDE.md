@@ -100,6 +100,26 @@ D:\drap_bot/
 * **Batafsil / Texnik eslatmalar**: (Antigravity yoki boshqa dasturchi bilishi zarur bo'lgan texnik jihatlar)
 ```
 
+### [2026-11-22] - Barcha bo'limlar Sotuv uslubiga keltirildi (telefonda jadvallar kartochka, tugmali tanlovlar)
+* **O'zgartirilgan fayllar**: `web/static/index.html` (branch: `feat/ui-sections`, asosi — `feat/sotuv-ux`)
+* **Qo'shilgan yangi funksiyalar / modullar**:
+  - Umumiy: `initResponsiveTables()` + `labelResponsiveTable()` — `#app-view main` dagi barcha jadvallarga `.rt` klassi; telefonda (<768px) har bir qator kartochka bo'ladi, yorliqlar `thead` dan `data-label` ga yoziladi, yangi qatorlarni `MutationObserver` kuzatadi (render funksiyalari o'zgarmadi). «Amal/Amallar/Harakat» ustuni kartochka pastida tugmalar qatori (`.rt-actions`).
+  - Umumiy: `pickChip()` / `syncChips()` — chip tugmalari yashirin `<select>` qiymatini o'rnatadi (submit kodi o'zgarmadi); `SEG_TAB_ACTIVE` / `SEG_TAB_IDLE` va `.seg-tabs` — Sotuv, Kirim, Ombor toifa tugmalari bir xil; `.stat-tile` kartalari.
+  - Kirim: eni va rang chiplari, teri rangi chiplari, katta uzunlik maydoni, `updateImportSummary()` («Qora · 1.2 m × 30 m = 36 m² · $8/m²» va qiymati), tugmada «Omborga qabul qilish · 36 m²»; reset'dan keyin `syncImportChips()`.
+  - Qarz: xulosa (jami qolgan qarz, qarzdorlar, muddati o'tgan, bugun), qidiruv (ism/telefon/#ID), filtr chiplari (Hammasi / Muddati o'tgan / Bugun / Muddatsiz) — `DEBTS_CACHE`, `renderDebtsList()`, `updateDebtsSummary()`, `setDebtsFilter()`; muddati o'tgan qatorlar qizil belgili; telefon raqami `tel:` havola.
+  - Rasxod: xarajat turi (ikonkali) va kassa chiplari, katta summa maydoni.
+  - Transfer: qabul qiluvchi filial chiplari (`renderTransferBranchChips()`, joriy filial ko'rsatilmaydi), «Butun rulon» (`setTransferWholeRoll()`).
+  - Ombor: keng qidiruv maydoni (telefonda to'liq kenglik), yangilash tugmasi ikonka.
+  - Hisobot: tez davrlar — Bugun / 7 kun / Shu oy / O'tgan oy (`setReportsPreset()`); qo'lda sana kiritilganda chiplar o'chadi.
+  - 3-Filial: uzunlik uchun 1/2/3/5 m tugmalari (`setB3Length()`), katta uzunlik maydoni.
+* **O'zgarish sababi va maqsadi (Why)**: Biznes egasi Sotuv bo'limidagi kabi qulay dizaynni barcha bo'limlarda so'radi. Asosiy muammo: 6–8 ustunli jadvallar telefonda gorizontal suriladi va o'qilmaydi; formalar kichik `<select>` lar bilan, qadamlar tartibi yo'q edi.
+* **Batafsil / Texnik eslatmalar**:
+  - Barcha eski ID va submit funksiyalari saqlangan (`import-width`, `import-color`, `expense-title-select`, `expense-category-select`, `transfer-to-branch` endi yashirin, lekin qiymat shu yerdan o'qiladi). Backend tegilmadi.
+  - Qarz ro'yxatida mijoz ismi, telefon va sana endi `escapeHtml()` orqali chiqariladi; «bugun» mahalliy sana bo'yicha (`localDateStr()`, avval UTC edi).
+  - Transfer sahifasi ochilganda rulon ro'yxati endi o'z-o'zidan ochilib qolmaydi.
+  - Kartal kassasi va Bloknot o'zining maxsus dizayniga ega — faqat jadvallar telefonda kartochka bo'ladi.
+  - Tekshiruv: soxta API'li lokal server (namuna qarzlar, xarajatlar, transfer) — 375px va 1280px, kunduzgi/tungi rejim; Qarz filtri/qidiruvi, Kirim xulosasi, Rasxod/Transfer chiplari, Hisobot davrlari JS orqali tekshirildi; `node` bilan barcha inline skriptlar sintaksisi tekshirildi. Haqiqiy server va Telegram ichida sinalmagan, deploy qilinmagan.
+
 ### [2026-11-22] - Sotuv bo'limi yangi oqimga o'tkazildi (telefon va kompyuter uchun qulay)
 * **O'zgartirilgan fayllar**: `web/static/index.html` (branch: `feat/sotuv-ux`, asosi — `fix/prod-cashbox-sales-critical`)
 * **Qo'shilgan yangi funksiyalar / modullar**:

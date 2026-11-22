@@ -650,6 +650,49 @@
       #sale-cheque .sale-cheque-panel { position: absolute; left: 0; right: 0; bottom: 0; max-height: 88vh; overflow-y: auto; border-radius: 28px 28px 0 0 !important; border-bottom: 0; padding-bottom: max(20px, env(safe-area-inset-bottom, 0px)); }
     }
 
+    /* ==================== BARCHA BO'LIMLAR: UMUMIY NAQSHLAR ==================== */
+    /* Toifa tugmalari (Sotuv, Kirim, Ombor) — bir xil segment ko'rinishi */
+    .seg-tabs { display: flex; width: 100%; gap: 4px; padding: 4px; border-radius: 16px; background: #f1f1f5; }
+    html.dark .seg-tabs { background: #181922; }
+    html.dark .seg-tabs button.bg-white { background-color: #262938 !important; color: #fff !important; }
+
+    /* Qisqa ko'rsatkich kartalari (Qarz xulosasi va h.k.) */
+    .stat-tile { padding: 14px 16px; border-radius: 20px; background: #fff; border: 1px solid #ececf1; box-shadow: 0 14px 30px -24px rgba(28,30,110,.45); }
+    .stat-tile .st-label { display: block; font-size: 12px; color: #5b5f6b; }
+    .stat-tile .st-value { display: block; margin-top: 4px; font-size: 22px; font-weight: 700; letter-spacing: -0.02em; color: var(--p-ink); }
+    html.dark .stat-tile { background: #13141a; border-color: #20222a; }
+    html.dark .stat-tile .st-label { color: #9ca3af; }
+    html.dark .stat-tile .st-value { color: #f3f4f6; }
+
+    /* Telefonda barcha jadvallar kartochkaga aylanadi (yorliqlar ustun sarlavhasidan olinadi: initResponsiveTables) */
+    @media (max-width: 767px) {
+      table.rt { display: block; width: 100%; }
+      table.rt thead { display: none; }
+      table.rt tbody, table.rt tfoot { display: block; width: 100%; border: 0 !important; }
+      table.rt tr { display: block; margin: 0 0 10px; padding: 10px 14px; border: 1px solid #ececf1 !important; border-radius: 18px; background: #fff; }
+      /* Katak: yorliq chapda (float), mazmun o'ngda — bir nechta qator bo'lsa ham ustma-ust turadi */
+      table.rt td, table.rt th { display: block; padding: 6px 0 !important; text-align: right; border: 0 !important; background: transparent !important; min-width: 0; overflow: hidden; white-space: normal !important; }
+      table.rt td::before, table.rt th::before { content: attr(data-label); float: left; max-width: 45%; margin-right: 12px; text-align: left; font-family: Inter, system-ui, sans-serif; font-size: 12px; font-weight: 500; color: #6b6f7b; }
+      table.rt td[data-label=""]::before, table.rt td:not([data-label])::before,
+      table.rt th[data-label=""]::before, table.rt th:not([data-label])::before { content: none; }
+      table.rt td[colspan] { text-align: center; }
+      table.rt td.rt-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; padding-top: 10px !important; margin-top: 4px; border-top: 1px dashed #e4e4ec !important; }
+      table.rt td.rt-actions > * { margin: 0 !important; }
+      table.rt td.rt-actions > div { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+      table.rt td.rt-actions button { min-height: 40px; }
+      html.dark table.rt tr { background: #13141a; border-color: #20222a !important; }
+      html.dark table.rt td::before { color: #9ca3af; }
+      html.dark table.rt td.rt-actions { border-top-color: #2a2d3a !important; }
+    }
+
+    /* Qarz holat filtri: muddati o'tgan qatorlar ajralib tursin */
+    #debts-tbody tr.debt-overdue td:first-child { box-shadow: inset 3px 0 0 #e11d48; }
+    @media (max-width: 767px) {
+      #debts-tbody tr.debt-overdue { border-color: #fecdd3 !important; }
+      #debts-tbody tr.debt-overdue td:first-child { box-shadow: none; }
+      html.dark #debts-tbody tr.debt-overdue { border-color: rgba(225,29,72,.45) !important; }
+    }
+
   </style>
 </head>
 <body class="h-full flex flex-col font-sans selection:bg-neutral-200 selection:text-black">
@@ -944,7 +987,13 @@
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
               <div>
                 <label class="block text-xs font-medium text-neutral-600 mb-1.5">2. Uzunligi (metr):</label>
-                <input type="number" id="b3-length-input" step="0.1" min="0.1" placeholder="Masalan: 5 yoki 7.5" oninput="calcB3Total()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3.5 py-2.5 text-sm font-medium focus:outline-none focus:border-neutral-900 transition">
+                <input type="number" inputmode="decimal" id="b3-length-input" step="0.1" min="0.1" placeholder="Masalan: 5 yoki 7.5" oninput="calcB3Total()" class="w-full min-h-[52px] bg-white border-2 border-neutral-900 rounded-2xl px-4 text-xl font-semibold focus:outline-none transition">
+                <div class="flex flex-wrap gap-1.5 mt-2">
+                  <button type="button" class="sale-chip" onclick="setB3Length(1)">1 m</button>
+                  <button type="button" class="sale-chip" onclick="setB3Length(2)">2 m</button>
+                  <button type="button" class="sale-chip" onclick="setB3Length(3)">3 m</button>
+                  <button type="button" class="sale-chip" onclick="setB3Length(5)">5 m</button>
+                </div>
               </div>
               <div>
                 <label class="block text-xs font-medium text-neutral-600 mb-1.5">3. Narx (1 m² uchun $):</label>
@@ -1043,17 +1092,21 @@
                 </div>
               </div>
 
-              <div class="flex items-center gap-2">
-                <input type="text" id="stock-search" oninput="filterStockTable()" placeholder="Filtr: masalan 1.2x seriy yoki 0.8x Bordo..." class="w-52 sm:w-64 bg-ghostBg border border-ghostBorder rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-neutral-900">
-                <button onclick="loadStockData()" class="px-3 py-1.5 text-xs bg-neutral-100 hover:bg-neutral-200 rounded-xl transition">↻</button>
+              <div class="flex items-center gap-2 w-full md:w-auto">
+                <label class="relative flex-1 md:flex-none block">
+                  <span class="sr-only">Ombordan qidirish</span>
+                  <svg class="p-ic w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-ghostMuted" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                  <input type="search" id="stock-search" oninput="filterStockTable()" placeholder="Masalan: 1.2x seriy yoki Bordo" class="w-full md:w-72 min-h-[44px] bg-ghostBg border border-ghostBorder rounded-xl pl-10 pr-3 text-sm focus:outline-none focus:border-neutral-900">
+                </label>
+                <button onclick="loadStockData()" aria-label="Ombor ma'lumotlarini yangilash" title="Yangilash" class="w-11 h-11 shrink-0 flex items-center justify-center bg-neutral-100 hover:bg-neutral-200 rounded-xl transition"><svg class="p-ic w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/></svg></button>
               </div>
             </div>
 
             <!-- Product Category Tabs (visible in 1-Filial) -->
-            <div id="stock-product-tabs" class="inline-flex p-1 bg-neutral-100 rounded-xl text-xs font-medium mb-5">
-              <button type="button" onclick="setStockTab('carpet')" id="stock-tab-carpet" class="px-3 py-1.5 rounded-lg bg-white shadow-xs text-neutral-900 font-semibold transition">🌀 Rezinka Gilam</button>
-              <button type="button" onclick="setStockTab('leather')" id="stock-tab-leather" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition">🐑 Teri</button>
-              <button type="button" onclick="setStockTab('kavralan')" id="stock-tab-kavralan" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition">🧶 Asl Kavralan</button>
+            <div id="stock-product-tabs" class="seg-tabs text-sm mb-5">
+              <button type="button" onclick="setStockTab('carpet')" id="stock-tab-carpet" class="flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-xl bg-white shadow-sm text-neutral-900 font-semibold transition"><span class="w-2.5 h-2.5 rounded-full" style="background:#3b6ff5"></span><span class="sm:hidden">Gilam</span><span class="hidden sm:inline">Rezinka gilam</span></button>
+              <button type="button" onclick="setStockTab('leather')" id="stock-tab-leather" class="flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-xl text-neutral-600 hover:text-neutral-900 transition"><span class="w-2.5 h-2.5 rounded-full" style="background:#f08a24"></span>Teri</button>
+              <button type="button" onclick="setStockTab('kavralan')" id="stock-tab-kavralan" class="flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-xl text-neutral-600 hover:text-neutral-900 transition"><span class="w-2.5 h-2.5 rounded-full" style="background:#8b5cf6"></span><span class="sm:hidden">Kavralan</span><span class="hidden sm:inline">Asl kavralan</span></button>
             </div>
 
             <!-- 1. Rezinka Gilam Table -->
@@ -1113,133 +1166,177 @@
 
         <!-- TAB: KIRIM (YANGI MAHSULOT) -->
         <section id="view-import" class="hidden space-y-6">
-          <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-sm max-w-xl">
+          <div class="bg-white border border-ghostBorder rounded-2xl p-5 sm:p-6 shadow-sm max-w-2xl">
             <h2 class="text-base font-semibold text-neutral-900">Yangi tovar kirimi</h2>
-            <p class="text-xs text-ghostMuted mb-5">Omborga yangi mahsulot qabul qilish</p>
+            <p class="text-xs text-ghostMuted mb-5">Mahsulotni tanlang, o'lchamini kiriting va omborga qabul qiling</p>
 
             <!-- Product Category Tabs (visible in 1-Filial) -->
-            <div id="import-product-tabs" class="inline-flex p-1 bg-neutral-100 rounded-xl text-xs font-medium mb-5">
-              <button type="button" onclick="setImportProduct('carpet')" id="import-tab-carpet" class="px-3 py-1.5 rounded-lg bg-white shadow-xs text-neutral-900 font-semibold transition">🌀 Rezinka Gilam</button>
-              <button type="button" onclick="setImportProduct('leather')" id="import-tab-leather" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition">🐑 Teri</button>
-              <button type="button" onclick="setImportProduct('kavralan')" id="import-tab-kavralan" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition">🧶 Asl Kavralan</button>
+            <div id="import-product-tabs" class="seg-tabs text-sm mb-5">
+              <button type="button" onclick="setImportProduct('carpet')" id="import-tab-carpet" class="flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-xl bg-white shadow-sm text-neutral-900 font-semibold transition"><span class="w-2.5 h-2.5 rounded-full" style="background:#3b6ff5"></span><span class="sm:hidden">Gilam</span><span class="hidden sm:inline">Rezinka gilam</span></button>
+              <button type="button" onclick="setImportProduct('leather')" id="import-tab-leather" class="flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-xl text-neutral-600 hover:text-neutral-900 transition"><span class="w-2.5 h-2.5 rounded-full" style="background:#f08a24"></span>Teri</button>
+              <button type="button" onclick="setImportProduct('kavralan')" id="import-tab-kavralan" class="flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-xl text-neutral-600 hover:text-neutral-900 transition"><span class="w-2.5 h-2.5 rounded-full" style="background:#8b5cf6"></span><span class="sm:hidden">Kavralan</span><span class="hidden sm:inline">Asl kavralan</span></button>
             </div>
 
-            <form onsubmit="submitUnifiedImport(event)" class="space-y-4">
-              <!-- CARPET IMPORT FIELDS -->
-              <div id="import-carpet-fields" class="space-y-4">
-                <div class="grid grid-cols-2 gap-4">
-                  <div>
-                    <label class="block text-xs font-medium text-neutral-600 mb-1">Eni (metr):</label>
-                    <select id="import-width" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                      <option value="0.8">0.8 metr</option>
-                      <option value="1.0">1.0 metr</option>
-                      <option value="1.2" selected>1.2 metr</option>
-                      <option value="1.6">1.6 metr</option>
-                      <option value="2.0">2.0 metr</option>
-                    </select>
+            <form onsubmit="submitUnifiedImport(event)" oninput="updateImportSummary()" onchange="updateImportSummary()" class="space-y-6">
+              <!-- ===== GILAM ===== -->
+              <div id="import-carpet-fields" class="space-y-6">
+                <div class="space-y-2.5">
+                  <h3 class="sale-step"><span>1</span>Eni</h3>
+                  <div id="import-width-chips" class="flex flex-wrap gap-2" role="group" aria-label="Eni">
+                    <button type="button" class="sale-chip" data-value="0.8" onclick="pickChip('import-width-chips','import-width','0.8',updateImportSummary)">0.8 m</button>
+                    <button type="button" class="sale-chip" data-value="1.0" onclick="pickChip('import-width-chips','import-width','1.0',updateImportSummary)">1.0 m</button>
+                    <button type="button" class="sale-chip is-active" data-value="1.2" onclick="pickChip('import-width-chips','import-width','1.2',updateImportSummary)">1.2 m</button>
+                    <button type="button" class="sale-chip" data-value="1.6" onclick="pickChip('import-width-chips','import-width','1.6',updateImportSummary)">1.6 m</button>
+                    <button type="button" class="sale-chip" data-value="2.0" onclick="pickChip('import-width-chips','import-width','2.0',updateImportSummary)">2.0 m</button>
                   </div>
-                  <div>
-                    <label class="block text-xs font-medium text-neutral-600 mb-1">Rangi:</label>
-                    <select id="import-color" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                      <option value="Seriy">Seriy</option>
-                      <option value="Kofe">Kofe</option>
-                      <option value="Qizil">Qizil</option>
-                      <option value="Bordo">Bordo</option>
-                      <option value="Qora">Qora</option>
-                      <option value="Yashil">Yashil</option>
-                      <option value="Ko'k">Ko'k</option>
-                    </select>
-                  </div>
+                  <select id="import-width" class="hidden" aria-hidden="true" tabindex="-1">
+                    <option value="0.8">0.8 metr</option>
+                    <option value="1.0">1.0 metr</option>
+                    <option value="1.2" selected>1.2 metr</option>
+                    <option value="1.6">1.6 metr</option>
+                    <option value="2.0">2.0 metr</option>
+                  </select>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
-                  <div>
-                    <label class="block text-xs font-medium text-neutral-600 mb-1">Uzunligi (metr):</label>
-                    <input type="number" step="0.1" id="import-length" placeholder="30" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+                <div class="space-y-2.5">
+                  <h3 class="sale-step"><span>2</span>Rangi</h3>
+                  <div id="import-color-chips" class="flex flex-wrap gap-2" role="group" aria-label="Rangi">
+                    <button type="button" class="sale-chip is-active" data-value="Seriy" onclick="pickChip('import-color-chips','import-color','Seriy',updateImportSummary)"><span class="w-3.5 h-3.5 rounded-full ring-1 ring-black/10" style="background:#9ca3af"></span>Seriy</button>
+                    <button type="button" class="sale-chip" data-value="Kofe" onclick="pickChip('import-color-chips','import-color','Kofe',updateImportSummary)"><span class="w-3.5 h-3.5 rounded-full ring-1 ring-black/10" style="background:#7c5a43"></span>Kofe</button>
+                    <button type="button" class="sale-chip" data-value="Qizil" onclick="pickChip('import-color-chips','import-color','Qizil',updateImportSummary)"><span class="w-3.5 h-3.5 rounded-full ring-1 ring-black/10" style="background:#c0392b"></span>Qizil</button>
+                    <button type="button" class="sale-chip" data-value="Bordo" onclick="pickChip('import-color-chips','import-color','Bordo',updateImportSummary)"><span class="w-3.5 h-3.5 rounded-full ring-1 ring-black/10" style="background:#7b1e2b"></span>Bordo</button>
+                    <button type="button" class="sale-chip" data-value="Qora" onclick="pickChip('import-color-chips','import-color','Qora',updateImportSummary)"><span class="w-3.5 h-3.5 rounded-full ring-1 ring-black/10" style="background:#1f2125"></span>Qora</button>
+                    <button type="button" class="sale-chip" data-value="Yashil" onclick="pickChip('import-color-chips','import-color','Yashil',updateImportSummary)"><span class="w-3.5 h-3.5 rounded-full ring-1 ring-black/10" style="background:#2f7d4f"></span>Yashil</button>
+                    <button type="button" class="sale-chip" data-value="Ko'k" onclick="pickChip('import-color-chips','import-color',&quot;Ko'k&quot;,updateImportSummary)"><span class="w-3.5 h-3.5 rounded-full ring-1 ring-black/10" style="background:#2563eb"></span>Ko'k</button>
                   </div>
-                  <!-- Standart 1 m² narxi (1-Filial Labzak uchun) -->
-                  <div id="wrap-import-price-standard">
-                    <label class="block text-xs font-medium text-neutral-600 mb-1">1 m² narxi ($):</label>
-                    <input type="number" step="0.5" id="import-price" value="8" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                  </div>
+                  <select id="import-color" class="hidden" aria-hidden="true" tabindex="-1">
+                    <option value="Seriy">Seriy</option>
+                    <option value="Kofe">Kofe</option>
+                    <option value="Qizil">Qizil</option>
+                    <option value="Bordo">Bordo</option>
+                    <option value="Qora">Qora</option>
+                    <option value="Yashil">Yashil</option>
+                    <option value="Ko'k">Ko'k</option>
+                  </select>
                 </div>
 
-                <!-- 2-Filial (Kartal) uchun: Kelgan tannarxi va Sotilish narxi -->
-                <div id="wrap-import-prices-kartal" class="hidden grid grid-cols-2 gap-3 p-3.5 bg-neutral-50 rounded-xl border border-ghostBorder">
-                  <div>
-                    <label class="block text-xs font-semibold text-neutral-800 mb-1">📥 Kelgan tannarxi (1 m², $):</label>
-                    <input type="number" step="0.1" id="import-cost-price" placeholder="Masalan: 5.0" class="w-full bg-white border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900 font-semibold text-emerald-700">
-                    <span class="text-[10px] text-neutral-400">Rulonning kelib tushgan narxi</span>
+                <div class="space-y-2.5">
+                  <h3 class="sale-step"><span>3</span>Uzunlik va narx</h3>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <label for="import-length" class="block text-xs font-medium text-neutral-600 mb-1">Rulon uzunligi (m)</label>
+                      <input type="number" inputmode="decimal" step="0.1" id="import-length" placeholder="30" class="w-full min-h-[52px] bg-white border-2 border-neutral-900 rounded-2xl px-4 text-xl font-semibold text-neutral-900 focus:outline-none">
+                    </div>
+                    <!-- Standart 1 m² narxi (1-Filial Labzak uchun) -->
+                    <div id="wrap-import-price-standard">
+                      <label for="import-price" class="block text-xs font-medium text-neutral-600 mb-1">1 m² narxi ($)</label>
+                      <input type="number" inputmode="decimal" step="0.5" id="import-price" value="8" class="w-full min-h-[52px] bg-ghostBg border border-ghostBorder rounded-2xl px-4 text-base font-semibold focus:outline-none focus:border-neutral-900">
+                    </div>
                   </div>
-                  <div>
-                    <label class="block text-xs font-semibold text-neutral-800 mb-1">🏷 Sotilish narxi (1 m², $):</label>
-                    <input type="number" step="0.1" id="import-sell-price" placeholder="Masalan: 8.0" value="8" class="w-full bg-white border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900 font-semibold text-neutral-900">
-                    <span class="text-[10px] text-neutral-400">Mijozga sotiladigan narx</span>
+
+                  <!-- 2-Filial (Kartal) uchun: Kelgan tannarxi va Sotilish narxi -->
+                  <div id="wrap-import-prices-kartal" class="hidden grid grid-cols-2 gap-3 p-3.5 bg-neutral-50 rounded-2xl border border-ghostBorder">
+                    <div>
+                      <label for="import-cost-price" class="block text-xs font-semibold text-neutral-700 mb-1">Kelgan tannarxi (1 m², $)</label>
+                      <input type="number" inputmode="decimal" step="0.1" id="import-cost-price" placeholder="Masalan: 5.0" class="w-full min-h-[44px] bg-white border border-ghostBorder rounded-xl px-3 text-sm focus:outline-none focus:border-neutral-900 font-semibold text-emerald-700">
+                      <span class="text-[11px] text-ghostMuted">Rulonning kelib tushgan narxi</span>
+                    </div>
+                    <div>
+                      <label for="import-sell-price" class="block text-xs font-semibold text-neutral-700 mb-1">Sotilish narxi (1 m², $)</label>
+                      <input type="number" inputmode="decimal" step="0.1" id="import-sell-price" placeholder="Masalan: 8.0" value="8" class="w-full min-h-[44px] bg-white border border-ghostBorder rounded-xl px-3 text-sm focus:outline-none focus:border-neutral-900 font-semibold text-neutral-900">
+                      <span class="text-[11px] text-ghostMuted">Mijozga sotiladigan narx</span>
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <!-- LEATHER IMPORT FIELDS -->
-              <div id="import-leather-fields" class="hidden space-y-4">
-                <div class="grid grid-cols-2 gap-4">
-                  <div>
-                    <label class="block text-xs font-medium text-neutral-600 mb-1">Teri rangi:</label>
-                    <select id="import-leather-color" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                      <option value="Oppoq">Oppoq</option>
-                      <option value="Bejiviy">Bejiviy</option>
-                      <option value="Seriy">Seriy</option>
-                    </select>
+              <!-- ===== TERI ===== -->
+              <div id="import-leather-fields" class="hidden space-y-6">
+                <div class="space-y-2.5">
+                  <h3 class="sale-step"><span>1</span>Teri rangi</h3>
+                  <div id="import-leather-color-chips" class="flex flex-wrap gap-2" role="group" aria-label="Teri rangi">
+                    <button type="button" class="sale-chip is-active" data-value="Oppoq" onclick="pickChip('import-leather-color-chips','import-leather-color','Oppoq',updateImportSummary)"><span class="w-3.5 h-3.5 rounded-full ring-1 ring-black/10" style="background:#f5f5f4"></span>Oppoq</button>
+                    <button type="button" class="sale-chip" data-value="Bejiviy" onclick="pickChip('import-leather-color-chips','import-leather-color','Bejiviy',updateImportSummary)"><span class="w-3.5 h-3.5 rounded-full ring-1 ring-black/10" style="background:#d6c3a3"></span>Bejiviy</button>
+                    <button type="button" class="sale-chip" data-value="Seriy" onclick="pickChip('import-leather-color-chips','import-leather-color','Seriy',updateImportSummary)"><span class="w-3.5 h-3.5 rounded-full ring-1 ring-black/10" style="background:#9ca3af"></span>Seriy</button>
                   </div>
-                  <div>
-                    <label class="block text-xs font-medium text-neutral-600 mb-1">Soni (dona):</label>
-                    <input type="number" id="import-leather-qty" placeholder="10" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                  </div>
+                  <select id="import-leather-color" class="hidden" aria-hidden="true" tabindex="-1">
+                    <option value="Oppoq">Oppoq</option>
+                    <option value="Bejiviy">Bejiviy</option>
+                    <option value="Seriy">Seriy</option>
+                  </select>
                 </div>
-                <div>
-                  <label class="block text-xs font-medium text-neutral-600 mb-1">1 dona narxi ($):</label>
-                  <input type="number" step="0.5" id="import-leather-price" value="50" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                </div>
-              </div>
-
-              <!-- KAVRALAN IMPORT FIELDS -->
-              <div id="import-kavralan-fields" class="hidden space-y-4">
-                <div class="grid grid-cols-2 gap-4">
-                  <div>
-                    <label class="block text-xs font-medium text-neutral-600 mb-1">Modeli:</label>
-                    <input type="text" id="import-kavralan-model" placeholder="Masalan: Verona, 94A..." class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                  </div>
-                  <div>
-                    <label class="block text-xs font-medium text-neutral-600 mb-1">Rangi:</label>
-                    <input type="text" id="import-kavralan-color" placeholder="Masalan: Kulrang, Bej, Oq..." class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                  </div>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                  <div>
-                    <label class="block text-xs font-medium text-neutral-600 mb-1">Eni (m):</label>
-                    <input type="number" step="0.01" id="import-kavralan-width" value="4.0" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                  </div>
-                  <div>
-                    <label class="block text-xs font-medium text-neutral-600 mb-1">Uzunligi (m):</label>
-                    <input type="number" step="0.01" id="import-kavralan-length" placeholder="Masalan: 23.95 yoki 25" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                    <span class="text-[10px] text-neutral-400">23.95 kabi kasr razmerlarda ham kirim qilish mumkin</span>
-                  </div>
-                </div>
-                <div class="grid grid-cols-2 gap-3 p-3.5 bg-neutral-50 rounded-xl border border-ghostBorder">
-                  <div>
-                    <label class="block text-xs font-semibold text-neutral-800 mb-1">📥 Tan narx (1 m², $):</label>
-                    <input type="number" step="0.01" id="import-kavralan-cost-price" placeholder="Masalan: 20.0" class="w-full bg-white border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900 font-semibold text-emerald-700">
-                    <span class="text-[10px] text-neutral-400">Rulonning kelgan tannarxi</span>
-                  </div>
-                  <div>
-                    <label class="block text-xs font-semibold text-neutral-800 mb-1">🏷 Sotuv narx (1 m², $):</label>
-                    <input type="number" step="0.01" id="import-kavralan-price" placeholder="Masalan: 30.0" value="30" class="w-full bg-white border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900 font-semibold text-neutral-900">
-                    <span class="text-[10px] text-neutral-400">Mijozga sotiladigan narx</span>
+                <div class="space-y-2.5">
+                  <h3 class="sale-step"><span>2</span>Soni va narxi</h3>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <label for="import-leather-qty" class="block text-xs font-medium text-neutral-600 mb-1">Soni (dona)</label>
+                      <input type="number" inputmode="numeric" id="import-leather-qty" placeholder="10" class="w-full min-h-[52px] bg-white border-2 border-neutral-900 rounded-2xl px-4 text-xl font-semibold text-neutral-900 focus:outline-none">
+                    </div>
+                    <div>
+                      <label for="import-leather-price" class="block text-xs font-medium text-neutral-600 mb-1">1 dona narxi ($)</label>
+                      <input type="number" inputmode="decimal" step="0.5" id="import-leather-price" value="50" class="w-full min-h-[52px] bg-ghostBg border border-ghostBorder rounded-2xl px-4 text-base font-semibold focus:outline-none focus:border-neutral-900">
+                    </div>
                   </div>
                 </div>
               </div>
 
-              <button type="submit" class="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-medium text-sm py-3 px-4 rounded-xl transition duration-150">
-                📥 Omborga qabul qilish
+              <!-- ===== KAVRALAN ===== -->
+              <div id="import-kavralan-fields" class="hidden space-y-6">
+                <div class="space-y-2.5">
+                  <h3 class="sale-step"><span>1</span>Model va rang</h3>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <label for="import-kavralan-model" class="block text-xs font-medium text-neutral-600 mb-1">Modeli</label>
+                      <input type="text" id="import-kavralan-model" placeholder="Masalan: Verona, 94A..." class="w-full min-h-[44px] bg-ghostBg border border-ghostBorder rounded-xl px-3 text-sm focus:outline-none focus:border-neutral-900">
+                    </div>
+                    <div>
+                      <label for="import-kavralan-color" class="block text-xs font-medium text-neutral-600 mb-1">Rangi</label>
+                      <input type="text" id="import-kavralan-color" placeholder="Masalan: Kulrang, Bej, Oq..." class="w-full min-h-[44px] bg-ghostBg border border-ghostBorder rounded-xl px-3 text-sm focus:outline-none focus:border-neutral-900">
+                    </div>
+                  </div>
+                </div>
+                <div class="space-y-2.5">
+                  <h3 class="sale-step"><span>2</span>O'lcham</h3>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div>
+                      <label for="import-kavralan-width" class="block text-xs font-medium text-neutral-600 mb-1">Eni (m)</label>
+                      <input type="number" inputmode="decimal" step="0.01" id="import-kavralan-width" value="4.0" class="w-full min-h-[52px] bg-ghostBg border border-ghostBorder rounded-2xl px-4 text-base font-semibold focus:outline-none focus:border-neutral-900">
+                    </div>
+                    <div>
+                      <label for="import-kavralan-length" class="block text-xs font-medium text-neutral-600 mb-1">Uzunligi (m)</label>
+                      <input type="number" inputmode="decimal" step="0.01" id="import-kavralan-length" placeholder="Masalan: 23.95" class="w-full min-h-[52px] bg-white border-2 border-neutral-900 rounded-2xl px-4 text-xl font-semibold text-neutral-900 focus:outline-none">
+                    </div>
+                  </div>
+                </div>
+                <div class="space-y-2.5">
+                  <h3 class="sale-step"><span>3</span>Narx</h3>
+                  <div class="grid grid-cols-2 gap-3 p-3.5 bg-neutral-50 rounded-2xl border border-ghostBorder">
+                    <div>
+                      <label for="import-kavralan-cost-price" class="block text-xs font-semibold text-neutral-700 mb-1">Tan narx (1 m², $)</label>
+                      <input type="number" inputmode="decimal" step="0.01" id="import-kavralan-cost-price" placeholder="Masalan: 20.0" class="w-full min-h-[44px] bg-white border border-ghostBorder rounded-xl px-3 text-sm focus:outline-none focus:border-neutral-900 font-semibold text-emerald-700">
+                      <span class="text-[11px] text-ghostMuted">Rulonning kelgan tannarxi</span>
+                    </div>
+                    <div>
+                      <label for="import-kavralan-price" class="block text-xs font-semibold text-neutral-700 mb-1">Sotuv narx (1 m², $)</label>
+                      <input type="number" inputmode="decimal" step="0.01" id="import-kavralan-price" placeholder="Masalan: 30.0" value="30" class="w-full min-h-[44px] bg-white border border-ghostBorder rounded-xl px-3 text-sm focus:outline-none focus:border-neutral-900 font-semibold text-neutral-900">
+                      <span class="text-[11px] text-ghostMuted">Mijozga sotiladigan narx</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Xulosa: nima qabul qilinadi -->
+              <div class="flex items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl bg-neutral-50 border border-ghostBorder">
+                <span id="import-summary-text" class="text-xs sm:text-[13px] text-neutral-600 min-w-0">O'lchamni kiriting</span>
+                <div class="text-right shrink-0">
+                  <div class="text-[11px] text-ghostMuted">Qiymati</div>
+                  <div id="import-summary-total" class="font-bold text-neutral-900 text-xl tracking-tight">$0.00</div>
+                </div>
+              </div>
+
+              <button type="submit" id="import-submit-btn" class="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-semibold text-[15px] min-h-[52px] px-4 flex items-center justify-center gap-2 transition">
+                <svg class="p-ic w-[18px] h-[18px]" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/></svg>
+                <span id="import-submit-label">Omborga qabul qilish</span>
               </button>
             </form>
           </div>
@@ -1610,10 +1707,32 @@
         </section>
 
         <!-- TAB: NASIYALAR -->
-        <section id="view-debts" class="hidden space-y-6">
-          <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-sm">
+        <section id="view-debts" class="hidden space-y-5">
+          <!-- Qarz xulosasi -->
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div class="stat-tile"><span class="st-label">Jami qolgan qarz</span><span id="debts-sum-remaining" class="st-value text-rose-600">$0.00</span></div>
+            <div class="stat-tile"><span class="st-label">Qarzdorlar</span><span id="debts-sum-count" class="st-value">0</span></div>
+            <div class="stat-tile"><span class="st-label">Muddati o'tgan</span><span id="debts-sum-overdue" class="st-value">0</span></div>
+            <div class="stat-tile"><span class="st-label">Bugun to'lashi kerak</span><span id="debts-sum-today" class="st-value">0</span></div>
+          </div>
+
+          <div class="bg-white border border-ghostBorder rounded-2xl p-5 sm:p-6 shadow-sm">
             <h2 class="text-base font-semibold text-neutral-900 mb-1">Nasiya (Qarz) daftari</h2>
-            <p class="text-xs text-ghostMuted mb-5">Faol qarzdorlar va to'lovlarni qabul qilish</p>
+            <p class="text-xs text-ghostMuted mb-4">Qarzdorni bosing — to'lov oynasi ochiladi</p>
+
+            <div class="flex flex-col lg:flex-row lg:items-center gap-3 mb-4">
+              <label class="relative flex-1 block">
+                <span class="sr-only">Qarzdorni qidirish</span>
+                <svg class="p-ic w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-ghostMuted" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input type="search" id="debts-search" oninput="renderDebtsList()" placeholder="Mijoz ismi, telefon yoki #ID" class="w-full min-h-[44px] bg-ghostBg border border-ghostBorder rounded-xl pl-10 pr-3 text-sm focus:outline-none focus:border-neutral-900">
+              </label>
+              <div id="debts-filter-chips" class="flex flex-wrap gap-1.5" role="group" aria-label="Qarz filtri">
+                <button type="button" class="sale-chip is-active" data-value="all" onclick="setDebtsFilter('all')">Hammasi</button>
+                <button type="button" class="sale-chip" data-value="overdue" onclick="setDebtsFilter('overdue')">Muddati o'tgan</button>
+                <button type="button" class="sale-chip" data-value="today" onclick="setDebtsFilter('today')">Bugun</button>
+                <button type="button" class="sale-chip" data-value="nodue" onclick="setDebtsFilter('nodue')">Muddatsiz</button>
+              </div>
+            </div>
 
             <div class="overflow-x-auto">
               <table class="w-full text-left text-xs">
@@ -1729,13 +1848,18 @@
                   <label class="block text-xs font-medium text-neutral-600">O'tkaziladigan miqdor (uzunlik, metrda):</label>
                   <span id="transfer-remain-hint" class="text-[11px] text-emerald-700 font-semibold"></span>
                 </div>
-                <input type="number" step="0.01" id="transfer-length" required placeholder="0.0" class="w-full bg-ghostBg border border-neutral-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900 font-semibold text-neutral-900">
+                <div class="flex flex-wrap items-center gap-2">
+                  <input type="number" inputmode="decimal" step="0.01" id="transfer-length" required placeholder="0.0" aria-label="O'tkaziladigan uzunlik (metr)" class="w-40 min-h-[48px] bg-white border-2 border-neutral-900 rounded-2xl px-4 text-lg font-semibold text-neutral-900 focus:outline-none">
+                  <button type="button" class="sale-chip border-dashed" onclick="setTransferWholeRoll()">Butun rulon</button>
+                </div>
                 <p class="text-[11px] text-ghostMuted mt-1">Rulon to'liq o'tishi uchun butun qoldiqni, qisman o'tishi uchun kerakli metrni kiriting.</p>
               </div>
 
-              <div>
-                <label class="block text-xs font-medium text-neutral-600 mb-1">Qaysi filialga o'tkaziladi:</label>
-                <select id="transfer-to-branch" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
+              <div class="space-y-2">
+                <span class="block text-xs font-medium text-neutral-600">Qaysi filialga o'tkaziladi:</span>
+                <!-- Tugmalar renderTransferBranchChips() orqali chiziladi (joriy filial ko'rsatilmaydi) -->
+                <div id="transfer-branch-chips" class="flex flex-wrap gap-2" role="group" aria-label="Qabul qiluvchi filial"></div>
+                <select id="transfer-to-branch" class="hidden" aria-hidden="true" tabindex="-1">
                   <option value="1">1-Filial</option>
                   <option value="2">2-Filial</option>
                   <option value="3">3-Filial</option>
@@ -1778,52 +1902,70 @@
 
         <!-- TAB: RASXOD (XARAJATLAR) -->
         <section id="view-expenses" class="hidden space-y-6">
-          <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-sm max-w-xl">
+          <div class="bg-white border border-ghostBorder rounded-2xl p-5 sm:p-6 shadow-sm max-w-2xl">
             <h2 class="text-base font-semibold text-neutral-900">Rasxod (Chiqim / Xarajat kiritish)</h2>
-            <p class="text-xs text-ghostMuted mb-5">Do'kon yoki filial xarajatlarini kassadan chiqim qilish</p>
+            <p class="text-xs text-ghostMuted mb-5">Xarajat turini va qaysi kassadan chiqishini tanlang</p>
 
-            <form onsubmit="submitExpenseForm(event)" class="space-y-4">
-              <div class="grid grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-xs font-medium text-neutral-600 mb-1">Xarajat turi:</label>
-                  <select id="expense-title-select" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                    <option value="Ijara">Ijara to'lovi</option>
-                    <option value="Oylik">Xodimlar oyligi</option>
-                    <option value="Transport">Transport / Dostavka</option>
-                    <option value="Tushlik">Tushlik / Xo'jalik</option>
-                    <option value="Soliq">Soliq / Kommunal</option>
-                    <option value="Boshqa">Boshqa xarajat</option>
-                  </select>
+            <form onsubmit="submitExpenseForm(event)" class="space-y-6">
+              <div class="space-y-2.5">
+                <h3 class="sale-step"><span>1</span>Xarajat turi</h3>
+                <div id="expense-title-chips" class="grid grid-cols-2 sm:grid-cols-3 gap-2" role="group" aria-label="Xarajat turi">
+                  <button type="button" class="sale-chip is-active justify-start" data-value="Ijara" onclick="pickChip('expense-title-chips','expense-title-select','Ijara')"><svg class="p-ic w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/></svg>Ijara</button>
+                  <button type="button" class="sale-chip justify-start" data-value="Oylik" onclick="pickChip('expense-title-chips','expense-title-select','Oylik')"><svg class="p-ic w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 5.5a3 3 0 0 1 0 5.5M18 14.5c1.9.7 3.1 2.6 3.5 5.5"/></svg>Oylik</button>
+                  <button type="button" class="sale-chip justify-start" data-value="Transport" onclick="pickChip('expense-title-chips','expense-title-select','Transport')"><svg class="p-ic w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h11v10H3zM14 10h4l3 3v3h-7"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="17" cy="17.5" r="1.8"/></svg>Transport</button>
+                  <button type="button" class="sale-chip justify-start" data-value="Tushlik" onclick="pickChip('expense-title-chips','expense-title-select','Tushlik')"><svg class="p-ic w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h13v4a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6z"/><path d="M17 10h1.5a2.5 2.5 0 0 1 0 5H17"/><path d="M8 3v3M12 3v3"/></svg>Tushlik</button>
+                  <button type="button" class="sale-chip justify-start" data-value="Soliq" onclick="pickChip('expense-title-chips','expense-title-select','Soliq')"><svg class="p-ic w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg>Soliq / Kommunal</button>
+                  <button type="button" class="sale-chip justify-start" data-value="Boshqa" onclick="pickChip('expense-title-chips','expense-title-select','Boshqa')"><svg class="p-ic w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="18" cy="12" r="1"/></svg>Boshqa</button>
                 </div>
-                <div>
-                  <label class="block text-xs font-medium text-neutral-600 mb-1">Qaysi kassadan:</label>
-                  <select id="expense-category-select" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                    <option value="carpet">Rezinka Gilam kassasi</option>
-                    <option value="leather">Teri kassasi</option>
-                    <option value="kavralan">Asl Kavralan kassasi</option>
-                    <option value="branch3">3-Filial kassasi</option>
-                  </select>
+                <select id="expense-title-select" class="hidden" aria-hidden="true" tabindex="-1">
+                  <option value="Ijara">Ijara to'lovi</option>
+                  <option value="Oylik">Xodimlar oyligi</option>
+                  <option value="Transport">Transport / Dostavka</option>
+                  <option value="Tushlik">Tushlik / Xo'jalik</option>
+                  <option value="Soliq">Soliq / Kommunal</option>
+                  <option value="Boshqa">Boshqa xarajat</option>
+                </select>
+              </div>
+
+              <div class="space-y-2.5">
+                <h3 class="sale-step"><span>2</span>Qaysi kassadan</h3>
+                <div id="expense-cat-chips" class="flex flex-wrap gap-2" role="group" aria-label="Kassa">
+                  <button type="button" class="sale-chip is-active" data-value="carpet" onclick="pickChip('expense-cat-chips','expense-category-select','carpet')"><span class="w-2.5 h-2.5 rounded-full" style="background:#3b6ff5"></span>Gilam kassasi</button>
+                  <button type="button" class="sale-chip" data-value="leather" onclick="pickChip('expense-cat-chips','expense-category-select','leather')"><span class="w-2.5 h-2.5 rounded-full" style="background:#f08a24"></span>Teri kassasi</button>
+                  <button type="button" class="sale-chip" data-value="kavralan" onclick="pickChip('expense-cat-chips','expense-category-select','kavralan')"><span class="w-2.5 h-2.5 rounded-full" style="background:#8b5cf6"></span>Kavralan kassasi</button>
+                  <button type="button" class="sale-chip" data-value="branch3" onclick="pickChip('expense-cat-chips','expense-category-select','branch3')"><span class="w-2.5 h-2.5 rounded-full" style="background:#0e9f9e"></span>3-Filial kassasi</button>
+                </div>
+                <select id="expense-category-select" class="hidden" aria-hidden="true" tabindex="-1">
+                  <option value="carpet">Rezinka Gilam kassasi</option>
+                  <option value="leather">Teri kassasi</option>
+                  <option value="kavralan">Asl Kavralan kassasi</option>
+                  <option value="branch3">3-Filial kassasi</option>
+                </select>
+              </div>
+
+              <div class="space-y-2.5">
+                <h3 class="sale-step"><span>3</span>Summa va izoh</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-[180px_minmax(0,1fr)] gap-3">
+                  <div class="relative">
+                    <label for="expense-amount" class="sr-only">Summasi ($)</label>
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-semibold text-ghostMuted">$</span>
+                    <input type="number" inputmode="decimal" step="0.5" id="expense-amount" required placeholder="0" class="w-full min-h-[52px] bg-white border-2 border-neutral-900 rounded-2xl pl-9 pr-4 text-xl font-semibold text-neutral-900 focus:outline-none">
+                  </div>
+                  <div>
+                    <label for="expense-note" class="sr-only">Qo'shimcha izoh</label>
+                    <input type="text" id="expense-note" placeholder="Izoh: masalan, may oyi ijarasi" class="w-full min-h-[52px] bg-ghostBg border border-ghostBorder rounded-2xl px-4 text-sm focus:outline-none focus:border-neutral-900">
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <label class="block text-xs font-medium text-neutral-600 mb-1">Summasi ($):</label>
-                <input type="number" step="0.5" id="expense-amount" required placeholder="Masalan: 50" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-              </div>
-
-              <div>
-                <label class="block text-xs font-medium text-neutral-600 mb-1">Qo'shimcha izoh:</label>
-                <input type="text" id="expense-note" placeholder="Masalan: May oyi uchun ijara to'landi" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-              </div>
-
-              <button type="submit" class="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-medium text-sm py-3 px-4 rounded-xl transition duration-150">
+              <button type="submit" class="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-semibold text-[15px] min-h-[52px] px-4 transition">
                 Rasxodni saqlash
               </button>
             </form>
           </div>
 
           <!-- Expenses History Table -->
-          <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-sm">
+          <div class="bg-white border border-ghostBorder rounded-2xl p-5 sm:p-6 shadow-sm">
             <h3 class="text-sm font-semibold text-neutral-900 mb-4">Oxirgi qilingan xarajatlar</h3>
             <div class="overflow-x-auto">
               <table class="w-full text-left text-xs">
@@ -1857,6 +1999,13 @@
 
             <!-- Filters (Sana va Filial) - Avtomatik joriy oy boshidan oxirigacha -->
             <div class="flex flex-wrap items-center gap-2.5">
+              <!-- Tez davr tugmalari (setReportsPreset) -->
+              <div id="rep-preset-chips" class="flex flex-wrap gap-1.5" role="group" aria-label="Davr">
+                <button type="button" class="sale-chip" data-value="today" onclick="setReportsPreset('today')">Bugun</button>
+                <button type="button" class="sale-chip" data-value="7d" onclick="setReportsPreset('7d')">7 kun</button>
+                <button type="button" class="sale-chip is-active" data-value="month" onclick="setReportsPreset('month')">Shu oy</button>
+                <button type="button" class="sale-chip" data-value="prev" onclick="setReportsPreset('prev')">O'tgan oy</button>
+              </div>
               <div class="flex items-center gap-1.5 bg-neutral-50 border border-ghostBorder rounded-xl px-2.5 py-1 text-xs">
                 <span class="text-neutral-400">📅</span>
                 <input type="date" id="rep-date-from" title="Boshlanish sanasi" class="bg-transparent text-xs text-neutral-700 focus:outline-none font-medium">
@@ -3432,6 +3581,8 @@
     window.addEventListener('DOMContentLoaded', async () => {
       // 0. Update Theme Button Icon
       updateThemeToggleUI(document.documentElement.classList.contains('dark'));
+      // 0.1 Telefonda jadvallar kartochka ko'rinishida chiqishi uchun
+      initResponsiveTables();
       // 1. Check if Telegram WebApp is active
       if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
         window.Telegram.WebApp.ready();
@@ -4056,6 +4207,13 @@
       calcB3Total();
     }
 
+    function setB3Length(m) {
+      const inp = document.getElementById('b3-length-input');
+      if (!inp) return;
+      inp.value = m;
+      calcB3Total();
+    }
+
     function calcB3Total() {
       const len = parseFloat(document.getElementById('b3-length-input').value) || 0;
       const pr = parseFloat(document.getElementById('b3-price-input').value) || B3_PRICE;
@@ -4149,10 +4307,12 @@
         const table = document.getElementById(`stock-${t}-table`);
         if (tab && table) {
           if (t === type) {
-            tab.className = "px-3 py-1.5 rounded-lg bg-white shadow-xs text-neutral-900 font-semibold transition";
+            tab.className = SEG_TAB_ACTIVE;
+            tab.setAttribute('aria-pressed', 'true');
             table.classList.remove('hidden');
           } else {
-            tab.className = "px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition";
+            tab.className = SEG_TAB_IDLE;
+            tab.setAttribute('aria-pressed', 'false');
             table.classList.add('hidden');
           }
         }
@@ -4167,14 +4327,17 @@
         const fields = document.getElementById(`import-${t}-fields`);
         if (tab && fields) {
           if (t === type) {
-            tab.className = "px-3 py-1.5 rounded-lg bg-white shadow-xs text-neutral-900 font-semibold transition";
+            tab.className = SEG_TAB_ACTIVE;
+            tab.setAttribute('aria-pressed', 'true');
             fields.classList.remove('hidden');
           } else {
-            tab.className = "px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition";
+            tab.className = SEG_TAB_IDLE;
+            tab.setAttribute('aria-pressed', 'false');
             fields.classList.add('hidden');
           }
         }
       });
+      updateImportSummary();
     }
 
     function setSaleProduct(type) {
@@ -5457,6 +5620,120 @@
       inp.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
       markDueChips();
     }
+    // ==================== BARCHA BO'LIMLAR: UMUMIY YORDAMCHILAR ====================
+    // Telefonda jadval kartochkaga aylanishi uchun har bir katakka ustun nomini `data-label` qilib yozadi.
+    // Render funksiyalarini o'zgartirmaslik uchun tbody/tfoot dagi o'zgarishlarni MutationObserver kuzatadi.
+    function labelResponsiveTable(table) {
+      const heads = [...table.querySelectorAll('thead th')].map(th => (th.textContent || '').replace(/\s+/g, ' ').trim());
+      table.querySelectorAll('tbody tr, tfoot tr').forEach(tr => {
+        let col = 0;
+        [...tr.children].forEach(cell => {
+          const span = parseInt(cell.getAttribute('colspan') || '1', 10) || 1;
+          if (!cell.hasAttribute('data-label')) {
+            const label = span > 1 ? '' : (heads[col] || '');
+            const isAction = /^(amal|amallar|harakat)$/i.test(label);
+            cell.setAttribute('data-label', isAction ? '' : label);
+            if (isAction) cell.classList.add('rt-actions');
+          }
+          col += span;
+        });
+      });
+    }
+    function initResponsiveTables() {
+      document.querySelectorAll('#app-view main table').forEach(table => {
+        if (table.dataset.rtInit) return;
+        table.dataset.rtInit = '1';
+        table.classList.add('rt');
+        labelResponsiveTable(table);
+        const obs = new MutationObserver(() => labelResponsiveTable(table));
+        table.querySelectorAll('tbody, tfoot').forEach(part => obs.observe(part, { childList: true }));
+      });
+    }
+
+    // Toifa tugmalari (Sotuv / Kirim / Ombor) uchun yagona klasslar
+    const SEG_TAB_ACTIVE = "flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-xl bg-white shadow-sm text-neutral-900 font-semibold transition";
+    const SEG_TAB_IDLE = "flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-xl text-neutral-600 hover:text-neutral-900 transition";
+
+    // Chip guruhi: bosilgan chipni belgilaydi va yashirin <select>/<input> qiymatini o'rnatadi
+    function pickChip(groupId, targetId, value, after) {
+      document.querySelectorAll(`#${groupId} .sale-chip`).forEach(c => {
+        const on = String(c.dataset.value) === String(value);
+        c.classList.toggle('is-active', on);
+        c.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+      const target = document.getElementById(targetId);
+      if (target) target.value = value;
+      if (typeof after === 'function') after();
+    }
+    function syncChips(groupId, value) {
+      document.querySelectorAll(`#${groupId} .sale-chip`).forEach(c => {
+        const on = String(c.dataset.value) === String(value);
+        c.classList.toggle('is-active', on);
+        c.setAttribute('aria-pressed', on ? 'true' : 'false');
+      });
+    }
+
+    // ---- Kirim: nima qabul qilinayotganini va qiymatini ko'rsatish ----
+    function importNum(id) {
+      return parseFloat(String(document.getElementById(id)?.value || '').replace(',', '.')) || 0;
+    }
+    function updateImportSummary() {
+      const textEl = document.getElementById('import-summary-text');
+      const totalEl = document.getElementById('import-summary-total');
+      const lbl = document.getElementById('import-submit-label');
+      if (!textEl || !totalEl) return;
+      const r2 = v => Math.round(v * 100) / 100;
+      const type = CURRENT_IMPORT_PRODUCT || 'carpet';
+      let text = "O'lchamni kiriting";
+      let total = 0;
+      let short = '';
+
+      if (type === 'carpet') {
+        const w = importNum('import-width');
+        const len = importNum('import-length');
+        const color = document.getElementById('import-color')?.value || '';
+        const price = isRezinkaRestricted() ? importNum('import-cost-price') : importNum('import-price');
+        if (len > 0) {
+          const area = r2(w * len);
+          total = r2(area * price);
+          text = `${color} · ${w} m × ${len} m = ${area} m²${price > 0 ? ` · $${price}/m²` : ''}`;
+          short = `${area} m²`;
+        }
+      } else if (type === 'leather') {
+        const qty = parseInt(document.getElementById('import-leather-qty')?.value) || 0;
+        const price = importNum('import-leather-price');
+        const color = document.getElementById('import-leather-color')?.value || '';
+        if (qty > 0) {
+          total = r2(qty * price);
+          text = `Teri · ${color} · ${qty} dona × $${price}`;
+          short = `${qty} dona`;
+        } else {
+          text = 'Sonini kiriting';
+        }
+      } else if (type === 'kavralan') {
+        const w = importNum('import-kavralan-width') || 4;
+        const len = importNum('import-kavralan-length');
+        const cost = importNum('import-kavralan-cost-price') || importNum('import-kavralan-price');
+        const spec = [document.getElementById('import-kavralan-model')?.value, document.getElementById('import-kavralan-color')?.value]
+          .map(s => (s || '').trim()).filter(Boolean).join(' · ');
+        if (len > 0) {
+          const area = r2(w * len);
+          total = r2(area * cost);
+          text = `${spec ? spec + ' · ' : ''}${w} m × ${len} m = ${area} m²${cost > 0 ? ` · $${cost}/m² (tan narx)` : ''}`;
+          short = `${area} m²`;
+        }
+      }
+      textEl.innerText = text;
+      totalEl.innerText = `$${total.toFixed(2)}`;
+      if (lbl) lbl.innerText = short ? `Omborga qabul qilish · ${short}` : 'Omborga qabul qilish';
+    }
+    function syncImportChips() {
+      syncChips('import-width-chips', document.getElementById('import-width')?.value);
+      syncChips('import-color-chips', document.getElementById('import-color')?.value);
+      syncChips('import-leather-color-chips', document.getElementById('import-leather-color')?.value);
+      updateImportSummary();
+    }
+
     function markDueChips() {
       const val = document.getElementById('debt-due-date')?.value || '';
       const pad = n => String(n).padStart(2, '0');
@@ -5653,6 +5930,7 @@
       if (res && res.success) {
         showToast("Mahsulot omborga muvaffaqiyatli qabul qilindi!");
         e.target.reset();
+        syncImportChips();
         loadStockData();
         switchView('stock');
       }
@@ -5726,29 +6004,83 @@
       `;
     }
 
+    let DEBTS_CACHE = [];
+    let DEBTS_FILTER = 'all';
+
+    function localDateStr(d = new Date()) {
+      const pad = n => String(n).padStart(2, '0');
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+    }
+
     async function loadDebtsData() {
       const data = await apiRequest('/api/debts');
       if (!data || !data.debts) return;
+      DEBTS_CACHE = data.debts;
+      updateDebtsSummary();
+      renderDebtsList();
+    }
+
+    // Qarz xulosasi: jami qolgan qarz, qarzdorlar soni, muddati o'tgan va bugungi to'lovlar
+    function updateDebtsSummary() {
+      const todayStr = localDateStr();
+      const set = (id, v) => { const el = document.getElementById(id); if (el) el.innerText = v; };
+      const remaining = DEBTS_CACHE.reduce((s, d) => s + (d.remaining_amount || 0), 0);
+      const overdue = DEBTS_CACHE.filter(d => d.due_date && d.due_date < todayStr);
+      const today = DEBTS_CACHE.filter(d => d.due_date === todayStr);
+      set('debts-sum-remaining', `$${(Math.round(remaining * 100) / 100).toFixed(2)}`);
+      set('debts-sum-count', `${DEBTS_CACHE.length}`);
+      set('debts-sum-overdue', `${overdue.length}`);
+      set('debts-sum-today', `${today.length}`);
+      const ov = document.getElementById('debts-sum-overdue');
+      if (ov) ov.classList.toggle('text-rose-600', overdue.length > 0);
+    }
+
+    function setDebtsFilter(f) {
+      DEBTS_FILTER = f;
+      syncChips('debts-filter-chips', f);
+      renderDebtsList();
+    }
+
+    function renderDebtsList() {
       const tbody = document.getElementById('debts-tbody');
+      if (!tbody) return;
       tbody.innerHTML = '';
-      if (data.debts.length === 0) {
+      const todayStr = localDateStr();
+      const q = String(document.getElementById('debts-search')?.value || '').trim().toLowerCase();
+
+      if (DEBTS_CACHE.length === 0) {
         tbody.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-ghostMuted text-xs">Faol qarzdorlar yo\'q</td></tr>';
         return;
       }
-      
-      const todayStr = new Date().toISOString().slice(0, 10);
 
-      data.debts.forEach(d => {
+      const list = DEBTS_CACHE.filter(d => {
+        if (DEBTS_FILTER === 'overdue' && !(d.due_date && d.due_date < todayStr)) return false;
+        if (DEBTS_FILTER === 'today' && d.due_date !== todayStr) return false;
+        if (DEBTS_FILTER === 'nodue' && d.due_date) return false;
+        if (q) {
+          const hay = `${d.customer_name || ''} ${d.customer_phone || ''} #${d.id}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        return true;
+      });
+
+      if (list.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-ghostMuted text-xs">Bu filtr bo\'yicha qarz topilmadi</td></tr>';
+        return;
+      }
+
+      list.forEach(d => {
         const tr = document.createElement('tr');
-        tr.className = "hover:bg-neutral-50/80 cursor-pointer transition select-none group";
+        const isOverdue = !!(d.due_date && d.due_date < todayStr);
+        tr.className = "hover:bg-neutral-50/80 cursor-pointer transition select-none group" + (isOverdue ? ' debt-overdue' : '');
         tr.onclick = () => openDebtDrawer(d.id);
 
         // Due date & Installment badge calculation
         let dueBadge = '<span class="text-neutral-400 font-mono text-[11px]">-</span>';
         if (d.due_date) {
-          if (d.due_date < todayStr) {
+          if (isOverdue) {
             dueBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">
-              <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span> ${d.due_date} (O'tgan)
+              <span class="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse"></span> ${escapeHtml(d.due_date)} (O'tgan)
             </span>`;
           } else if (d.due_date === todayStr) {
             dueBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
@@ -5756,17 +6088,19 @@
             </span>`;
           } else {
             dueBadge = `<span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-neutral-100 text-neutral-700 border border-neutral-200 font-mono">
-              ${d.due_date}
+              ${escapeHtml(d.due_date)}
             </span>`;
           }
         }
 
-        const phoneHtml = d.customer_phone ? `<span class="text-neutral-500">📞 ${d.customer_phone}</span>` : '<span class="text-neutral-400">Raqamsiz</span>';
+        const phoneHtml = d.customer_phone
+          ? `<a href="tel:${escapeHtml(String(d.customer_phone).replace(/[^\d+]/g, ''))}" onclick="event.stopPropagation()" class="text-neutral-500 hover:underline">${escapeHtml(d.customer_phone)}</a>`
+          : '<span class="text-neutral-400">Raqamsiz</span>';
 
         tr.innerHTML = `
           <td class="py-3 px-1 text-neutral-400 font-mono text-[11px]">#${d.id}</td>
           <td class="py-3">
-            <div class="font-semibold text-neutral-900 group-hover:text-black">${d.customer_name}</div>
+            <div class="font-semibold text-neutral-900 group-hover:text-black">${escapeHtml(d.customer_name)}</div>
             <div class="text-[11px] font-mono mt-0.5">${phoneHtml}</div>
           </td>
           <td class="py-3">
@@ -5780,12 +6114,12 @@
           </td>
           <td class="py-3 text-right">
             <div class="flex items-center justify-end gap-1.5">
-              <button type="button" onclick="event.stopPropagation(); openEditDebtModal(${d.id})" class="px-2.5 py-1.5 text-[11px] font-semibold bg-white hover:bg-neutral-100 text-neutral-700 border border-ghostBorder rounded-xl transition shadow-2xs inline-flex items-center gap-1 active:scale-95" title="Qarz summasini tahrirlash">
+              <button type="button" onclick="event.stopPropagation(); openEditDebtModal(${d.id})" class="min-h-[36px] px-3 text-[12px] font-semibold bg-white hover:bg-neutral-100 text-neutral-700 border border-ghostBorder rounded-full transition inline-flex items-center gap-1 active:scale-95" title="Qarz summasini tahrirlash">
                 <svg class="w-3.5 h-3.5 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                 <span>Tahrirlash</span>
               </button>
-              <button type="button" onclick="event.stopPropagation(); openDebtDrawer(${d.id})" class="px-3 py-1.5 text-[11px] font-semibold bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl transition shadow-xs inline-flex items-center gap-1 active:scale-95">
-                <span>Qarzni to'lash</span>
+              <button type="button" onclick="event.stopPropagation(); openDebtDrawer(${d.id})" class="min-h-[36px] px-3.5 text-[12px] font-semibold bg-neutral-900 hover:bg-neutral-800 text-white rounded-full transition inline-flex items-center gap-1 active:scale-95">
+                <span>To'lov qabul qilish</span>
                 <svg class="w-3 h-3 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
               </button>
             </div>
@@ -6549,11 +6883,43 @@
       }
     }
 
+    // Transfer: qabul qiluvchi filial tugmalari (joriy filialdan boshqalari) va «Butun rulon»
+    function renderTransferBranchChips() {
+      const wrap = document.getElementById('transfer-branch-chips');
+      const sel = document.getElementById('transfer-to-branch');
+      if (!wrap || !sel) return;
+      const others = [1, 2, 3].filter(b => b !== ACTIVE_BRANCH);
+      if (!others.includes(parseInt(sel.value, 10))) sel.value = String(others[0]);
+      wrap.innerHTML = '';
+      others.forEach(b => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'sale-chip';
+        btn.dataset.value = String(b);
+        const name = BRANCH_NAMES[b] || `${b}-Filial`;
+        btn.innerText = /filial/i.test(name) ? name : `${name} · ${b}-Filial`;
+        btn.onclick = () => pickChip('transfer-branch-chips', 'transfer-to-branch', String(b));
+        wrap.appendChild(btn);
+      });
+      syncChips('transfer-branch-chips', sel.value);
+    }
+    function setTransferWholeRoll() {
+      const opt = document.getElementById('transfer-roll-select')?.selectedOptions?.[0];
+      if (!opt || !opt.value) { showToast("Avval rulonni tanlang", true); return; }
+      const inp = document.getElementById('transfer-length');
+      if (inp) inp.value = parseFloat(opt.dataset.remain || 0);
+    }
+
     async function loadTransferData() {
+      renderTransferBranchChips();
       const data = await apiRequest('/api/stock');
       if (data) {
         TRANSFER_ROLLS = data.rolls || [];
         filterTransferRollDropdown();
+        // Ro'yxat sahifa ochilganda o'z-o'zidan ochilib qolmasin (faqat maydon bosilganda)
+        if (document.activeElement?.id !== 'transfer-roll-input') {
+          document.getElementById('transfer-roll-dropdown-menu')?.classList.add('hidden');
+        }
 
         const toSelect = document.getElementById('transfer-to-branch');
         toSelect.innerHTML = '';
@@ -6565,6 +6931,7 @@
             toSelect.appendChild(opt);
           }
         });
+        renderTransferBranchChips();
       }
 
       // Load Transfers (History + Pending)
@@ -6700,6 +7067,7 @@
       if (res && res.success) {
         showToast(`Transfer yuborildi! Qabul qiluvchi filial xodimi qabul qilmagunicha tovar sizning balansingizda turadi.`);
         e.target.reset();
+        renderTransferBranchChips();
         SELECTED_TRANSFER_ROLL = null;
         const transferInput = document.getElementById('transfer-roll-input');
         if (transferInput) transferInput.value = '';
@@ -6778,6 +7146,8 @@
       if (res && res.success) {
         showToast("Rasxod muvaffaqiyatli saqlandi!");
         e.target.reset();
+        syncChips('expense-title-chips', document.getElementById('expense-title-select').value);
+        syncChips('expense-cat-chips', document.getElementById('expense-category-select').value);
         loadExpensesData();
         loadCashboxData();
       }
@@ -6819,13 +7189,35 @@
       REPORTS_PERIOD = 'custom';
     }
 
-    function applyCustomReportsDate() {
+    // Tez davrlar: Bugun / oxirgi 7 kun / shu oy / o'tgan oy — sana maydonlarini to'ldirib, hisobotni yuklaydi
+    function setReportsPreset(p) {
+      const pad = n => String(n).padStart(2, '0');
+      const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      const now = new Date();
+      let from = now, to = now;
+      if (p === '7d') {
+        from = new Date(now); from.setDate(now.getDate() - 6);
+      } else if (p === 'month') {
+        from = new Date(now.getFullYear(), now.getMonth(), 1);
+        to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      } else if (p === 'prev') {
+        from = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        to = new Date(now.getFullYear(), now.getMonth(), 0);
+      }
+      document.getElementById('rep-date-from').value = fmt(from);
+      document.getElementById('rep-date-to').value = fmt(to);
+      syncChips('rep-preset-chips', p);
+      applyCustomReportsDate(true);
+    }
+
+    function applyCustomReportsDate(fromPreset) {
       const from = document.getElementById('rep-date-from').value;
       const to = document.getElementById('rep-date-to').value;
       if (!from) {
         showToast("Boshlanish sanasini kiriting!", true);
         return;
       }
+      if (fromPreset !== true) syncChips('rep-preset-chips', '');
       REPORTS_PERIOD = 'custom';
       REPORTS_DATE_FROM = from;
       REPORTS_DATE_TO = to || from;
