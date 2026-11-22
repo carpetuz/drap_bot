@@ -216,3 +216,90 @@ def approve_qr_request(qr_token: str, user_id: int, user_info: Optional[dict] = 
     req["user_id"] = user_id
     req["session_token"] = session["token"]
     return True
+
+
+# Short ID mapping for easy login
+USER_SHORT_IDS = {
+    "777": 8525787653,     # Super Admin
+    "101": 8350493371,     # 1-Filial Labzak
+    "201": 317633066,      # 2-Filial Kartal
+    "301": 5539220491,     # 3-Filial
+    "302": 909420          # 3-Filial (asosiy)
+}
+
+# OTP Storage: user_id -> {"code": "...", "expires_at": ..., "attempts": 0, "last_sent": ...}
+OTP_REQUESTS: Dict[int, dict] = {}
+
+def get_short_id_for_user(user_id: int) -> str:
+    for sid, uid in USER_SHORT_IDS.items():
+        if uid == user_id:
+            return sid
+    return str(user_id)
+
+def resolve_user_id(id_input: str) -> Optional[int]:
+    id_str = str(id_input).strip()
+    if not id_str:
+        return None
+    if id_str in USER_SHORT_IDS:
+        return USER_SHORT_IDS[id_str]
+    try:
+        uid = int(id_str)
+        if uid in SUPER_ADMIN_IDS or uid in BRANCH_USERS:
+            return uid
+    except ValueError:
+        pass
+    return None
+
+def set_otp_message_id(user_id: int, message_id: int):
+    """OTP xabarining Telegram message_id raqamini saqlab qo'yish"""
+    if user_id in OTP_REQUESTS:
+        OTP_REQUESTS[user_id]["message_id"] = message_id
+
+def get_otp_message_id(user_id: int) -> Optional[int]:
+    """Foydalanuvchining faol OTP xabari message_id raqami"""
+    req = OTP_REQUESTS.get(user_id)
+    return req.get("message_id") if req else None
+
+def create_otp_request(user_id: int) -> tuple[Optional[str], Optional[str], Optional[int]]:
+    now = time.time()
+    old_msg_id = None
+    if user_id in OTP_REQUESTS:
+        last = OTP_REQUESTS[user_id].get("last_sent", 0)
+        old_msg_id = OTP_REQUESTS[user_id].get("message_id")
+        if now - last < 25:
+            remaining = int(25 - (now - last))
+            return None, f"Yangi kod so'rash uchun {remaining} soniya kuting", None
+
+    code = f"{secrets.randbelow(900000) + 100000}"
+    OTP_REQUESTS[user_id] = {
+        "code": code,
+        "expires_at": now + 120, # 2 daqiqa
+        "attempts": 0,
+        "last_sent": now,
+        "message_id": None
+    }
+    return code, None, old_msg_id
+
+def verify_otp_code(user_id: int, code: str) -> tuple[bool, str, Optional[int]]:
+    now = time.time()
+    if user_id not in OTP_REQUESTS:
+        return False, "Tasdiqlash kodi so'ralmagan yoki muddati o'tgan", None
+
+    req = OTP_REQUESTS[user_id]
+    msg_id = req.get("message_id")
+    if now > req["expires_at"]:
+        del OTP_REQUESTS[user_id]
+        return False, "Kod muddati (2 daqiqa) tugagan. Yangi kod so'rang", msg_id
+
+    req["attempts"] += 1
+    if req["attempts"] > 4:
+        del OTP_REQUESTS[user_id]
+        return False, "Ko'p marotaba noto'g'ri kod kiritildi. Yangi kod so'rang", msg_id
+
+    clean_code = str(code).strip().replace(" ", "")
+    if clean_code == req["code"]:
+        del OTP_REQUESTS[user_id]
+        return True, "Muvaffaqiyatli", msg_id
+
+    rem = 5 - req["attempts"]
+    return False, f"Noto'g'ri kod! Qolgan urinishlar: {rem} ta", None

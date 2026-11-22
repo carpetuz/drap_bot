@@ -1,3 +1,13 @@
+
+import asyncio
+
+async def delete_after_delay(bot, chat_id: int, message_id: int, delay_seconds: int = 5):
+    """Xabarni bir necha soniyadan so'ng chatdan tozalab tashlash (interfeys toza turishi uchun)"""
+    try:
+        await asyncio.sleep(delay_seconds)
+        await bot.delete_message(chat_id=chat_id, message_id=message_id)
+    except Exception:
+        pass
 import logging
 from aiogram import Router, F
 from aiogram.filters import CommandStart, Command
@@ -6,6 +16,7 @@ from aiogram.types import (
 )
 from aiogram.fsm.context import FSMContext
 from config import SUPER_ADMIN_IDS, BRANCH_USERS, BRANCH_NAMES, WEBAPP_URL
+from web.auth import QR_REQUESTS, get_short_id_for_user
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -28,8 +39,13 @@ async def cmd_start(message: Message, state: FSMContext):
         qr_token = text_parts[1].replace("login_", "").strip()
         role, branch_id = get_user_role(user_id)
         if not role:
-            await message.answer("❌ Kechirasiz, sizga CRM tizimidan foydalanishga ruxsat berilmagan.")
+            if qr_token in QR_REQUESTS:
+                QR_REQUESTS[qr_token]["status"] = "rejected"
+            await message.answer("❌ Kechirasiz, sizning Telegram hisobingiz DRAP ERP xodimlari ro'yxatida yo'q. Tizimga kirish taqiqlangan.")
             return
+
+        # Foydalanuvchi yuborgan /start login_... xabarini 5 soniyadan so'ng tozalash
+        asyncio.create_task(delete_after_delay(message.bot, message.chat.id, message.message_id, 5))
 
         kb = InlineKeyboardMarkup(inline_keyboard=[
             [
@@ -39,7 +55,7 @@ async def cmd_start(message: Message, state: FSMContext):
         ])
         await message.answer(
             "🖥 *Kompyuterdan tizimga kirish so'rovi!*\n\n"
-            "Siz hozirgina kompyuteringizda DRAP CRM tizimiga kirish uchun QR-kodni skaner qildingiz.\n\n"
+            "Siz hozirgina kompyuteringizda DRAP ERP tizimiga kirish uchun QR-kodni skaner qildingiz.\n\n"
             "Tizimga kirishga ruxsat berasizmi?",
             parse_mode="Markdown",
             reply_markup=kb
@@ -54,19 +70,19 @@ async def cmd_start(message: Message, state: FSMContext):
 
     first_name = message.from_user.first_name or "Foydalanuvchi"
     role_label = "👑 Bosh Admin" if role == "superadmin" else f"🏢 {BRANCH_NAMES.get(branch_id, 'Filial')} xodimi"
+    short_id = get_short_id_for_user(user_id)
 
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🌐 DRAP CRM Veb-Tizimiga kirish", url=WEBAPP_URL)]
+        [InlineKeyboardButton(text="🌐 DRAP ERP Tizimiga kirish", url=WEBAPP_URL)]
     ])
 
     msg = (
         f"Assalomu alaykum, *{first_name}*!\n\n"
-        f"Sizning maqomingiz: *{role_label}*\n\n"
-        f"✨ *DRAP CRM tizimi to'liq veb-formatga o'tkazildi!*\n"
-        f"Barcha savdo amallari (Sotuv, Kirim, Ombor qoldiqlari, Filiallararo transfer, Nasiyalar, Rasxod va Kassa) "
-        f"endi to'liq veb-sayt orqali boshqariladi.\n\n"
-        f"🔗 Sayt manzili: **{WEBAPP_URL}**\n\n"
-        f"Kompyuterdan kirish uchun brauzeringizda saytni oching va ekrandagi QR kodni Telegram orqali tasdiqlang."
+        f"Sizning maqomingiz: *{role_label}*\n"
+        f"🔑 **Sizning Xodim ID:** `{short_id}` (Telegram ID: `{user_id}`)\n\n"
+        f"✨ *DRAP ERP tizimi to'liq faol!*\n"
+        f"Web saytga kirish uchun **{short_id}** raqamini kiritib, botga keladigan OTP kod orqali yoki tezkor QR kod orqali kirishingiz mumkin.\n\n"
+        f"🔗 Sayt: **{WEBAPP_URL}**"
     )
 
     # Remove any old reply keyboard and show web link
@@ -87,19 +103,22 @@ async def cb_qr_approve(callback: CallbackQuery):
     success = approve_qr_request(qr_token, user_id, user_info)
     if success:
         await callback.message.edit_text(
-            "✅ *Muvaffaqiyatli!* Kompyuteringizdagi tizimga kirdingiz.\n\nEndi brauzer orqali ishlashingiz mumkin.",
+            "✅ *Muvaffaqiyatli!* Kompyuteringizdagi tizimga kirdingiz.\n\nEndi brauzer orqali ishlashingiz mumkin.\n\n_Ushbu xabar 5 soniyadan so'ng avtomatik o'chiriladi..._",
             parse_mode="Markdown"
         )
+        asyncio.create_task(delete_after_delay(callback.bot, callback.message.chat.id, callback.message.message_id, 5))
     else:
         await callback.message.edit_text(
             "❌ Xatolik: Kirish so'rovi topilmadi yoki muddati o'tib ketgan.",
             parse_mode="Markdown"
         )
+        asyncio.create_task(delete_after_delay(callback.bot, callback.message.chat.id, callback.message.message_id, 6))
     await callback.answer()
 
 @router.callback_query(F.data.startswith("qr_reject:"))
 async def cb_qr_reject(callback: CallbackQuery):
     await callback.message.edit_text("❌ Tizimga kirish so'rovi bekor qilindi.")
+    asyncio.create_task(delete_after_delay(callback.bot, callback.message.chat.id, callback.message.message_id, 5))
     await callback.answer()
 
 # --- TRANSFERNI QABUL QILISH / RAD ETISH HANDLERLARI ---
@@ -190,3 +209,25 @@ async def all_other_messages(message: Message):
         reply_markup=kb
     )
 
+
+
+@router.message(Command("id", "myid"))
+async def cmd_myid(message: Message):
+    user_id = message.from_user.id
+    role, branch_id = get_user_role(user_id)
+    if not role:
+        await message.answer(f"❌ Siz tizim xodimi emassiz.\nSizning Telegram ID: <code>{user_id}</code>", parse_mode="HTML")
+        return
+    
+    short_id = get_short_id_for_user(user_id)
+    role_label = "👑 Bosh Admin" if role == "superadmin" else f"🏢 {BRANCH_NAMES.get(branch_id, 'Filial')} xodimi"
+    
+    await message.answer(
+        f"👤 <b>Sizning DRAP ERP ma'lumotlaringiz:</b>\n\n"
+        f"• <b>Xodim ID:</b> <code>{short_id}</code>\n"
+        f"• <b>Telegram ID:</b> <code>{user_id}</code>\n"
+        f"• <b>Vazifangiz:</b> {role_label}\n\n"
+        f"💡 <i>Web saytga (<a href='{WEBAPP_URL}'>drap.uz</a>) kirayotganda ushbu <b>{short_id}</b> raqamini kiritib, "
+        f"bir martalik OTP kod orqali kirishingiz mumkin.</i>",
+        parse_mode="HTML"
+    )

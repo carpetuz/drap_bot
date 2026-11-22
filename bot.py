@@ -44,6 +44,83 @@ async def send_weekly_backup(bot: Bot):
         except Exception as e:
             logger.error(f"Backup yuborishda xatolik ({admin_id}): {e}")
 
+async def send_daily_debt_reminders(bot: Bot):
+    logger.info("Kundalik qarz eslatmalari tekshirilmoqda...")
+    try:
+        from database.local_db import get_due_debts_for_reminders
+        from config import BRANCH_USERS, BRANCH_NAMES
+        
+        due_data = await get_due_debts_for_reminders()
+        if not due_data:
+            logger.info("Bugun to'lov muddati kelgan faol qarzlar yo'q.")
+            return
+
+        for branch_id, cat_data in due_data.items():
+            today_list = cat_data.get("today", [])
+            tomorrow_list = cat_data.get("tomorrow", [])
+            overdue_list = cat_data.get("overdue", [])
+
+            if not (today_list or tomorrow_list or overdue_list):
+                continue
+
+            branch_name = BRANCH_NAMES.get(branch_id, f"{branch_id}-Filial")
+            lines = [
+                f"🔔 *Nasiya (Qarz) to'lov muddati eslatmasi*",
+                f"🏢 *Filial:* {branch_name}\n"
+            ]
+
+            if today_list:
+                lines.append("⚠️ *Bugun to'lanishi kerak bo'lgan qarzlar:*")
+                for d in today_list:
+                    name = d.get("customer_name", "Mijoz")
+                    phone = d.get("customer_phone") or "-"
+                    amt = d.get("amount") or d.get("remaining_amount", 0)
+                    m_info = f" ({d['month_number']}-oylik to'lov)" if "month_number" in d else ""
+                    item_info = f" | {d.get('item_details', '')}" if d.get('item_details') else ""
+                    lines.append(f"• *{name}* ({phone}): *${amt:.2f}*{m_info}{item_info}")
+                lines.append("")
+
+            if tomorrow_list:
+                lines.append("⏳ *Ertaga muddati keladigan qarzlar:*")
+                for d in tomorrow_list:
+                    name = d.get("customer_name", "Mijoz")
+                    phone = d.get("customer_phone") or "-"
+                    amt = d.get("amount") or d.get("remaining_amount", 0)
+                    m_info = f" ({d['month_number']}-oylik to'lov)" if "month_number" in d else ""
+                    lines.append(f"• *{name}* ({phone}): *${amt:.2f}*{m_info}")
+                lines.append("")
+
+            if overdue_list:
+                lines.append("🚨 *Muddati o'tgan qarzlar:*")
+                for d in overdue_list[:5]:
+                    name = d.get("customer_name", "Mijoz")
+                    phone = d.get("customer_phone") or "-"
+                    amt = d.get("amount") or d.get("remaining_amount", 0)
+                    due = d.get("due_date", "-")
+                    lines.append(f"• *{name}* ({phone}): *${amt:.2f}* (Muddat: {due})")
+                if len(overdue_list) > 5:
+                    lines.append(f"  _...va yana {len(overdue_list) - 5} ta qarz_")
+                lines.append("")
+
+            msg_text = "\n".join(lines)
+
+            # Faqatgina qarz tegishli bo'lgan filial xodimlariga yuboriladi
+            branch_recipients = [uid for uid, bid in BRANCH_USERS.items() if bid == branch_id]
+            for uid in branch_recipients:
+                try:
+                    await bot.send_message(chat_id=uid, text=msg_text, parse_mode="Markdown")
+                    logger.info(f"Qarz eslatmasi filial {branch_id} xodimi {uid} ga yuborildi.")
+                except Exception as e:
+                    logger.error(f"Xodimga ({uid}) eslatma yuborishda xatolik: {e}")
+
+            # Kelajakda mijozning o'ziga ham telegram bot/sms ko'rinishida eslatma yuborish hook-i:
+            # for d in today_list:
+            #     if d.get("customer_telegram_id"):
+            #         # await send_customer_reminder(bot, d["customer_telegram_id"], d)
+            #         pass
+    except Exception as e:
+        logger.error(f"Kundalik qarz eslatmalarida xatolik: {e}")
+
 async def main():
     if not BOT_TOKEN:
         logger.error("BOT_TOKEN ko'rsatilmagan! .env faylini tekshiring.")
@@ -70,10 +147,18 @@ async def main():
         minute=59,
         args=[bot]
     )
+    # 5. Kundalik qarz eslatmalari (Har kuni 09:00 da filial xodimlariga)
+    scheduler.add_job(
+        send_daily_debt_reminders,
+        trigger="cron",
+        hour=9,
+        minute=0,
+        args=[bot]
+    )
     scheduler.start()
-    logger.info("Haftalik backup scheduler (Yakshanba 23:59) faol!")
+    logger.info("Haftalik backup va kundalik qarz eslatmalari scheduler faol!")
 
-    # 5. DRAP CRM Ghost-style Web Server (8080-port)
+    # 5. DRAP ERP Ghost-style Web Server (8080-port)
     await start_web_server(bot)
 
     logger.info("Bot polling rejimida ishga tushmoqda...")

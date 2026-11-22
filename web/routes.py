@@ -1,5 +1,6 @@
 import json
 import logging
+from datetime import datetime
 from aiohttp import web
 from config import (
     BRANCH_NAMES, BRANCH_USERS, SUPER_ADMIN_IDS,
@@ -9,7 +10,8 @@ from config import (
 from database import local_db
 from web.auth import (
     verify_telegram_webapp_data, create_session, get_session, delete_session,
-    create_qr_request, QR_REQUESTS
+    create_qr_request, QR_REQUESTS,
+    resolve_user_id, create_otp_request, verify_otp_code, get_short_id_for_user, get_user_role_and_branch
 )
 
 logger = logging.getLogger(__name__)
@@ -97,7 +99,119 @@ async def api_auth_qr_check(request: web.Request):
         })
         resp.set_cookie("crm_session", req["session_token"], max_age=86400*30, path="/", httponly=False, samesite="Lax")
         return resp
+    elif req["status"] == "rejected":
+        return json_response({
+            "status": "rejected",
+            "error": "❌ Ruxsat berilmagan Telegram hisob! Ushbu hisob xodimlar ro'yxatida yo'q."
+        }, status=403)
     return json_response({"status": req["status"]})
+
+async def api_auth_otp_send(request: web.Request):
+    """Foydalanuvchi ID raqami bo'yicha Telegram botga 6 xonali OTP yuborish"""
+    try:
+        body = await request.json()
+        id_input = str(body.get("id", "")).strip()
+        if not id_input:
+            return json_response({"error": "ID raqamingizni kiriting"}, status=400)
+
+        user_id = resolve_user_id(id_input)
+        if not user_id:
+            return json_response({"error": "Bunday ID tizimda mavjud emas yoki ruxsat berilmagan"}, status=403)
+
+        role, branch_id = get_user_role_and_branch(user_id)
+        if not role:
+            return json_response({"error": "Ushbu foydalanuvchiga tizimdan foydalanishga ruxsat berilmagan"}, status=403)
+
+        code, err, old_msg_id = create_otp_request(user_id)
+        if err:
+            return json_response({"error": err}, status=429)
+
+        bot = request.app.get("bot")
+        if not bot:
+            return json_response({"error": "Telegram bot servisi ulanmagan"}, status=500)
+
+        # Oldingi ishlatilmagan OTP xabari bo'lsa, chat toza turishi uchun uni o'chirib yuboramiz
+        if old_msg_id:
+            try:
+                await bot.delete_message(chat_id=user_id, message_id=old_msg_id)
+            except Exception:
+                pass
+
+        branch_label = "Bosh Admin" if role == "superadmin" else f"{BRANCH_NAMES.get(branch_id, 'Filial')}"
+        msg_text = (
+            f"🔐 <b>DRAP ERP — Kirish kodi (OTP)</b>\n\n"
+            f"Hurmatli xodim ({branch_label}), sizning bir martalik kirish kodingiz:\n\n"
+            f"👉 <code>{code}</code>\n\n"
+            f"⏱ Amal qilish muddati: <b>2 daqiqa</b>.\n"
+            f"⚠️ Ushbu kodni hech kimga bermang!"
+        )
+
+        try:
+            sent_msg = await bot.send_message(chat_id=user_id, text=msg_text, parse_mode="HTML")
+            set_otp_message_id(user_id, sent_msg.message_id)
+        except Exception as e:
+            logger.error(f"OTP yuborishda bot xatosi (user_id={user_id}): {e}")
+            return json_response({
+                "error": "Telegram bot orqali kod yuborib bo'lmadi. Avval Telegramda @drapgilambot ga kirib /start bosing."
+            }, status=400)
+
+        short_id = get_short_id_for_user(user_id)
+        # Telegram ID mask, e.g. ***8653
+        str_uid = str(user_id)
+        masked_id = f"***{str_uid[-4:]}" if len(str_uid) >= 4 else str_uid
+        return json_response({
+            "success": True,
+            "message": "Kod Telegram botingizga yuborildi",
+            "masked_id": masked_id,
+            "short_id": short_id,
+            "branch_name": branch_label
+        })
+    except Exception as e:
+        logger.error(f"api_auth_otp_send xatolik: {e}")
+        return json_response({"error": str(e)}, status=500)
+
+async def api_auth_otp_verify(request: web.Request):
+    """OTP kodini tekshirib tizimga kiritish"""
+    try:
+        body = await request.json()
+        id_input = str(body.get("id", "")).strip()
+        code = str(body.get("code", "")).strip()
+
+        if not id_input or not code:
+            return json_response({"error": "ID va tasdiqlash kodi talab qilinadi"}, status=400)
+
+        user_id = resolve_user_id(id_input)
+        if not user_id:
+            return json_response({"error": "Bunday ID tizimda mavjud emas"}, status=403)
+
+        success, msg, otp_msg_id = verify_otp_code(user_id, code)
+        if not success:
+            return json_response({"error": msg}, status=400)
+
+        # OTP muvaffaqiyatli tasdiqlandi -> Telegram chatdan OTP xabarini darhol o'chirib yuboramiz
+        if otp_msg_id:
+            try:
+                bot = request.app.get("bot")
+                if bot:
+                    await bot.delete_message(chat_id=user_id, message_id=otp_msg_id)
+            except Exception as del_err:
+                logger.debug(f"OTP xabarini o'chirishda xatolik: {del_err}")
+
+        session = create_session(user_id)
+        if not session:
+            return json_response({"error": "Sessiya yaratib bo'lmadi"}, status=403)
+
+        resp = json_response({
+            "success": True,
+            "token": session["token"],
+            "user": session,
+            "branch_names": BRANCH_NAMES
+        })
+        resp.set_cookie("crm_session", session["token"], max_age=86400*30, path="/", httponly=False, samesite="Lax")
+        return resp
+    except Exception as e:
+        logger.error(f"api_auth_otp_verify xatolik: {e}")
+        return json_response({"error": str(e)}, status=500)
 
 @auth_required
 async def api_auth_me(request: web.Request):
@@ -234,9 +348,13 @@ async def api_add_roll(request: web.Request):
         elif product_type == "kavralan":
             length = float(body.get("length", 0))
             price_per_m2 = float(body.get("price_per_m2", 30.0))
-            if length <= 0 or price_per_m2 <= 0:
+            cost_price_per_m2 = float(body.get("cost_price_per_m2", price_per_m2))
+            width = float(body.get("width", 4.0))
+            model = str(body.get("model", "")).strip()
+            color = str(body.get("color", "")).strip()
+            if length <= 0 or price_per_m2 <= 0 or cost_price_per_m2 <= 0 or width <= 0:
                 return json_response({"error": "Noto'g'ri o'lcham yoki narx kiritildi"}, status=400)
-            res = await local_db.add_kavralan_roll(length, branch_id, price_per_m2)
+            res = await local_db.add_kavralan_roll(length, branch_id, price_per_m2, cost_price_per_m2=cost_price_per_m2, model=model, color=color, width=width)
             return json_response({"success": True, "item": res})
         elif product_type == "leather":
             color = str(body.get("color", "")).strip()
@@ -267,6 +385,8 @@ async def api_make_sale(request: web.Request):
     is_debt = bool(body.get("is_debt", False))
     customer_name = str(body.get("customer_name", "")).strip()
     customer_phone = str(body.get("customer_phone", "")).strip()
+    due_date = str(body.get("due_date", "")).strip() or None
+    customer_telegram_id = body.get("customer_telegram_id")
     initial_paid = float(body.get("initial_paid", 0.0))
     if initial_paid < 0:
         return json_response({"error": "Boshlang'ich to'lov manfiy bo'lishi mumkin emas"}, status=400)
@@ -287,7 +407,9 @@ async def api_make_sale(request: web.Request):
                 is_debt=is_debt,
                 customer_name=customer_name,
                 customer_phone=customer_phone,
-                initial_paid=initial_paid
+                initial_paid=initial_paid,
+                due_date=due_date,
+                customer_telegram_id=customer_telegram_id
             )
             return json_response({"success": True, "sale": res})
 
@@ -306,7 +428,9 @@ async def api_make_sale(request: web.Request):
                 is_debt=is_debt,
                 customer_name=customer_name,
                 customer_phone=customer_phone,
-                initial_paid=initial_paid
+                initial_paid=initial_paid,
+                due_date=due_date,
+                customer_telegram_id=customer_telegram_id
             )
             return json_response({"success": True, "sale": res})
         elif product_type == "kavralan":
@@ -324,7 +448,9 @@ async def api_make_sale(request: web.Request):
                 is_debt=is_debt,
                 customer_name=customer_name,
                 customer_phone=customer_phone,
-                initial_paid=initial_paid
+                initial_paid=initial_paid,
+                due_date=due_date,
+                customer_telegram_id=customer_telegram_id
             )
             return json_response({"success": True, "sale": res})
         elif product_type == "leather":
@@ -342,7 +468,9 @@ async def api_make_sale(request: web.Request):
                 is_debt=is_debt,
                 customer_name=customer_name,
                 customer_phone=customer_phone,
-                initial_paid=initial_paid
+                initial_paid=initial_paid,
+                due_date=due_date,
+                customer_telegram_id=customer_telegram_id
             )
             return json_response({"success": True, "sale": res})
         else:
@@ -363,16 +491,18 @@ async def api_get_profit_loss(request: web.Request):
     else:
         branch_id = user["branch_id"]
         
-    period = request.query.get("period", "today")
+    period = request.query.get("period", "current_month")
     date_from = request.query.get("date_from")
     date_to = request.query.get("date_to")
+    category = request.query.get("category", "all")
     
     try:
         report = await local_db.get_profit_loss_report(
             branch_id=branch_id,
             period=period,
             date_from=date_from,
-            date_to=date_to
+            date_to=date_to,
+            category=category
         )
         return json_response(report)
     except Exception as e:
@@ -439,11 +569,119 @@ async def api_pay_debt(request: web.Request):
     if debt_id <= 0 or amount <= 0:
         return json_response({"error": "To'lov summasi musbat bo'lishi kerak"}, status=400)
     note = body.get("note", "")
+    payment_method = str(body.get("payment_method", "cash")).strip()
+    installment_id = body.get("installment_id")
+    if installment_id:
+        try:
+            installment_id = int(installment_id)
+        except ValueError:
+            installment_id = None
     
     try:
-        res = await local_db.pay_debt(debt_id=debt_id, payment_amount=amount, branch_id=branch_id, note=note)
+        res = await local_db.pay_debt(
+            debt_id=debt_id, 
+            payment_amount=amount, 
+            branch_id=branch_id, 
+            note=note,
+            payment_method=payment_method,
+            installment_id=installment_id
+        )
         return json_response({"success": True, "result": res})
     except Exception as e:
+        return json_response({"error": str(e)}, status=400)
+
+@auth_required
+async def api_get_debt_details(request: web.Request):
+    user = request["user"]
+    debt_id_raw = request.match_info.get("id") or request.query.get("id", "0")
+    try:
+        debt_id = int(debt_id_raw)
+    except ValueError:
+        return json_response({"error": "Noto'g'ri qarz ID-si"}, status=400)
+        
+    if debt_id <= 0:
+        return json_response({"error": "Noto'g'ri qarz ID-si"}, status=400)
+    try:
+        details = await local_db.get_debt_full_details(debt_id)
+        if user["role"] != "superadmin":
+            user_branch = user["branch_id"]
+            if details["branch_id"] != user_branch:
+                return json_response({"error": "Ushbu qarz boshqa filialga tegishli"}, status=403)
+        return json_response({"success": True, "debt": details})
+    except Exception as e:
+        return json_response({"error": str(e)}, status=400)
+
+@auth_required
+async def api_setup_debt_installments(request: web.Request):
+    debt_id_raw = request.match_info.get("id") or request.query.get("id", "0")
+    try:
+        debt_id = int(debt_id_raw)
+    except ValueError:
+        return json_response({"error": "Noto'g'ri qarz ID-si"}, status=400)
+        
+    body = await request.json()
+    months = int(body.get("months", 3))
+    start_date = body.get("start_date")
+    try:
+        insts = await local_db.setup_debt_installments(debt_id, months, start_date)
+        return json_response({"success": True, "installments": insts})
+    except Exception as e:
+        return json_response({"error": str(e)}, status=400)
+
+@auth_required
+async def api_cancel_debt_installments(request: web.Request):
+    debt_id_raw = request.match_info.get("id") or request.query.get("id", "0")
+    try:
+        debt_id = int(debt_id_raw)
+    except ValueError:
+        return json_response({"error": "Noto'g'ri qarz ID-si"}, status=400)
+    try:
+        await local_db.cancel_debt_installments(debt_id)
+        return json_response({"success": True})
+    except Exception as e:
+        return json_response({"error": str(e)}, status=400)
+
+@auth_required
+async def api_edit_debt(request: web.Request):
+    user = request["user"]
+    branch_id = None if user["role"] == "superadmin" else user["branch_id"]
+    
+    debt_id_raw = request.match_info.get("id")
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+        
+    debt_id = int(debt_id_raw) if debt_id_raw else int(body.get("debt_id", 0))
+    
+    try:
+        new_total_amount = float(str(body.get("new_total_amount", 0)).replace(",", "."))
+    except (ValueError, TypeError):
+        return json_response({"error": "Yangi qarz summasi noto'g'ri kiritildi"}, status=400)
+        
+    if debt_id <= 0:
+        return json_response({"error": "Noto'g'ri qarz ID-si"}, status=400)
+    if new_total_amount <= 0:
+        return json_response({"error": "Qarz summasi 0 dan katta bo'lishi kerak"}, status=400)
+        
+    customer_name = body.get("customer_name")
+    customer_phone = body.get("customer_phone")
+    due_date = body.get("due_date")
+    note = body.get("note", "")
+    
+    try:
+        res = await local_db.edit_debt(
+            debt_id=debt_id,
+            new_total_amount=new_total_amount,
+            branch_id=branch_id,
+            customer_name=customer_name,
+            customer_phone=customer_phone,
+            due_date=due_date,
+            note=note
+        )
+        return json_response(res)
+    except Exception as e:
+        logger.error(f"Qarzni tahrirlashda xatolik: {e}")
         return json_response({"error": str(e)}, status=400)
 
 # --- TRANSFER VA RASXOD (XARAJAT) APIS ---
@@ -693,7 +931,11 @@ async def api_edit_kavralan(request: web.Request):
 
     current_length = float(body["current_length"])
     price_per_m2 = float(body.get("price_per_m2", 30.0))
-    res = await local_db.update_kavralan_roll(roll_id, current_length, price_per_m2)
+    cost_price_per_m2 = float(body.get("cost_price_per_m2", kav.get("cost_price_per_m2", 30.0)))
+    width = float(body.get("width", kav.get("width", 4.0)))
+    model = str(body.get("model", kav.get("model", ""))).strip()
+    color = str(body.get("color", kav.get("color", ""))).strip()
+    res = await local_db.update_kavralan_roll(roll_id, current_length, price_per_m2, cost_price_per_m2=cost_price_per_m2, width=width, model=model, color=color)
     return json_response(res)
 
 @auth_required
@@ -744,3 +986,195 @@ async def api_add_expense(request: web.Request):
     except Exception as e:
         return json_response({"error": str(e)}, status=400)
 
+# ==================== KARTAL KASSA (HISOBOTI) ROUTES ====================
+
+@auth_required
+async def api_get_kartal_cashbox(request: web.Request):
+    branch_id = 2
+    month = request.query.get("month", datetime.now().strftime("%Y-%m"))
+    summary = await local_db.get_kartal_summary(branch_id=branch_id, month=month)
+    transactions = await local_db.get_kartal_transactions(branch_id=branch_id, status="active", month=month, limit=500)
+    return json_response({
+        "summary": summary,
+        "transactions": transactions
+    })
+
+@auth_required
+async def api_add_kartal_transaction(request: web.Request):
+    body = await request.json()
+    op_type = str(body.get("operation_type", "INCOME")).upper().strip()
+    category = str(body.get("category", "")).strip()
+    amount = float(body.get("amount", 0))
+    note = str(body.get("note", "")).strip()
+
+    if amount <= 0:
+        return json_response({"error": "Summa musbat bo'lishi kerak"}, status=400)
+    if not category:
+        return json_response({"error": "Kategoriya tanlanishi shart"}, status=400)
+
+    res = await local_db.add_kartal_transaction(
+        operation_type=op_type,
+        category=category,
+        amount=amount,
+        note=note,
+        branch_id=2
+    )
+    summary = await local_db.get_kartal_summary(branch_id=2)
+    return json_response({"success": True, "transaction": res, "summary": summary})
+
+@auth_required
+async def api_update_kartal_transaction(request: web.Request):
+    trans_id = int(request.match_info.get("id", 0))
+    if trans_id <= 0:
+        return json_response({"error": "Amal ID noto'g'ri"}, status=400)
+    body = await request.json()
+    category = str(body.get("category", "")).strip()
+    amount = float(body.get("amount", 0))
+    note = str(body.get("note", "")).strip()
+
+    if amount <= 0:
+        return json_response({"error": "Summa musbat bo'lishi kerak"}, status=400)
+    if not category:
+        return json_response({"error": "Kategoriya tanlanishi shart"}, status=400)
+
+    await local_db.update_kartal_transaction(trans_id=trans_id, category=category, amount=amount, note=note)
+    summary = await local_db.get_kartal_summary(branch_id=2)
+    return json_response({"success": True, "summary": summary})
+
+@auth_required
+async def api_delete_kartal_transaction(request: web.Request):
+    trans_id = int(request.match_info.get("id", 0))
+    if trans_id <= 0:
+        return json_response({"error": "Amal ID noto'g'ri"}, status=400)
+
+    await local_db.delete_kartal_transaction(trans_id=trans_id)
+    summary = await local_db.get_kartal_summary(branch_id=2)
+    return json_response({"success": True, "summary": summary})
+
+@auth_required
+async def api_get_kartal_lichniy(request: web.Request):
+    status = request.query.get("status", "active")
+    if status not in ["active", "deleted"]:
+        status = "active"
+    transactions = await local_db.get_kartal_lichniy_transactions(branch_id=2, status=status)
+    return json_response({"transactions": transactions})
+
+
+
+@auth_required
+
+@auth_required
+async def api_edit_sale(request: web.Request):
+    user = request["user"]
+    body = await request.json()
+    sale_id = int(body.get("sale_id", 0))
+    category = str(body.get("category", "")).strip()
+    try:
+        new_length = float(str(body.get("new_length", 0)).replace(",", "."))
+        new_total_price = float(str(body.get("new_total_price", 0)).replace(",", "."))
+    except Exception:
+        return json_response({"error": "Uzunlik yoki summa noto'g'ri formatda"}, status=400)
+    
+    if sale_id <= 0 or not category or new_length <= 0 or new_total_price <= 0:
+        return json_response({"error": "Sotuv ID, uzunlik yoki summa noto'g'ri kiritildi"}, status=400)
+        
+    branch_id = None if user["role"] == "superadmin" else user["branch_id"]
+    try:
+        res = await local_db.edit_sale(sale_id, category, new_length, new_total_price, branch_id)
+        return json_response(res)
+    except Exception as e:
+        logger.error(f"Sotuvni tahrirlashda xatolik: {e}")
+        return json_response({"error": str(e)}, status=400)
+
+
+async def api_delete_sale(request: web.Request):
+    user = request["user"]
+    body = await request.json()
+    sale_id = int(body.get("sale_id", 0))
+    category = str(body.get("category", "")).strip()
+    
+    if sale_id <= 0 or not category:
+        return json_response({"error": "Sotuv ID yoki toifa noto'g'ri"}, status=400)
+        
+    branch_id = None if user["role"] == "superadmin" else user["branch_id"]
+    try:
+        res = await local_db.delete_sale(sale_id, category, branch_id)
+        return json_response(res)
+    except Exception as e:
+        logger.error(f"Sotuvni o'chirishda xatolik: {e}")
+        return json_response({"error": str(e)}, status=400)
+
+
+# ==================== NOTES / BLOKNOT (IPHONE NOTES USLUBIDA) ====================
+
+@auth_required
+async def api_get_notes(request: web.Request):
+    user = request["user"]
+    # Har doim joriy aktiv filial uchun eslatmalar qaytariladi
+    branch_id = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
+    branch_id_param = request.query.get("branch_id")
+    if branch_id_param is not None and branch_id_param != "":
+        try:
+            branch_id = int(branch_id_param)
+        except Exception:
+            pass
+    notes = await local_db.get_notes(branch_id=branch_id)
+    return json_response({"notes": notes, "branch_id": branch_id})
+
+@auth_required
+async def api_save_note(request: web.Request):
+    user = request["user"]
+    body = await request.json()
+    note_id = body.get("id")
+    if note_id:
+        try:
+            note_id = int(note_id)
+        except Exception:
+            note_id = None
+            
+    title = str(body.get("title", "")).strip()
+    content = str(body.get("content", "")).strip()
+    is_pinned = 1 if body.get("is_pinned") else 0
+    color = str(body.get("color", "yellow")).strip()
+    
+    # Eslatma har doim joriy aktiv filialga biriktiriladi
+    branch_id = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
+        
+    if not title and not content:
+        return json_response({"error": "Eslatma matni yoki sarlavhasini kiriting"}, status=400)
+        
+    if not title:
+        # iPhone Notes behavior: first line becomes title
+        lines = [l.strip() for l in content.split('\n') if l.strip()]
+        title = lines[0][:50] if lines else "Nomsiz eslatma"
+        
+    author_name = user.get("first_name") or user.get("username") or f"Xodim #{user.get('user_id', '')}"
+    user_id = user.get("user_id")
+
+    saved = await local_db.save_note(
+        note_id=note_id,
+        branch_id=branch_id,
+        user_id=user_id,
+        author_name=author_name,
+        title=title,
+        content=content,
+        is_pinned=is_pinned,
+        color=color
+    )
+    return json_response({"success": True, "note": saved})
+
+@auth_required
+async def api_delete_note(request: web.Request):
+    note_id = int(request.match_info.get("id", 0))
+    if not note_id:
+        return json_response({"error": "Eslatma ID ko'rsatilmadi"}, status=400)
+    await local_db.delete_note(note_id)
+    return json_response({"success": True})
+
+@auth_required
+async def api_toggle_pin_note(request: web.Request):
+    note_id = int(request.match_info.get("id", 0))
+    if not note_id:
+        return json_response({"error": "Eslatma ID ko'rsatilmadi"}, status=400)
+    new_pinned = await local_db.toggle_pin_note(note_id)
+    return json_response({"success": True, "is_pinned": new_pinned})
