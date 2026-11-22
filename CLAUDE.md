@@ -100,6 +100,24 @@ D:\drap_bot/
 * **Batafsil / Texnik eslatmalar**: (Antigravity yoki boshqa dasturchi bilishi zarur bo'lgan texnik jihatlar)
 ```
 
+### [2026-11-22] - Sotuv bo'limi yangi oqimga o'tkazildi (telefon va kompyuter uchun qulay)
+* **O'zgartirilgan fayllar**: `web/static/index.html` (branch: `feat/sotuv-ux`, asosi — `fix/prod-cashbox-sales-critical`)
+* **Qo'shilgan yangi funksiyalar / modullar**:
+  - Oqim: **1 · Mahsulot → 2 · Miqdor → 3 · Narx → Chek**, uchala toifada bir xil. Asosiy tugma — «Chekka qo'shish · $X», sotish — chekdagi «Sotish · N ta · $Y».
+  - Gilam: `renderSaleRollCards()` — en filtri tugmalari (`SALE_WIDTH_FILTER`) va rang kartochkalari (qolgan metr, «kam» < 5 m, transferdagi metr). `pickSaleRollCard(id)` eski `selectSaleRoll()` ni chaqiradi. Eski qidiruv maydoni «Qidirish» tugmasi ortida (`toggleSaleRollSearch()`).
+  - Miqdor: `setSaleLength()`, «Butun rulon» (`setSaleLengthWholeRoll()`), `updateCarpetLengthHint()` (maydon, qoldiq, «Rulonda faqat X m bor»); teri uchun `stepLeatherQty(±1)`, kavralan uchun `setKavralanLength()`.
+  - Narx: standart narx avtomatik; «Kelishilgan summa» (`toggleSaleCustomPrice()`) narx/summa maydonlarini ochadi, yopilganda narx standartga qaytariladi.
+  - Chek (`#sale-cheque`): `renderSaleCart()` endi jadval o'rniga kartochka qatorlar chizadi; Naqd/Nasiya segment tugmalari; nasiya muddati uchun `setDebtDueInDays(7/14/30)` + `markDueChips()`.
+  - Telefon: pastda `#sale-cheque-bar` (chekda mahsulot bo'lsa), bosilganda chek pastdan ochiladi (`openSaleCheque()` / `closeSaleCheque()`).
+  - Klaviatura: `onSaleFormKeydown()` — Enter chekka qo'shadi, Ctrl/Cmd+Enter sotadi (avval Enter sotuvni darhol yuborardi).
+* **O'zgarish sababi va maqsadi (Why)**: Biznes egasi Sotuv bo'limidagi tugmalar va ketma-ketlik noqulay ekanini aytdi: «Chekka qo'shish» va «Sotuvni tasdiqlash» farqi tushunarsiz edi, uchta bog'langan narx maydoni chalkashtirardi, telefonda tasdiqlash tugmasi eng pastda edi. Namuna: Design kanvasidagi «Sotuv — yangi oqim» artboardlari.
+* **Batafsil / Texnik eslatmalar**:
+  - Barcha eski ID va funksiyalar saqlangan (`submitUnifiedSale`, `addCurrentItemToCart`, `calc*SaleBy*`, `sale-roll-select`, `sale_pay_type`, `debt-*`), backend tegilmagan.
+  - Chek kartasi `<form id="sale-form">` dan tashqarida: tasdiqlash tugmasi `form="sale-form"`, to'lov/nasiya maydonlari ham `form="sale-form"` bilan bog'langan, shuning uchun `form.reset()` ularni ham tozalaydi. Sotuvdan keyin nasiya maydonlari yashiriladi (avval reset'dan keyin ochiq qolib ketardi).
+  - Gilam uzunligi `type="text" inputmode="decimal"` — vergul («2,5») ishlaydi (hisob-kitob allaqachon `replace(',', '.')` qiladi).
+  - Tungi rejim: aktiv toifa tugmasi va kavralan skidka paneli uchun alohida qoidalar (skidka paneli avval tungi rejimda o'qilmasdi).
+  - Tekshiruv: soxta API'li lokal server (namuna rulonlar) orqali — gilam/teri/kavralan chekka qo'shish, kelishilgan summa, ortiqcha uzunlik ogohlantirishi, Enter/Ctrl+Enter, bitta mahsulotni cheksiz sotish, nasiya (2 hafta) bilan chekni yuborish — serverga ketgan so'rov tekshirildi; 1280px, 375px telefon (chek paneli va pastdan ochiladigan chek), kunduzgi/tungi rejim. Haqiqiy server va Telegram ichida sinalmagan.
+
 ### [2026-11-22] - Kritik xatolar production kodiga ko'chirildi: 3-filial sotuvi, teri kirimi, chekda kassalar aralashishi, manfiy qoldiq
 * **O'zgartirilgan fayllar**: `web/routes.py`, `database/local_db.py`, `web/static/index.html` (branch: `fix/prod-cashbox-sales-critical`, asosi — `feat/portal-style-prod`)
 * **Qo'shilgan yangi funksiyalar / modullar**:

@@ -592,6 +592,64 @@
     html.dark .login-theme-btn .i-sun { display: block; }
     html.dark .login-theme-btn .i-moon { display: none; }
 
+    /* ==================== SOTUV: YANGI OQIM (1 · Mahsulot → 2 · Miqdor → 3 · Narx → Chek) ==================== */
+    .sale-step { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; font-weight: 600; color: var(--p-ink); }
+    .sale-step > span { width: 24px; height: 24px; flex: none; border-radius: 999px; background: #14151a; color: #fff; font-size: 12px; display: inline-flex; align-items: center; justify-content: center; }
+    html.dark .sale-step { color: #f3f4f6; }
+    html.dark .sale-step > span { background: #f4f5fa; color: #14151a; }
+
+    .sale-chip { min-height: 38px; padding: 0 14px; border: 1px solid #e4e4ec; border-radius: 999px; background: #fff; color: #2b2e38; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; transition: background-color .15s, border-color .15s, color .15s; cursor: pointer; }
+    .sale-chip:hover { border-color: #c9cbd6; }
+    .sale-chip.is-active { background: #14151a; border-color: #14151a; color: #fff; font-weight: 600; }
+    .sale-chip:disabled { opacity: .45; cursor: not-allowed; }
+    html.dark .sale-chip { background: #171821; border-color: #2a2d3a; color: #d4d6e0; }
+    html.dark .sale-chip.is-active { background: #f4f5fa; border-color: #f4f5fa; color: #14151a; }
+
+    .roll-card { position: relative; display: flex; align-items: center; gap: 10px; min-height: 58px; padding: 10px 12px; border: 1px solid #e4e4ec; border-radius: 16px; background: #fff; text-align: left; cursor: pointer; transition: border-color .15s, background-color .15s; }
+    .roll-card:hover { border-color: #c9cbd6; }
+    .roll-card.is-selected { border: 2px solid #3b6ff5; padding: 9px 11px; background: #f4f6ff; }
+    .roll-card .swatch { flex: none; width: 24px; height: 24px; border-radius: 999px; box-shadow: inset 0 0 0 1px rgba(0,0,0,.14); }
+    .roll-card .rc-name { display: block; font-size: 14px; font-weight: 600; color: var(--p-ink); }
+    .roll-card .rc-sub { display: block; font-size: 12px; color: #5b5f6b; }
+    .roll-card .rc-sub.low { color: #a34a06; font-weight: 500; }
+    .roll-card .rc-check { position: absolute; top: 7px; right: 7px; width: 18px; height: 18px; border-radius: 999px; background: #3b6ff5; color: #fff; display: flex; align-items: center; justify-content: center; }
+    html.dark .roll-card { background: #171821; border-color: #2a2d3a; }
+    html.dark .roll-card.is-selected { background: rgba(59,111,245,.16); border-color: #6b8cff; }
+    html.dark .roll-card .rc-name { color: #f3f4f6; }
+    html.dark .roll-card .rc-sub { color: #9ca3af; }
+    html.dark .roll-card .rc-sub.low { color: #fbbf24; }
+
+    .sale-seg { display: flex; gap: 4px; padding: 4px; border-radius: 16px; background: #f1f1f5; }
+    .sale-seg label { position: relative; flex: 1; }
+    .sale-seg input { position: absolute; opacity: 0; pointer-events: none; }
+    .sale-seg span { min-height: 44px; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; font-size: 14px; font-weight: 500; color: #4b4f5c; cursor: pointer; transition: background-color .15s, color .15s; }
+    .sale-seg input:checked + span { background: #fff; color: var(--p-ink); font-weight: 600; box-shadow: 0 4px 12px -6px rgba(28,30,110,.4); }
+    .sale-seg input:focus-visible + span { outline: 2px solid #3b6ff5; outline-offset: 2px; }
+    html.dark .sale-seg { background: #181922; }
+    html.dark .sale-seg span { color: #9ca3af; }
+    html.dark .sale-seg input:checked + span { background: #262938; color: #fff; box-shadow: none; }
+
+    html.dark #sale-product-tabs button.bg-white { background-color: #262938 !important; color: #fff !important; }
+    /* Skidka paneli: JS och fon (amber-50/emerald-50) qo'yadi — tungi rejimda matn o'qilishi uchun to'q fon */
+    html.dark #sale-kavralan-discount-box { background-color: #1b1c26 !important; }
+
+    .cart-row { display: flex; align-items: center; gap: 10px; padding: 9px 4px 9px 10px; border-radius: 16px; background: #f6f6f9; }
+    .cart-row .cr-ic { flex: none; width: 34px; height: 34px; border-radius: 999px; display: flex; align-items: center; justify-content: center; color: #fff; }
+    .cart-row .cr-name { display: block; font-size: 14px; font-weight: 600; color: var(--p-ink); }
+    .cart-row .cr-sub { display: block; font-size: 12px; color: #5b5f6b; }
+    .cart-row .cr-sum { font-size: 14px; font-weight: 600; color: var(--p-ink); white-space: nowrap; }
+    html.dark .cart-row { background: #181922; }
+    html.dark .cart-row .cr-name, html.dark .cart-row .cr-sum { color: #f3f4f6; }
+    html.dark .cart-row .cr-sub { color: #9ca3af; }
+
+    /* Telefonda chek pastdan ochiladigan panel bo'ladi; kompyuterda oddiy yon karta */
+    @media (max-width: 767px) {
+      #sale-cheque { position: fixed; inset: 0; z-index: 70; display: none; }
+      #sale-cheque.open { display: block; }
+      #sale-cheque .sale-cheque-backdrop { position: absolute; inset: 0; background: rgba(10,12,30,.5); }
+      #sale-cheque .sale-cheque-panel { position: absolute; left: 0; right: 0; bottom: 0; max-height: 88vh; overflow-y: auto; border-radius: 28px 28px 0 0 !important; border-bottom: 0; padding-bottom: max(20px, env(safe-area-inset-bottom, 0px)); }
+    }
+
   </style>
 </head>
 <body class="h-full flex flex-col font-sans selection:bg-neutral-200 selection:text-black">
@@ -1188,16 +1246,19 @@
         </section>
 
         <!-- TAB: SOTUV -->
-        <section id="view-sale" class="hidden space-y-6">
-          <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-sm max-w-xl">
+        <section id="view-sale" class="hidden pb-20 md:pb-0">
+          <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px] items-start">
+
+          <!-- ===== CHAP: MAHSULOT QO'SHISH (1 · Mahsulot → 2 · Miqdor → 3 · Narx) ===== -->
+          <div class="bg-white border border-ghostBorder rounded-2xl p-5 sm:p-6 shadow-sm min-w-0">
             <h2 id="sale-title" class="text-base font-semibold text-neutral-900">Sotuv qilish</h2>
-            <p class="text-xs text-ghostMuted mb-5">Mahsulotni tanlang va sotuvni amalga oshiring</p>
+            <p class="text-xs text-ghostMuted mb-5">Mahsulotni tanlang, chekka qo'shing va soting</p>
 
             <!-- Product Category Tabs (visible in 1-Filial) -->
-            <div id="sale-product-tabs" class="inline-flex p-1 bg-neutral-100 rounded-xl text-xs font-medium mb-5">
-              <button type="button" onclick="setSaleProduct('carpet')" id="sale-tab-carpet" class="px-3 py-1.5 rounded-lg bg-white shadow-xs text-neutral-900 font-semibold transition">🌀 Rezinka Gilam</button>
-              <button type="button" onclick="setSaleProduct('leather')" id="sale-tab-leather" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition">🐑 Teri</button>
-              <button type="button" onclick="setSaleProduct('kavralan')" id="sale-tab-kavralan" class="px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition">🧶 Asl Kavralan</button>
+            <div id="sale-product-tabs" class="flex w-full gap-1 p-1 bg-neutral-100 rounded-2xl text-sm mb-5">
+              <button type="button" onclick="setSaleProduct('carpet')" id="sale-tab-carpet" class="flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-xl bg-white shadow-sm text-neutral-900 font-semibold transition"><span class="w-2.5 h-2.5 rounded-full" style="background:#3b6ff5"></span><span class="sm:hidden">Gilam</span><span class="hidden sm:inline">Rezinka gilam</span></button>
+              <button type="button" onclick="setSaleProduct('leather')" id="sale-tab-leather" class="flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-xl text-neutral-600 hover:text-neutral-900 transition"><span class="w-2.5 h-2.5 rounded-full" style="background:#f08a24"></span>Teri</button>
+              <button type="button" onclick="setSaleProduct('kavralan')" id="sale-tab-kavralan" class="flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-xl text-neutral-600 hover:text-neutral-900 transition"><span class="w-2.5 h-2.5 rounded-full" style="background:#8b5cf6"></span><span class="sm:hidden">Kavralan</span><span class="hidden sm:inline">Asl kavralan</span></button>
             </div>
 
             <!-- Oxirgi sotuvni bekor qilish banneri -->
@@ -1214,237 +1275,284 @@
               </button>
             </div>
 
-            <form onsubmit="submitUnifiedSale(event)" class="space-y-4">
-              <!-- CARPET SALE FIELDS -->
-              <div id="sale-carpet-fields" class="space-y-4">
-                <div class="relative" id="sale-roll-combobox">
-                  <div class="flex items-center justify-between mb-1">
-                    <label class="block text-xs font-medium text-neutral-600">Ombordagi faol rulon:</label>
-                    <span id="sale-roll-count" class="text-[11px] text-ghostMuted"></span>
-                  </div>
-                  <div class="relative">
-                    <input type="text" 
-                           id="sale-roll-input" 
-                           autocomplete="off"
-                           placeholder="Qidirish: masalan 0.8x seriy yoki 1.2x Bordo..." 
-                           onfocus="openSaleRollDropdown()" 
-                           onclick="openSaleRollDropdown()"
-                           oninput="onSaleRollSearchInput(this.value)" 
-                           class="w-full bg-ghostBg border border-ghostBorder rounded-xl pl-3 pr-8 py-2.5 text-sm focus:outline-none focus:border-neutral-900 font-medium">
-                    <div onclick="openSaleRollDropdown(); document.getElementById('sale-roll-input').focus();" class="absolute right-3 top-3 text-ghostMuted cursor-pointer hover:text-neutral-800 transition">
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            <form id="sale-form" onsubmit="submitUnifiedSale(event)" onkeydown="onSaleFormKeydown(event)" class="space-y-6">
+
+              <!-- ===== GILAM ===== -->
+              <div id="sale-carpet-fields" class="space-y-6">
+                <!-- 1 · Rulon -->
+                <div class="space-y-3">
+                  <div class="flex items-center justify-between gap-3">
+                    <h3 class="sale-step"><span>1</span>Rulon</h3>
+                    <div class="flex items-center gap-2">
+                      <span id="sale-roll-count" class="text-[11px] text-ghostMuted"></span>
+                      <button type="button" onclick="toggleSaleRollSearch()" class="sale-chip" aria-controls="sale-roll-search-wrap">
+                        <svg class="p-ic w-[15px] h-[15px]" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Qidirish
+                      </button>
                     </div>
                   </div>
-                  <!-- Hidden native select for form and calculations compatibility -->
-                  <select id="sale-roll-select" onchange="onRollSelected()" class="hidden">
-                    <option value="">Rulonni tanlang...</option>
-                  </select>
-                  <!-- Live floating dropdown menu -->
-                  <div id="sale-roll-dropdown-menu" class="hidden absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-ghostBorder rounded-xl shadow-xl divide-y divide-ghostBorder">
-                  </div>
-                </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label class="block text-xs font-medium text-neutral-600 mb-1">Sotiladigan uzunlik (m):</label>
-                    <input type="number" step="0.01" id="sale-length" oninput="calcCarpetSaleByLength()" placeholder="0.0" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                  </div>
-                  <div>
-                    <label class="block text-xs font-medium text-neutral-600 mb-1">Jami sotuv summasi ($):</label>
-                    <input type="number" step="0.01" id="sale-total-price" oninput="calcCarpetSaleByTotal()" placeholder="$0.00" class="w-full bg-ghostBg border border-neutral-300 font-semibold text-neutral-900 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                  </div>
-                  <div>
-                    <label class="block text-xs font-medium text-neutral-600 mb-1">1 m² narxi ($):</label>
-                    <input type="number" step="0.1" id="sale-price" oninput="calcCarpetSaleByPrice()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                  </div>
-                </div>
-              </div>
-
-              <!-- LEATHER SALE FIELDS -->
-              <div id="sale-leather-fields" class="hidden space-y-4">
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <div>
-                    <label class="block text-xs font-medium text-neutral-600 mb-1">Teri rangi:</label>
-                    <select id="sale-leather-color" onchange="calcLeatherSaleByQty()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                      <option value="">Tanlang...</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label class="block text-xs font-medium text-neutral-600 mb-1">Soni (dona):</label>
-                    <input type="number" id="sale-leather-qty" oninput="calcLeatherSaleByQty()" min="1" placeholder="1" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                  </div>
-                  <div>
-                    <label class="block text-xs font-medium text-neutral-600 mb-1">Jami sotuv summasi ($):</label>
-                    <input type="number" step="0.01" id="sale-leather-total-price" oninput="calcLeatherSaleByTotal()" placeholder="$0.00" class="w-full bg-ghostBg border border-neutral-300 font-semibold text-neutral-900 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                  </div>
-                </div>
-                <div>
-                  <label class="block text-xs font-medium text-neutral-600 mb-1">1 dona narxi ($):</label>
-                  <input type="number" step="0.5" id="sale-leather-price" value="50" oninput="calcLeatherSaleByPrice()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-neutral-900">
-                </div>
-              </div>
-
-              <!-- KAVRALAN SALE FIELDS -->
-              <div id="sale-kavralan-fields" class="hidden space-y-4">
-                <div>
-                  <label class="block text-xs font-semibold text-neutral-700 mb-1.5">Asl Kavralan ruloni (Eni: 4m):</label>
-                  <select id="sale-kavralan-select" onchange="onKavralanSelected()" class="w-full bg-ghostBg border border-ghostBorder rounded-xl px-3 py-2.5 text-sm font-semibold text-neutral-900 focus:outline-none focus:border-neutral-900 focus:bg-white transition shadow-2xs">
-                    <option value="">Rulonni tanlang...</option>
-                  </select>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <!-- 1. Sotiladigan uzunlik -->
-                  <div>
-                    <label class="block text-xs font-semibold text-neutral-700 mb-1">Sotiladigan uzunlik (m):</label>
-                    <input type="number" step="0.01" id="sale-kavralan-length" oninput="calcKavralanSaleByLength()" placeholder="Masalan: 10" class="w-full bg-white border border-ghostBorder rounded-xl px-3 py-2 text-sm font-bold text-neutral-900 focus:outline-none focus:border-neutral-900 focus:ring-1 focus:ring-neutral-900 transition">
-                    <span id="sale-kavralan-area-hint" class="text-[11px] text-ghostMuted mt-1 block">Maydon: 0 m²</span>
-                  </div>
-
-                  <!-- 2. 1 m² narxi ($30 qotib turadi) -->
-                  <div>
-                    <div class="flex items-center justify-between mb-1">
-                      <label class="block text-xs font-semibold text-neutral-700">1 m² narxi ($):</label>
-                      <span class="text-[10px] font-bold text-neutral-400 uppercase tracking-wider">Qat'iy $30</span>
-                    </div>
-                    <div class="relative">
-                      <input type="number" id="sale-kavralan-price" value="30" readonly tabindex="-1" class="w-full bg-neutral-100 border border-neutral-200 text-neutral-700 rounded-xl px-3 py-2 text-sm font-bold cursor-not-allowed select-none">
-                      <span class="absolute right-3 top-2 text-xs font-semibold text-neutral-400">$/m²</span>
-                    </div>
-                    <span id="sale-kavralan-std-hint" class="text-[11px] text-ghostMuted mt-1 block">Standart: $0.00</span>
-                  </div>
-
-                  <!-- 3. Jami sotuv summasi (kelishilgan summa) -->
-                  <div>
-                    <label class="block text-xs font-semibold text-emerald-800 mb-1">Jami sotuv summasi ($):</label>
-                    <div class="relative">
-                      <input type="number" step="0.01" id="sale-kavralan-total-price" oninput="calcKavralanSaleByTotal()" placeholder="$0.00" class="w-full bg-white border-2 border-emerald-500 font-extrabold text-emerald-950 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 shadow-2xs">
-                    </div>
-                    <span class="text-[10px] text-neutral-400 mt-1 block">Skidka bo'lsa summani o'zgartiring</span>
-                  </div>
-                </div>
-
-                <!-- Skidka (Chegirma) ko'rsatkich paneli -->
-                <div id="sale-kavralan-discount-box" class="p-3 rounded-xl border border-dashed transition-all flex items-center justify-between text-xs bg-neutral-50 border-neutral-200 text-neutral-600">
-                  <div class="flex items-center gap-2.5">
-                    <span id="sale-kavralan-discount-icon" class="text-lg">🏷</span>
-                    <div>
-                      <div class="flex items-center gap-1.5">
-                        <span class="font-bold text-neutral-800">Skidka (Chegirma):</span>
-                        <span id="sale-kavralan-discount-val" class="font-extrabold text-neutral-800">$0.00</span>
-                        <span id="sale-kavralan-discount-pct" class="text-[11px] text-neutral-500 font-semibold">(0%)</span>
+                  <!-- Ixtiyoriy qidiruv (eski qidiruv maydoni, yashirin holatda) -->
+                  <div id="sale-roll-search-wrap" class="hidden">
+                    <div class="relative" id="sale-roll-combobox">
+                      <div class="relative">
+                        <input type="text"
+                               id="sale-roll-input"
+                               autocomplete="off"
+                               aria-label="Rulonni qidirish"
+                               placeholder="Qidirish: masalan 0.8x seriy yoki 1.2x Bordo..."
+                               onfocus="openSaleRollDropdown()"
+                               onclick="openSaleRollDropdown()"
+                               oninput="onSaleRollSearchInput(this.value)"
+                               class="w-full bg-ghostBg border border-ghostBorder rounded-xl pl-3 pr-8 py-2.5 text-sm focus:outline-none focus:border-neutral-900 font-medium">
+                        <div onclick="openSaleRollDropdown(); document.getElementById('sale-roll-input').focus();" class="absolute right-3 top-3 text-ghostMuted cursor-pointer hover:text-neutral-800 transition">
+                          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
                       </div>
-                      <p id="sale-kavralan-discount-desc" class="text-[11px] text-neutral-500 mt-0.5">Standart 30$/m² narx bo'yicha</p>
+                      <!-- Hidden native select for form and calculations compatibility -->
+                      <select id="sale-roll-select" onchange="onRollSelected()" class="hidden">
+                        <option value="">Rulonni tanlang...</option>
+                      </select>
+                      <!-- Live floating dropdown menu -->
+                      <div id="sale-roll-dropdown-menu" class="hidden absolute z-50 left-0 right-0 mt-1 max-h-60 overflow-y-auto bg-white border border-ghostBorder rounded-xl shadow-xl divide-y divide-ghostBorder">
+                      </div>
                     </div>
                   </div>
-                  <div id="sale-kavralan-eff-price" class="text-right hidden sm:block">
-                    <span class="text-[10px] text-neutral-400 uppercase tracking-wider block">Real sotuv narxi:</span>
-                    <span id="sale-kavralan-eff-price-val" class="font-bold text-xs text-neutral-700">$30.00 / m²</span>
+
+                  <!-- En bo'yicha filtr va rulon kartochkalari (renderSaleRollCards) -->
+                  <div id="sale-width-chips" role="group" aria-label="Eni bo'yicha filtr" class="flex flex-wrap items-center gap-2"></div>
+                  <div id="sale-roll-cards" class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 max-h-[340px] overflow-y-auto p-0.5"></div>
+                </div>
+
+                <!-- 2 · Uzunlik -->
+                <div class="space-y-2.5">
+                  <h3 class="sale-step"><span>2</span>Uzunlik</h3>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <div class="relative w-36">
+                      <input type="text" inputmode="decimal" id="sale-length" oninput="calcCarpetSaleByLength()" placeholder="0" aria-label="Sotiladigan uzunlik (metr)" autocomplete="off" class="w-full min-h-[52px] bg-white border-2 border-neutral-900 rounded-2xl pl-4 pr-9 text-xl font-semibold text-neutral-900 focus:outline-none">
+                      <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-ghostMuted">m</span>
+                    </div>
+                    <button type="button" class="sale-chip sale-len-chip" data-len="1" onclick="setSaleLength(1)">1 m</button>
+                    <button type="button" class="sale-chip sale-len-chip" data-len="2" onclick="setSaleLength(2)">2 m</button>
+                    <button type="button" class="sale-chip sale-len-chip" data-len="3" onclick="setSaleLength(3)">3 m</button>
+                    <button type="button" class="sale-chip sale-len-chip" data-len="5" onclick="setSaleLength(5)">5 m</button>
+                    <button type="button" id="sale-len-whole" class="sale-chip border-dashed" onclick="setSaleLengthWholeRoll()" disabled>Butun rulon</button>
+                  </div>
+                  <p id="sale-length-hint" class="text-xs text-ghostMuted min-h-[16px]"></p>
+                </div>
+
+                <!-- Kelishilgan narx (yashirin; "Kelishilgan summa" tugmasi ochadi) -->
+                <div class="sale-custom hidden grid grid-cols-2 gap-3 p-3.5 rounded-2xl bg-neutral-50 border border-ghostBorder">
+                  <div>
+                    <label for="sale-total-price" class="block text-xs font-medium text-neutral-600 mb-1">Kelishilgan jami summa ($)</label>
+                    <input type="text" inputmode="decimal" id="sale-total-price" oninput="calcCarpetSaleByTotal()" placeholder="$0.00" class="w-full min-h-[44px] bg-white border border-neutral-300 font-semibold text-neutral-900 rounded-xl px-3 text-sm focus:outline-none focus:border-neutral-900">
+                  </div>
+                  <div>
+                    <label for="sale-price" class="block text-xs font-medium text-neutral-600 mb-1">1 m² narxi ($)</label>
+                    <input type="text" inputmode="decimal" id="sale-price" oninput="calcCarpetSaleByPrice()" class="w-full min-h-[44px] bg-white border border-ghostBorder rounded-xl px-3 text-sm focus:outline-none focus:border-neutral-900">
                   </div>
                 </div>
               </div>
 
-              <!-- Calculation & Profit Preview -->
-              <div id="sale-calc-box" class="bg-neutral-50 border border-ghostBorder rounded-xl p-3.5 space-y-2 text-xs">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                  <span id="carpet-calc-text" class="text-neutral-600">Hisob: Rulon va uzunlikni tanlang</span>
+              <!-- ===== TERI ===== -->
+              <div id="sale-leather-fields" class="hidden space-y-6">
+                <div class="space-y-2.5">
+                  <h3 class="sale-step"><span>1</span>Teri rangi</h3>
+                  <select id="sale-leather-color" onchange="calcLeatherSaleByQty()" aria-label="Teri rangi" class="w-full min-h-[48px] bg-ghostBg border border-ghostBorder rounded-2xl px-3.5 text-sm font-medium focus:outline-none focus:border-neutral-900">
+                    <option value="">Tanlang...</option>
+                  </select>
+                </div>
+                <div class="space-y-2.5">
+                  <h3 class="sale-step"><span>2</span>Soni</h3>
                   <div class="flex items-center gap-2">
-                    <span class="text-ghostMuted">Jami summa:</span>
-                    <span id="carpet-calc-total" class="font-bold text-neutral-900 text-sm">$0.00</span>
+                    <button type="button" onclick="stepLeatherQty(-1)" aria-label="1 dona kamaytirish" class="w-[52px] h-[52px] rounded-2xl border border-ghostBorder bg-white text-neutral-900 flex items-center justify-center"><svg class="p-ic w-[18px] h-[18px]" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+                    <input type="number" inputmode="numeric" id="sale-leather-qty" oninput="calcLeatherSaleByQty()" min="1" placeholder="1" aria-label="Soni (dona)" class="w-28 min-h-[52px] bg-white border-2 border-neutral-900 rounded-2xl px-3 text-xl font-semibold text-center text-neutral-900 focus:outline-none">
+                    <button type="button" onclick="stepLeatherQty(1)" aria-label="1 dona ko'paytirish" class="w-[52px] h-[52px] rounded-2xl border border-ghostBorder bg-white text-neutral-900 flex items-center justify-center"><svg class="p-ic w-[18px] h-[18px]" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+                    <span class="text-sm text-ghostMuted ml-1">dona</span>
                   </div>
                 </div>
-                <div id="carpet-calc-pnl-row" class="hidden pt-1.5 border-t border-ghostBorder flex items-center justify-between">
-                  <span id="carpet-calc-cost" class="text-neutral-500">Tannarx: $0.00</span>
-                  <span id="carpet-calc-profit" class="font-semibold px-2 py-0.5 rounded text-[11px]"></span>
+                <div class="sale-custom hidden grid grid-cols-2 gap-3 p-3.5 rounded-2xl bg-neutral-50 border border-ghostBorder">
+                  <div>
+                    <label for="sale-leather-total-price" class="block text-xs font-medium text-neutral-600 mb-1">Kelishilgan jami summa ($)</label>
+                    <input type="number" step="0.01" id="sale-leather-total-price" oninput="calcLeatherSaleByTotal()" placeholder="$0.00" class="w-full min-h-[44px] bg-white border border-neutral-300 font-semibold text-neutral-900 rounded-xl px-3 text-sm focus:outline-none focus:border-neutral-900">
+                  </div>
+                  <div>
+                    <label for="sale-leather-price" class="block text-xs font-medium text-neutral-600 mb-1">1 dona narxi ($)</label>
+                    <input type="number" step="0.5" id="sale-leather-price" value="50" oninput="calcLeatherSaleByPrice()" class="w-full min-h-[44px] bg-white border border-ghostBorder rounded-xl px-3 text-sm focus:outline-none focus:border-neutral-900">
+                  </div>
                 </div>
               </div>
 
-              <!-- Chekka qo'shish (yana mahsulot qo'shish) tugmasi -->
-              <div class="pt-0.5">
-                <button type="button" onclick="addCurrentItemToCart()" class="w-full bg-neutral-100 hover:bg-neutral-200 text-neutral-900 border border-neutral-300 font-semibold text-xs py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5 shadow-xs">
-                  <span>➕ Chekka qo'shish (yana mahsulot qo'shish)</span>
-                </button>
+              <!-- ===== KAVRALAN ===== -->
+              <div id="sale-kavralan-fields" class="hidden space-y-6">
+                <div class="space-y-2.5">
+                  <div class="flex items-center justify-between gap-3">
+                    <h3 class="sale-step"><span>1</span>Kavralan ruloni</h3>
+                    <span class="text-xs text-ghostMuted">eni 4 m · $30/m²</span>
+                  </div>
+                  <select id="sale-kavralan-select" onchange="onKavralanSelected()" aria-label="Asl kavralan ruloni" class="w-full min-h-[48px] bg-ghostBg border border-ghostBorder rounded-2xl px-3.5 text-sm font-medium text-neutral-900 focus:outline-none focus:border-neutral-900">
+                    <option value="">Rulonni tanlang...</option>
+                  </select>
+                </div>
+
+                <div class="space-y-2.5">
+                  <h3 class="sale-step"><span>2</span>Uzunlik</h3>
+                  <div class="flex flex-wrap items-center gap-2">
+                    <div class="relative w-36">
+                      <input type="number" inputmode="decimal" step="0.01" id="sale-kavralan-length" oninput="calcKavralanSaleByLength()" placeholder="0" aria-label="Sotiladigan uzunlik (metr)" class="w-full min-h-[52px] bg-white border-2 border-neutral-900 rounded-2xl pl-4 pr-9 text-xl font-semibold text-neutral-900 focus:outline-none">
+                      <span class="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-ghostMuted">m</span>
+                    </div>
+                    <button type="button" class="sale-chip" onclick="setKavralanLength(1)">1 m</button>
+                    <button type="button" class="sale-chip" onclick="setKavralanLength(2)">2 m</button>
+                    <button type="button" class="sale-chip" onclick="setKavralanLength(3)">3 m</button>
+                    <button type="button" class="sale-chip" onclick="setKavralanLength(5)">5 m</button>
+                  </div>
+                  <p class="text-xs text-ghostMuted"><span id="sale-kavralan-area-hint">Maydon: 0 m²</span> · <span id="sale-kavralan-std-hint">Standart: $0.00</span> <span class="text-neutral-400">($30/m²)</span></p>
+                  <input type="hidden" id="sale-kavralan-price" value="30">
+                </div>
+
+                <div class="sale-custom hidden space-y-3 p-3.5 rounded-2xl bg-neutral-50 border border-ghostBorder">
+                  <div>
+                    <label for="sale-kavralan-total-price" class="block text-xs font-semibold text-emerald-800 mb-1">Kelishilgan jami summa ($)</label>
+                    <input type="number" step="0.01" id="sale-kavralan-total-price" oninput="calcKavralanSaleByTotal()" placeholder="$0.00" class="w-full min-h-[44px] bg-white border-2 border-emerald-500 font-extrabold text-emerald-950 rounded-xl px-3 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20">
+                  </div>
+                  <!-- Skidka (Chegirma) ko'rsatkich paneli -->
+                  <div id="sale-kavralan-discount-box" class="p-3 rounded-xl border border-dashed transition-all flex items-center justify-between text-xs bg-neutral-50 border-neutral-200 text-neutral-600">
+                    <div class="flex items-center gap-2.5">
+                      <span id="sale-kavralan-discount-icon" class="text-lg">🏷</span>
+                      <div>
+                        <div class="flex items-center gap-1.5">
+                          <span class="font-bold text-neutral-800">Skidka (Chegirma):</span>
+                          <span id="sale-kavralan-discount-val" class="font-extrabold text-neutral-800">$0.00</span>
+                          <span id="sale-kavralan-discount-pct" class="text-[11px] text-neutral-500 font-semibold">(0%)</span>
+                        </div>
+                        <p id="sale-kavralan-discount-desc" class="text-[11px] text-neutral-500 mt-0.5">Standart 30$/m² narx bo'yicha</p>
+                      </div>
+                    </div>
+                    <div id="sale-kavralan-eff-price" class="text-right hidden sm:block">
+                      <span class="text-[10px] text-neutral-400 uppercase tracking-wider block">Real sotuv narxi:</span>
+                      <span id="sale-kavralan-eff-price-val" class="font-bold text-xs text-neutral-700">$30.00 / m²</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <!-- CHEKDAGI MAHSULOTLAR RO'YXATI (SAVAT) -->
-              <div id="sale-cart-card" class="hidden bg-white border border-neutral-200 rounded-xl p-3.5 shadow-xs space-y-2.5">
-                <div class="flex items-center justify-between border-b border-neutral-100 pb-2">
-                  <div class="flex items-center gap-2 font-bold text-xs text-neutral-900">
-                    <span class="text-sm">🧾</span>
-                    <span>Chekdagi mahsulotlar</span>
-                    <span id="sale-cart-badge" class="px-2 py-0.5 text-[10px] bg-neutral-900 text-white rounded-full">0 ta</span>
+              <!-- ===== 3 · NARX (uchala toifa uchun umumiy) ===== -->
+              <div class="space-y-2.5">
+                <div class="flex items-center justify-between gap-3">
+                  <h3 class="sale-step"><span>3</span>Narx</h3>
+                  <button type="button" id="sale-custom-toggle" onclick="toggleSaleCustomPrice()" aria-expanded="false" class="text-[13px] font-medium text-[#3442b8] dark:text-[#aab4ff] hover:underline">Kelishilgan summa</button>
+                </div>
+                <div id="sale-calc-box" class="bg-neutral-50 border border-ghostBorder rounded-2xl p-3.5 sm:p-4 space-y-2">
+                  <div class="flex items-center justify-between gap-3">
+                    <span id="carpet-calc-text" class="text-xs sm:text-[13px] text-neutral-600 min-w-0">Hisob: Rulon va uzunlikni tanlang</span>
+                    <div class="text-right shrink-0">
+                      <div class="text-[11px] text-ghostMuted">Jami</div>
+                      <div id="carpet-calc-total" class="font-bold text-neutral-900 text-2xl tracking-tight">$0.00</div>
+                    </div>
                   </div>
-                  <button type="button" onclick="clearSaleCart()" class="text-[11px] text-red-600 hover:underline font-medium">Chekni tozalash</button>
+                  <div id="carpet-calc-pnl-row" class="hidden pt-2 border-t border-ghostBorder flex items-center justify-between text-xs">
+                    <span id="carpet-calc-cost" class="text-neutral-500">Tannarx: $0.00</span>
+                    <span id="carpet-calc-profit" class="font-semibold px-2 py-0.5 rounded text-[11px]"></span>
+                  </div>
                 </div>
-                
-                <div class="overflow-x-auto">
-                  <table class="w-full text-left text-xs">
-                    <thead>
-                      <tr class="text-neutral-500 border-b border-neutral-100 text-[11px]">
-                        <th class="py-1 px-1.5">#</th>
-                        <th class="py-1 px-1.5">Mahsulot</th>
-                        <th class="py-1 px-1.5">O'lchami</th>
-                        <th class="py-1 px-1.5">m²</th>
-                        <th class="py-1 px-1.5">Narxi</th>
-                        <th class="py-1 px-1.5 font-semibold text-neutral-900">Summa</th>
-                        <th class="py-1 px-1.5 text-right"></th>
-                      </tr>
-                    </thead>
-                    <tbody id="sale-cart-tbody" class="divide-y divide-neutral-100 text-neutral-800"></tbody>
-                  </table>
-                </div>
+              </div>
 
-                <div class="pt-2 border-t border-neutral-200 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs">
-                  <span class="text-neutral-500 font-medium" id="sale-cart-summary-text">Jami: 0 ta mahsulot (0 m²)</span>
-                  <div class="flex items-center gap-2">
-                    <span class="font-medium text-neutral-500">Chek summasi:</span>
-                    <span id="sale-cart-total-price" class="font-bold text-base text-neutral-900">$0.00</span>
-                  </div>
+              <!-- Chekka qo'shish (asosiy tugma) -->
+              <button type="button" id="sale-add-btn" onclick="addCurrentItemToCart()" class="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-semibold text-[15px] min-h-[52px] px-4 flex items-center justify-center gap-2 transition">
+                <svg class="p-ic w-[18px] h-[18px]" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                <span id="sale-add-label">Chekka qo'shish</span>
+                <span class="hidden md:inline px-2 py-0.5 rounded-md bg-white/15 text-[11px] font-medium">Enter</span>
+              </button>
+            </form>
+          </div>
+
+          <!-- ===== O'NG: CHEK (kompyuterda yon panel, telefonda pastdan ochiladi) ===== -->
+          <aside id="sale-cheque" aria-label="Chek" class="xl:sticky xl:top-24" onkeydown="onSaleChequeKeydown(event)">
+            <div class="sale-cheque-backdrop md:hidden" onclick="closeSaleCheque()"></div>
+            <div class="sale-cheque-panel bg-white border border-ghostBorder rounded-2xl p-5 shadow-sm space-y-4">
+              <span class="md:hidden block mx-auto w-10 h-1.5 rounded-full bg-neutral-200 -mt-1"></span>
+              <div class="flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                  <h2 class="font-display text-[28px] leading-none text-neutral-900">Chek</h2>
+                  <span id="sale-cart-badge" class="px-2.5 py-0.5 text-[12px] font-semibold rounded-full bg-[#eef0ff] text-[#3442b8]">0 ta</span>
+                </div>
+                <div class="flex items-center gap-1">
+                  <button type="button" onclick="clearSaleCart()" class="min-h-[36px] px-2 text-[13px] font-medium text-rose-600 hover:underline">Tozalash</button>
+                  <button type="button" onclick="closeSaleCheque()" aria-label="Chekni yopish" class="md:hidden w-10 h-10 rounded-full bg-neutral-100 text-neutral-600 flex items-center justify-center"><svg class="p-ic w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+                </div>
+              </div>
+
+              <p id="sale-cart-empty" class="text-[13px] text-ghostMuted py-3 text-center border border-dashed border-ghostBorder rounded-2xl">Chek bo'sh. Mahsulotni tanlab, «Chekka qo'shish» ni bosing.</p>
+
+              <div id="sale-cart-card" class="hidden space-y-3">
+                <div id="sale-cart-tbody" class="space-y-2"></div>
+                <div class="pt-3 border-t border-ghostBorder flex items-baseline justify-between gap-3">
+                  <span class="text-[13px] text-ghostMuted" id="sale-cart-summary-text">Jami: 0 ta mahsulot</span>
+                  <span id="sale-cart-total-price" class="font-bold text-[26px] tracking-tight text-neutral-900">$0.00</span>
                 </div>
               </div>
 
               <!-- Payment Type Toggle -->
-              <div class="pt-2">
-                <label class="block text-xs font-medium text-neutral-600 mb-1.5">To'lov turi:</label>
-                <div class="flex gap-4 text-xs">
-                  <label class="flex items-center gap-1.5 cursor-pointer">
-                    <input type="radio" name="sale_pay_type" value="cash" checked onchange="toggleDebtFields(false)">
-                    <span>Naqd to'lov</span>
+              <div class="space-y-2">
+                <span class="block text-xs font-semibold text-neutral-600">To'lov turi</span>
+                <div class="sale-seg" role="radiogroup" aria-label="To'lov turi">
+                  <label>
+                    <input type="radio" name="sale_pay_type" value="cash" form="sale-form" checked onchange="toggleDebtFields(false)">
+                    <span><svg class="p-ic w-[17px] h-[17px]" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/></svg>Naqd</span>
                   </label>
-                  <label class="flex items-center gap-1.5 cursor-pointer">
-                    <input type="radio" name="sale_pay_type" value="debt" onchange="toggleDebtFields(true)">
-                    <span>Nasiya (Qarz)</span>
+                  <label>
+                    <input type="radio" name="sale_pay_type" value="debt" form="sale-form" onchange="toggleDebtFields(true)">
+                    <span><svg class="p-ic w-[17px] h-[17px]" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/></svg>Nasiya</span>
                   </label>
                 </div>
               </div>
 
               <!-- Debt extra fields -->
-              <div id="debt-fields" class="hidden space-y-3 p-3 bg-neutral-50 rounded-xl border border-ghostBorder">
+              <div id="debt-fields" class="hidden space-y-3 p-3.5 bg-neutral-50 rounded-2xl border border-ghostBorder">
                 <div>
-                  <label class="block text-[11px] font-medium text-neutral-600 mb-1">Mijoz ismi:</label>
-                  <input type="text" id="debt-customer-name" placeholder="Ism sharifi" class="w-full bg-white border border-ghostBorder rounded-lg px-2.5 py-1.5 text-xs">
+                  <label for="debt-customer-name" class="block text-xs font-semibold text-neutral-600 mb-1">Mijoz ismi</label>
+                  <input type="text" id="debt-customer-name" form="sale-form" placeholder="Ism familiya" class="w-full min-h-[44px] bg-white border border-ghostBorder rounded-xl px-3 text-sm">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                   <div>
-                    <label class="block text-[11px] font-medium text-neutral-600 mb-1">Telefon:</label>
-                    <input type="text" id="debt-customer-phone" placeholder="+998..." class="w-full bg-white border border-ghostBorder rounded-lg px-2.5 py-1.5 text-xs">
+                    <label for="debt-customer-phone" class="block text-xs font-semibold text-neutral-600 mb-1">Telefon</label>
+                    <input type="tel" id="debt-customer-phone" form="sale-form" placeholder="+998..." class="w-full min-h-[44px] bg-white border border-ghostBorder rounded-xl px-3 text-sm">
                   </div>
                   <div>
-                    <label class="block text-[11px] font-medium text-neutral-600 mb-1">Boshlang'ich to'lov ($):</label>
-                    <input type="number" step="0.5" id="debt-initial-paid" value="0" class="w-full bg-white border border-ghostBorder rounded-lg px-2.5 py-1.5 text-xs">
+                    <label for="debt-initial-paid" class="block text-xs font-semibold text-neutral-600 mb-1">Hozir to'lashi ($)</label>
+                    <input type="number" step="0.5" id="debt-initial-paid" form="sale-form" value="0" class="w-full min-h-[44px] bg-white border border-ghostBorder rounded-xl px-3 text-sm font-semibold">
                   </div>
                 </div>
                 <div>
-                  <label class="block text-[11px] font-medium text-neutral-600 mb-1">Qaytarish muddati (Deadline):</label>
-                  <input type="date" id="debt-due-date" class="w-full bg-white border border-ghostBorder rounded-lg px-2.5 py-1.5 text-xs text-neutral-700">
+                  <span class="block text-xs font-semibold text-neutral-600 mb-1.5">Qaytarish muddati</span>
+                  <div class="flex flex-wrap gap-1.5 mb-2" role="group" aria-label="Tez muddat">
+                    <button type="button" class="sale-chip due-chip" data-days="7" onclick="setDebtDueInDays(7)">1 hafta</button>
+                    <button type="button" class="sale-chip due-chip" data-days="14" onclick="setDebtDueInDays(14)">2 hafta</button>
+                    <button type="button" class="sale-chip due-chip" data-days="30" onclick="setDebtDueInDays(30)">1 oy</button>
+                  </div>
+                  <input type="date" id="debt-due-date" form="sale-form" aria-label="Qaytarish muddati (sana)" onchange="markDueChips()" class="w-full min-h-[44px] bg-white border border-ghostBorder rounded-xl px-3 text-sm text-neutral-700">
                 </div>
               </div>
 
-              <button type="submit" id="sale-submit-btn" class="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-medium text-sm py-3 px-4 rounded-xl transition duration-150">
-                ✅ Sotuvni tasdiqlash
+              <button type="submit" form="sale-form" id="sale-submit-btn" class="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-semibold text-[15px] min-h-[54px] px-4 transition">
+                Sotishni tasdiqlash
               </button>
-            </form>
+              <p class="hidden md:block text-center text-[11px] text-ghostMuted">Ctrl + Enter — sotish</p>
+            </div>
+          </aside>
           </div>
+
+          <!-- Telefon: pastda doim ko'rinadigan chek paneli (chekda mahsulot bo'lsa) -->
+          <button type="button" id="sale-cheque-bar" onclick="openSaleCheque()" class="md:hidden hidden fixed left-3 right-3 z-40 min-h-[60px] rounded-[20px] bg-[#14151a] text-white pl-3.5 pr-2 py-2 flex items-center justify-between gap-3 shadow-[0_18px_36px_-14px_rgba(20,21,26,0.7)]" style="bottom: calc(70px + env(safe-area-inset-bottom, 0px));">
+            <span class="flex items-center gap-2.5">
+              <span class="w-9 h-9 rounded-full bg-white/10 flex items-center justify-center"><svg class="p-ic w-[18px] h-[18px]" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/></svg></span>
+              <span class="flex flex-col items-start leading-tight">
+                <span id="sale-cheque-bar-count" class="text-[13px] text-[#c9cce0]">Chek · 0 ta</span>
+                <span id="sale-cheque-bar-total" class="text-[17px] font-bold">$0.00</span>
+              </span>
+            </span>
+            <span class="min-h-[44px] px-4 rounded-full bg-white text-[#14151a] text-sm font-semibold flex items-center gap-1.5">Sotish<svg class="p-ic w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 15 6-6 6 6"/></svg></span>
+          </button>
         </section>
 
         <!-- TAB: KASSA -->
@@ -4077,10 +4185,12 @@
         const fields = document.getElementById(`sale-${t}-fields`);
         if (tab && fields) {
           if (t === type) {
-            tab.className = "px-3 py-1.5 rounded-lg bg-white shadow-xs text-neutral-900 font-semibold transition";
+            tab.className = "flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-xl bg-white shadow-sm text-neutral-900 font-semibold transition";
+            tab.setAttribute('aria-pressed', 'true');
             fields.classList.remove('hidden');
           } else {
-            tab.className = "px-3 py-1.5 rounded-lg text-neutral-600 hover:text-neutral-900 transition";
+            tab.className = "flex-1 min-h-[44px] flex items-center justify-center gap-2 rounded-xl text-neutral-600 hover:text-neutral-900 transition";
+            tab.setAttribute('aria-pressed', 'false');
             fields.classList.add('hidden');
           }
         }
@@ -4485,6 +4595,7 @@
       const menu = document.getElementById('sale-roll-dropdown-menu');
       if (menu) menu.classList.add('hidden');
       onRollSelected();
+      renderSaleRollCards();
     }
 
     function filterSaleRollDropdown() {
@@ -4501,6 +4612,11 @@
       const filtered = (ALL_ROLLS || []).filter(r => matchRollQuery(r, q));
       populateSaleRollDropdown(filtered);
       renderSaleRollDropdown(filtered);
+      // Qidiruv yopiq bo'lsa ochilib qolgan ro'yxatni yashiramiz (yangi oqimda asosiy tanlov — kartochkalar)
+      const searchWrap = document.getElementById('sale-roll-search-wrap');
+      const menu = document.getElementById('sale-roll-dropdown-menu');
+      if (menu && searchWrap && searchWrap.classList.contains('hidden')) menu.classList.add('hidden');
+      renderSaleRollCards();
     }
 
     function populateSaleRollDropdown(rolls) {
@@ -4615,6 +4731,7 @@
 
     // --- GILAM SOTUV HISOBLARI ---
     function calcCarpetSaleByLength() {
+      updateCarpetLengthHint();
       const select = document.getElementById('sale-roll-select');
       const opt = select ? select.options[select.selectedIndex] : null;
       if (!opt || !opt.value) {
@@ -4847,6 +4964,7 @@
       if (!textEl) return;
       textEl.innerText = desc || "Hisob: -";
       totalEl.innerText = `$${total.toFixed(2)}`;
+      updateSaleAddLabel(total);
 
       if (activeVal > 0) {
         if (pnlRow) {
@@ -5030,16 +5148,29 @@
 
       if (!card || !tbody) return;
 
-      if (!SALE_CART || SALE_CART.length === 0) {
+      const emptyEl = document.getElementById('sale-cart-empty');
+      const bar = document.getElementById('sale-cheque-bar');
+      const barCount = document.getElementById('sale-cheque-bar-count');
+      const barTotal = document.getElementById('sale-cheque-bar-total');
+      const count = (SALE_CART || []).length;
+      if (badge) badge.innerText = `${count} ta`;
+
+      if (count === 0) {
         card.classList.add('hidden');
-        if (submitBtn) {
-          submitBtn.innerText = "✅ Sotuvni tasdiqlash";
-        }
+        if (emptyEl) emptyEl.classList.remove('hidden');
+        if (bar) bar.classList.add('hidden');
+        if (submitBtn && !submitBtn.disabled) submitBtn.innerText = "Sotishni tasdiqlash";
         return;
       }
 
       card.classList.remove('hidden');
-      if (badge) badge.innerText = `${SALE_CART.length} ta`;
+      if (emptyEl) emptyEl.classList.add('hidden');
+
+      const ICONS = {
+        carpet:   { color: '#3b6ff5', svg: '<circle cx="7" cy="12" r="4"/><circle cx="7" cy="12" r="1.2"/><path d="M7 8h13v8H7"/>' },
+        leather:  { color: '#f08a24', svg: '<path d="M8 3c1 2 2.5 2.5 4 2.5S15 5 16 3l3 3c-1 2-1 4 0 6s1 5-1 7l-3 2c-1-1-2-1.5-3-1.5S10 20 9 21l-3-2c-2-2-2-5-1-7s1-4 0-6z"/>' },
+        kavralan: { color: '#8b5cf6', svg: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 12h18M9 5v14M15 5v14"/>' }
+      };
 
       let totalSum = 0;
       let totalM2 = 0;
@@ -5048,57 +5179,293 @@
       SALE_CART.forEach((it, idx) => {
         totalSum += (it.total_price || 0);
         let nameStr = '';
-        let sizeStr = '';
-        let m2Str = '-';
-        let prStr = '';
+        let subStr = '';
 
         if (it.product_type === 'carpet') {
-          nameStr = `Rezinka (${it.color})`;
-          sizeStr = `${it.width}m × ${it.sold_length}m`;
-          m2Str = `${it.area_m2} m²`;
+          nameStr = `Gilam · ${escapeHtml(it.color)} ${it.width} m`;
+          subStr = `${it.sold_length} m · ${it.area_m2} m² · $${it.price_per_m2}/m²`;
           totalM2 += (it.area_m2 || 0);
-          prStr = `$${it.price_per_m2}/m²`;
         } else if (it.product_type === 'leather') {
-          nameStr = `Teri (${it.color})`;
-          sizeStr = `${it.quantity} dona`;
-          m2Str = `${it.quantity} dona`;
-          prStr = `$${it.price_per_item}/dona`;
+          nameStr = `Teri · ${escapeHtml(it.color)}`;
+          subStr = `${it.quantity} dona · $${it.price_per_item}/dona`;
         } else if (it.product_type === 'kavralan') {
-          nameStr = `Kavralan`;
-          sizeStr = `4.0m × ${it.sold_length}m`;
-          m2Str = `${it.area_m2} m²`;
+          nameStr = `Asl kavralan`;
+          subStr = `4 m × ${it.sold_length} m · ${it.area_m2} m²`;
           totalM2 += (it.area_m2 || 0);
-          prStr = `$${it.price_per_m2}/m²`;
         }
+        const ic = ICONS[it.product_type] || ICONS.carpet;
 
-        const tr = document.createElement('tr');
-        tr.className = "hover:bg-neutral-50 transition";
-        tr.innerHTML = `
-          <td class="py-1.5 px-1.5 text-neutral-400 font-mono text-[11px]">${idx + 1}</td>
-          <td class="py-1.5 px-1.5 font-semibold text-neutral-900">${nameStr}</td>
-          <td class="py-1.5 px-1.5 text-neutral-600">${sizeStr}</td>
-          <td class="py-1.5 px-1.5 text-neutral-600">${m2Str}</td>
-          <td class="py-1.5 px-1.5 text-neutral-500">${prStr}</td>
-          <td class="py-1.5 px-1.5 font-bold text-neutral-900">$${(it.total_price || 0).toFixed(2)}</td>
-          <td class="py-1.5 px-1.5 text-right">
-            <button type="button" onclick="removeSaleCartItem(${idx})" class="text-rose-600 hover:text-rose-800 p-1 text-xs" title="O'chirish">✕</button>
-          </td>
+        const row = document.createElement('div');
+        row.className = 'cart-row';
+        row.innerHTML = `
+          <span class="cr-ic" style="background:${ic.color}"><svg class="p-ic w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">${ic.svg}</svg></span>
+          <span class="flex-1 min-w-0"><span class="cr-name truncate">${nameStr}</span><span class="cr-sub">${subStr}</span></span>
+          <span class="cr-sum">$${(it.total_price || 0).toFixed(2)}</span>
+          <button type="button" onclick="removeSaleCartItem(${idx})" aria-label="Chekdan o'chirish" class="w-9 h-9 shrink-0 rounded-full text-neutral-500 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition">
+            <svg class="p-ic w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+          </button>
         `;
-        tbody.appendChild(tr);
+        tbody.appendChild(row);
       });
 
       totalSum = Math.round(totalSum * 100) / 100;
       totalM2 = Math.round(totalM2 * 100) / 100;
 
       if (summaryText) {
-        summaryText.innerText = `Jami: ${SALE_CART.length} ta mahsulot ${totalM2 > 0 ? `(${totalM2} m²)` : ''}`;
+        summaryText.innerText = `Jami · ${count} ta mahsulot${totalM2 > 0 ? ` · ${totalM2} m²` : ''}`;
       }
       if (totalEl) {
         totalEl.innerText = `$${totalSum.toFixed(2)}`;
       }
-      if (submitBtn) {
-        submitBtn.innerText = `✅ Sotuvni tasdiqlash (${SALE_CART.length} ta mahsulot — $${totalSum.toFixed(2)})`;
+      if (submitBtn && !submitBtn.disabled) {
+        submitBtn.innerText = `Sotish · ${count} ta · $${totalSum.toFixed(2)}`;
       }
+      if (bar) bar.classList.remove('hidden');
+      if (barCount) barCount.innerText = `Chek · ${count} ta`;
+      if (barTotal) barTotal.innerText = `$${totalSum.toFixed(2)}`;
+    }
+
+    // ==================== SOTUV: YANGI OQIM YORDAMCHILARI ====================
+    let SALE_WIDTH_FILTER = null;      // null = barcha enlar
+    let SALE_CUSTOM_PRICE_OPEN = false;
+
+    const SALE_COLOR_HEX = {
+      'seriy': '#9ca3af', 'kulrang': '#9ca3af', 'kofe': '#7c5a43', 'qizil': '#c0392b', 'bordo': '#7b1e2b',
+      'qora': '#1f2125', 'yashil': '#2f7d4f', "ko'k": '#2563eb', 'kok': '#2563eb', 'jigarrang': '#8b5a2b',
+      'oppoq': '#f5f5f4', 'oq': '#f5f5f4', 'bejiviy': '#d6c3a3', 'bej': '#d6c3a3', 'sariq': '#e0b021'
+    };
+    function saleColorHex(name) {
+      const key = String(name || '').trim().toLowerCase().replace(/[ʻʼ`‘’]/g, "'");
+      return SALE_COLOR_HEX[key] || '#a1a1aa';
+    }
+
+    function saleRollAvail(r) {
+      const cartUsed = getCartUsedLength(r.id);
+      return Math.round(((r.current_length || 0) - (r.pending_length || 0) - cartUsed) * 100) / 100;
+    }
+
+    // Gilam: en filtri tugmalari va rulon kartochkalari (asosiy tanlov usuli)
+    function renderSaleRollCards() {
+      const wrap = document.getElementById('sale-roll-cards');
+      const chipsWrap = document.getElementById('sale-width-chips');
+      if (!wrap || !chipsWrap) return;
+
+      const rolls = (ALL_ROLLS || []).filter(r => saleRollAvail(r) > 0);
+      const widths = [...new Set(rolls.map(r => parseFloat(r.width)))].filter(w => !isNaN(w)).sort((a, b) => a - b);
+      if (SALE_WIDTH_FILTER !== null && !widths.includes(SALE_WIDTH_FILTER)) SALE_WIDTH_FILTER = null;
+
+      chipsWrap.innerHTML = '';
+      if (widths.length > 1) {
+        const mk = (label, val) => {
+          const b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'sale-chip' + (SALE_WIDTH_FILTER === val ? ' is-active' : '');
+          b.setAttribute('aria-pressed', SALE_WIDTH_FILTER === val ? 'true' : 'false');
+          b.innerText = label;
+          b.onclick = () => { SALE_WIDTH_FILTER = val; renderSaleRollCards(); };
+          chipsWrap.appendChild(b);
+        };
+        mk('Hammasi', null);
+        widths.forEach(w => mk(`${w} m`, w));
+      }
+
+      const shown = rolls.filter(r => SALE_WIDTH_FILTER === null || parseFloat(r.width) === SALE_WIDTH_FILTER);
+      wrap.innerHTML = '';
+      if (shown.length === 0) {
+        wrap.innerHTML = '<p class="col-span-full text-[13px] text-ghostMuted py-4 text-center border border-dashed border-ghostBorder rounded-2xl">Omborda faol rulon yo\'q</p>';
+        return;
+      }
+
+      const selId = SELECTED_SALE_ROLL ? String(SELECTED_SALE_ROLL.id) : (document.getElementById('sale-roll-select')?.value || '');
+      shown.forEach(r => {
+        const avail = saleRollAvail(r);
+        const isSel = String(r.id) === String(selId);
+        const low = avail < 5;
+        const pending = (r.pending_length && r.pending_length > 0) ? ` · ⏳ ${r.pending_length} m` : '';
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'roll-card' + (isSel ? ' is-selected' : '');
+        b.setAttribute('aria-pressed', isSel ? 'true' : 'false');
+        b.onclick = () => pickSaleRollCard(r.id);
+        b.innerHTML = `
+          <span class="swatch" style="background:${saleColorHex(r.color)}"></span>
+          <span class="min-w-0">
+            <span class="rc-name truncate">${escapeHtml(r.color)}</span>
+            <span class="rc-sub${low ? ' low' : ''}">${r.width} m · ${avail} m${low ? ' · kam' : ''}${pending}</span>
+          </span>
+          ${isSel ? '<span class="rc-check" aria-hidden="true"><svg class="p-ic w-3 h-3" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></svg></span>' : ''}
+        `;
+        wrap.appendChild(b);
+      });
+    }
+
+    function pickSaleRollCard(rollId) {
+      const r = (ALL_ROLLS || []).find(x => String(x.id) === String(rollId));
+      if (!r) return;
+      const select = document.getElementById('sale-roll-select');
+      // Qidiruv filtri tufayli <select> da bu rulon bo'lmasa, to'liq ro'yxatni qayta to'ldiramiz
+      if (select && ![...select.options].some(o => String(o.value) === String(r.id))) {
+        const inp = document.getElementById('sale-roll-input');
+        if (inp) inp.value = '';
+        populateSaleRollDropdown(ALL_ROLLS || []);
+      }
+      selectSaleRoll(r);
+      if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) {
+        document.getElementById('sale-length')?.focus();
+      }
+    }
+
+    function toggleSaleRollSearch() {
+      const wrap = document.getElementById('sale-roll-search-wrap');
+      if (!wrap) return;
+      const willOpen = wrap.classList.contains('hidden');
+      wrap.classList.toggle('hidden', !willOpen);
+      if (willOpen) {
+        document.getElementById('sale-roll-input')?.focus();
+      } else {
+        document.getElementById('sale-roll-dropdown-menu')?.classList.add('hidden');
+      }
+    }
+
+    function setSaleLength(m) {
+      const inp = document.getElementById('sale-length');
+      if (!inp) return;
+      inp.value = m;
+      calcCarpetSaleByLength();
+    }
+
+    function setSaleLengthWholeRoll() {
+      const opt = document.getElementById('sale-roll-select')?.selectedOptions?.[0];
+      const remain = opt && opt.value ? parseFloat(opt.dataset.remain) : 0;
+      if (remain > 0) setSaleLength(remain);
+    }
+
+    // Uzunlik ostidagi izoh: maydon, rulondagi qoldiq yoki xato; tez tugmalarni belgilash
+    function updateCarpetLengthHint() {
+      const hint = document.getElementById('sale-length-hint');
+      const wholeBtn = document.getElementById('sale-len-whole');
+      const opt = document.getElementById('sale-roll-select')?.selectedOptions?.[0];
+      const lenRaw = String(document.getElementById('sale-length')?.value || '').replace(',', '.');
+      const len = parseFloat(lenRaw) || 0;
+
+      document.querySelectorAll('.sale-len-chip').forEach(c => {
+        c.classList.toggle('is-active', len > 0 && parseFloat(c.dataset.len) === len);
+      });
+
+      if (!opt || !opt.value) {
+        if (hint) { hint.className = 'text-xs text-ghostMuted min-h-[16px]'; hint.innerText = 'Avval rulonni tanlang'; }
+        if (wholeBtn) { wholeBtn.disabled = true; wholeBtn.innerText = 'Butun rulon'; wholeBtn.classList.remove('is-active'); }
+        return;
+      }
+      const remain = parseFloat(opt.dataset.remain) || 0;
+      const width = parseFloat(opt.dataset.width) || 1.2;
+      if (wholeBtn) {
+        wholeBtn.disabled = false;
+        wholeBtn.innerText = `Butun rulon · ${remain} m`;
+        wholeBtn.classList.toggle('is-active', len > 0 && len === remain);
+      }
+      if (!hint) return;
+      if (len <= 0) {
+        hint.className = 'text-xs text-ghostMuted min-h-[16px]';
+        hint.innerText = `Rulonda ${remain} m bor`;
+      } else if (len > remain) {
+        hint.className = 'text-xs font-semibold text-rose-600 min-h-[16px]';
+        hint.innerText = `Rulonda faqat ${remain} m bor`;
+      } else {
+        const area = Math.round(width * len * 100) / 100;
+        hint.className = 'text-xs text-ghostMuted min-h-[16px]';
+        hint.innerHTML = `${width} m × ${len} m = <b class="text-neutral-900">${area} m²</b> · <span class="text-emerald-700">rulonda ${remain} m bor</span>`;
+      }
+    }
+
+    function stepLeatherQty(delta) {
+      const inp = document.getElementById('sale-leather-qty');
+      if (!inp) return;
+      const next = Math.max(1, (parseInt(inp.value) || 0) + delta);
+      inp.value = next;
+      calcLeatherSaleByQty();
+    }
+
+    function setKavralanLength(m) {
+      const inp = document.getElementById('sale-kavralan-length');
+      if (!inp) return;
+      inp.value = m;
+      calcKavralanSaleByLength();
+    }
+
+    // "Kelishilgan summa": yopilganda narx standartga qaytariladi (yashirin maxsus narx qolib ketmasligi uchun)
+    function toggleSaleCustomPrice(forceOpen) {
+      SALE_CUSTOM_PRICE_OPEN = (typeof forceOpen === 'boolean') ? forceOpen : !SALE_CUSTOM_PRICE_OPEN;
+      document.querySelectorAll('.sale-custom').forEach(el => el.classList.toggle('hidden', !SALE_CUSTOM_PRICE_OPEN));
+      const btn = document.getElementById('sale-custom-toggle');
+      if (btn) {
+        btn.innerText = SALE_CUSTOM_PRICE_OPEN ? 'Standart narxga qaytarish' : 'Kelishilgan summa';
+        btn.setAttribute('aria-expanded', SALE_CUSTOM_PRICE_OPEN ? 'true' : 'false');
+      }
+      if (SALE_CUSTOM_PRICE_OPEN) return;
+      if (CURRENT_SALE_PRODUCT === 'carpet') {
+        onRollSelected();
+      } else if (CURRENT_SALE_PRODUCT === 'leather') {
+        const opt = document.getElementById('sale-leather-color')?.selectedOptions?.[0];
+        const priceInp = document.getElementById('sale-leather-price');
+        if (priceInp) priceInp.value = (opt && opt.value) ? (opt.dataset.price || 50) : 50;
+        calcLeatherSaleByQty();
+      } else if (CURRENT_SALE_PRODUCT === 'kavralan') {
+        calcKavralanSaleByLength();
+      }
+    }
+
+    function updateSaleAddLabel(total) {
+      const lbl = document.getElementById('sale-add-label');
+      if (lbl) lbl.innerText = total > 0 ? `Chekka qo'shish · $${total.toFixed(2)}` : "Chekka qo'shish";
+    }
+
+    function openSaleCheque() {
+      document.getElementById('sale-cheque')?.classList.add('open');
+    }
+    function closeSaleCheque() {
+      document.getElementById('sale-cheque')?.classList.remove('open');
+    }
+
+    // Enter — chekka qo'shish, Ctrl/Cmd + Enter — sotish (formaning tasodifan yuborilishi o'rniga)
+    function onSaleFormKeydown(e) {
+      if (e.key !== 'Enter' || e.isComposing) return;
+      const tag = (e.target && e.target.tagName) || '';
+      if (tag !== 'INPUT' && tag !== 'SELECT') return;
+      if (e.target.id === 'sale-roll-input') return; // qidiruv ro'yxati o'zi boshqaradi
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) {
+        document.getElementById('sale-form')?.requestSubmit();
+      } else {
+        addCurrentItemToCart();
+      }
+    }
+    function onSaleChequeKeydown(e) {
+      if (e.key !== 'Enter' || e.isComposing) return;
+      const tag = (e.target && e.target.tagName) || '';
+      if (tag !== 'INPUT') return;
+      e.preventDefault();
+      if (e.ctrlKey || e.metaKey) document.getElementById('sale-form')?.requestSubmit();
+    }
+
+    function setDebtDueInDays(days) {
+      const inp = document.getElementById('debt-due-date');
+      if (!inp) return;
+      const d = new Date();
+      d.setDate(d.getDate() + days);
+      const pad = n => String(n).padStart(2, '0');
+      inp.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+      markDueChips();
+    }
+    function markDueChips() {
+      const val = document.getElementById('debt-due-date')?.value || '';
+      const pad = n => String(n).padStart(2, '0');
+      document.querySelectorAll('.due-chip').forEach(c => {
+        const d = new Date();
+        d.setDate(d.getDate() + parseInt(c.dataset.days));
+        const iso = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        c.classList.toggle('is-active', val === iso);
+      });
     }
 
     async function submitUnifiedSale(e) {
@@ -5196,12 +5563,17 @@
       const res = await apiRequest('/api/sales', 'POST', body);
       if (btn) {
         btn.disabled = false;
-        btn.innerText = "✅ Sotuvni tasdiqlash";
+        renderSaleCart();
       }
 
       if (res && res.success) {
         showToast("Sotuv muvaffaqiyatli saqlandi!");
         e.target.reset();
+        // Chekdagi to'lov maydonlari formaga `form` atributi orqali bog'langan — reset ularni ham tozalaydi
+        toggleDebtFields(false);
+        markDueChips();
+        toggleSaleCustomPrice(false);
+        closeSaleCheque();
         clearSaleCart();
         SELECTED_SALE_ROLL = null;
         const rollInput = document.getElementById('sale-roll-input');
