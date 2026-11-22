@@ -278,21 +278,30 @@ async def api_branch3_sales(request: web.Request):
     elif request.method == "POST":
         body = await request.json()
         collection = body.get("collection_name")
-        length = float(body.get("length", 0))
-        price_per_m2 = body.get("price_per_m2")
-        
+        try:
+            length = float(str(body.get("length", 0)).replace(",", "."))
+            price_raw = body.get("price_per_m2")
+            custom_price = float(str(price_raw).replace(",", ".")) if price_raw not in (None, "") else None
+        except (TypeError, ValueError):
+            return json_response({"error": "Uzunlik yoki narx noto'g'ri kiritildi"}, status=400)
+
         if not collection or collection not in BRANCH3_COLLECTIONS:
             return json_response({"error": "Noto'g'ri kolleksiya tanlandi"}, status=400)
         if length <= 0:
             return json_response({"error": "Uzunlik 0 dan katta bo'lishi kerak"}, status=400)
-            
-        custom_price = float(price_per_m2) if price_per_m2 else None
-        res = await local_db.add_branch3_sale(
-            collection_name=collection,
-            length=length,
-            branch_id=branch_id,
-            custom_price_per_m2=custom_price
-        )
+        if custom_price is not None and custom_price <= 0:
+            return json_response({"error": "Narx 0 dan katta bo'lishi kerak"}, status=400)
+
+        try:
+            res = await local_db.make_branch3_sale(
+                collection_name=collection,
+                length=length,
+                branch_id=branch_id,
+                custom_price_per_m2=custom_price
+            )
+        except Exception as e:
+            logger.error(f"3-Filial sotuvida xatolik: {e}")
+            return json_response({"error": str(e)}, status=400)
         return json_response({"success": True, "sale": res})
 
 # --- GILAM VA OMBOR APIS ---
@@ -362,7 +371,7 @@ async def api_add_roll(request: web.Request):
             price_per_item = float(body.get("price_per_item", 50.0))
             if quantity <= 0 or price_per_item <= 0 or not color:
                 return json_response({"error": "Noto'g'ri miqdor yoki narx kiritildi"}, status=400)
-            res = await local_db.add_leather_stock(color, quantity, branch_id, price_per_item)
+            res = await local_db.add_leather(color, quantity, branch_id, price_per_item)
             return json_response({"success": True, "item": res})
         else:
             return json_response({"error": "Noma'lum mahsulot turi"}, status=400)

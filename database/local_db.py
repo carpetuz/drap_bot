@@ -1185,10 +1185,15 @@ async def make_batch_sale(
         batch_profit = 0.0
         item_descriptions = []
         sale_records = []
-        
+        # Har bir toifa o'z kassasiga: gilam / teri / kavralan pullari aralashmasligi uchun alohida yig'amiz
+        cat_totals = {"carpet": 0.0, "leather": 0.0, "kavralan": 0.0}
+        cat_descriptions = {"carpet": [], "leather": [], "kavralan": []}
+
         # 1. Oldindan barcha mahsulotlarni tekshirib chiqish
-        # Bir xil rulondan bir nechta bo'lsa, umumiy so'ralgan uzunlikni yig'ish
+        # Bir xil rulon / rangdan chekda bir nechta qator bo'lsa, umumiy so'ralgan miqdorni yig'ib tekshiramiz
         roll_requested_lens = {}
+        leather_requested_qty = {}
+        kavralan_requested_lens = {}
         for item in items:
             p_type = item.get("product_type", "carpet")
             if p_type == "carpet":
@@ -1202,20 +1207,32 @@ async def make_batch_sale(
                 qty = int(item.get("quantity", 0))
                 if qty <= 0:
                     raise ValueError("Teri soni 0 dan katta bo'lishi kerak!")
-                async with db.execute("SELECT quantity FROM leather_inventory WHERE branch_id = ? AND color = ?", (branch_id, color)) as cur:
-                    row = await cur.fetchone()
-                    curr_qty = row[0] if row else 0
-                    if qty > curr_qty:
-                        raise ValueError(f"Omborda yetarli teri yo'q! ({color}: mavjud {curr_qty} dona, so'ralgan: {qty} dona)")
+                leather_requested_qty[color] = leather_requested_qty.get(color, 0) + qty
             elif p_type == "kavralan":
                 r_id = int(item["roll_id"])
                 s_len = float(str(item["sold_length"]).replace(",", "."))
                 if s_len <= 0:
                     raise ValueError("Kavralan uzunligi 0 dan katta bo'lishi kerak!")
-                async with db.execute("SELECT * FROM kavralan_rolls WHERE id = ? AND branch_id = ?", (r_id, branch_id)) as cur:
-                    k_roll = await cur.fetchone()
-                    if not k_roll or s_len > k_roll["current_length"]:
-                        raise ValueError("Kavralan rulonida yetarli uzunlik yo'q!")
+                kavralan_requested_lens[r_id] = kavralan_requested_lens.get(r_id, 0.0) + s_len
+            else:
+                raise ValueError(f"Noma'lum mahsulot turi: {p_type}")
+
+        # Teri qoldiqlarini rang bo'yicha chekdagi jami miqdor bilan tekshirish
+        for color, total_qty in leather_requested_qty.items():
+            async with db.execute("SELECT quantity FROM leather_inventory WHERE branch_id = ? AND color = ?", (branch_id, color)) as cur:
+                row = await cur.fetchone()
+                curr_qty = row[0] if row else 0
+            if total_qty > curr_qty:
+                raise ValueError(f"Omborda yetarli teri yo'q! ({color}: mavjud {curr_qty} dona, chekda jami so'ralgan: {total_qty} dona)")
+
+        # Kavralan rulonlarini chekdagi jami uzunlik bilan tekshirish
+        for r_id, total_req_len in kavralan_requested_lens.items():
+            async with db.execute("SELECT * FROM kavralan_rolls WHERE id = ? AND branch_id = ?", (r_id, branch_id)) as cur:
+                k_roll = await cur.fetchone()
+            if not k_roll:
+                raise ValueError(f"Kavralan ruloni (ID: {r_id}) topilmadi yoki boshqa filialga tegishli!")
+            if round(total_req_len, 2) > round(float(k_roll["current_length"]), 2):
+                raise ValueError(f"Kavralan rulonida ({k_roll['roll_code']}) yetarli uzunlik yo'q! Mavjud: {k_roll['current_length']}m, chekda jami so'ralgan: {round(total_req_len, 2)}m")
 
         # Gilam rulonlari bo'yicha qoldiqlarni tekshirish
         for r_id, total_req_len in roll_requested_lens.items():
@@ -1278,7 +1295,10 @@ async def make_batch_sale(
                 batch_total += sale_total_price
                 batch_cost += cost_price
                 batch_profit += profit
-                item_descriptions.append(f"Rezinka Gilam {roll['roll_code']} ({roll['width']:g}x{sold_length}m = {sold_area} m², {roll['color']})")
+                desc = f"Rezinka Gilam {roll['roll_code']} ({roll['width']:g}x{sold_length}m = {sold_area} m², {roll['color']})"
+                item_descriptions.append(desc)
+                cat_totals["carpet"] += sale_total_price
+                cat_descriptions["carpet"].append(desc)
                 sale_records.append({
                     "sale_id": sale_id,
                     "product_type": "carpet",
@@ -1322,7 +1342,10 @@ async def make_batch_sale(
                 batch_total += item_total
                 batch_cost += item_cost
                 batch_profit += item_profit
-                item_descriptions.append(f"{qty} dona {color} teri")
+                desc = f"{qty} dona {color} teri"
+                item_descriptions.append(desc)
+                cat_totals["leather"] += item_total
+                cat_descriptions["leather"].append(desc)
                 sale_records.append({
                     "sale_id": sale_id,
                     "product_type": "leather",
@@ -1377,7 +1400,10 @@ async def make_batch_sale(
                 batch_total += sale_total_price
                 batch_cost += item_cost
                 batch_profit += item_profit
-                item_descriptions.append(f"4.0x{sold_len}m Kavralan")
+                desc = f"4.0x{sold_len}m Kavralan"
+                item_descriptions.append(desc)
+                cat_totals["kavralan"] += sale_total_price
+                cat_descriptions["kavralan"].append(desc)
                 sale_records.append({
                     "sale_id": sale_id,
                     "product_type": "kavralan",
@@ -1391,54 +1417,90 @@ async def make_batch_sale(
         batch_cost = round(batch_cost, 2)
         batch_profit = round(batch_profit, 2)
         items_summary = ", ".join(item_descriptions)
-        
-        debt_id = None
+        cat_totals = {c: round(v, 2) for c, v in cat_totals.items()}
+        cat_titles = {"carpet": "Gilam", "leather": "Teri", "kavralan": "Kavralan"}
+        present_cats = [c for c in ("carpet", "leather", "kavralan") if cat_descriptions[c]]
+        is_mixed = len(present_cats) > 1
+
+        # Nasiyada boshlang'ich to'lovni toifalar summasiga mutanosib taqsimlash
+        # (sent qoldig'i oxirgi toifaga), shunda har bir toifa qarzi o'z kassasiga yopiladi
+        cat_paid = {}
         if is_debt:
             initial_paid = round(float(initial_paid), 2)
-            remaining_amount = round(batch_total - initial_paid, 2)
-            debt_status = "partial" if initial_paid > 0 else "unpaid"
-            
-            async with db.execute("""
-                INSERT INTO debts (branch_id, category, customer_name, customer_phone, item_details, total_amount, initial_paid, paid_amount, remaining_amount, status, due_date, customer_telegram_id, created_at, updated_at)
-                VALUES (?, 'carpet', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (branch_id, customer_name, customer_phone, f"Chek ({len(items)} ta): {items_summary}", batch_total, initial_paid, initial_paid, remaining_amount, debt_status, due_date, customer_telegram_id, created_at, created_at)) as cur_d:
-                debt_id = cur_d.lastrowid
-                
-            cur_bal = await get_cash_balance(branch_id=branch_id, category="carpet")
-            if initial_paid > 0:
-                new_bal = round(cur_bal + initial_paid, 2)
+            allocated = 0.0
+            for idx, c in enumerate(present_cats):
+                if idx == len(present_cats) - 1:
+                    share = round(initial_paid - allocated, 2)
+                else:
+                    share = round(initial_paid * cat_totals[c] / batch_total, 2) if batch_total > 0 else 0.0
+                    share = min(share, round(initial_paid - allocated, 2))
+                cat_paid[c] = share
+                allocated = round(allocated + share, 2)
+
+        debt_ids = []
+        new_balances = {}
+        for c in present_cats:
+            cat_summary = ", ".join(cat_descriptions[c])
+            # Qoldiqni shu ulanish orqali o'qiymiz (tranzaksiya ichida)
+            async with db.execute(
+                "SELECT balance_after FROM cashbox WHERE branch_id = ? AND category = ? ORDER BY id DESC LIMIT 1",
+                (branch_id, c)
+            ) as cur_b:
+                b_row = await cur_b.fetchone()
+                cur_bal = round(b_row[0], 2) if b_row else 0.0
+
+            if is_debt:
+                paid = cat_paid[c]
+                remaining_amount = round(cat_totals[c] - paid, 2)
+                debt_status = "partial" if paid > 0 else "unpaid"
+                details = (f"Chek ({len(items)} ta, {cat_titles[c]} qismi): {cat_summary}" if is_mixed
+                           else f"Chek ({len(items)} ta): {items_summary}")
+
+                async with db.execute("""
+                    INSERT INTO debts (branch_id, category, customer_name, customer_phone, item_details, total_amount, initial_paid, paid_amount, remaining_amount, status, due_date, customer_telegram_id, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (branch_id, c, customer_name, customer_phone, details, cat_totals[c], paid, paid, remaining_amount, debt_status, due_date, customer_telegram_id, created_at, created_at)) as cur_d:
+                    debt_id = cur_d.lastrowid
+                debt_ids.append(debt_id)
+
+                if paid > 0:
+                    new_bal = round(cur_bal + paid, 2)
+                    await db.execute("""
+                        INSERT INTO cashbox (branch_id, category, operation_type, amount, note, balance_after, created_at)
+                        VALUES (?, ?, 'INCOME', ?, ?, ?, ?)
+                    """, (branch_id, c, paid, f"Nasiya boshlang'ich to'lov (Chek #{debt_id}, {cat_titles[c]}): {customer_name}", new_bal, created_at))
+
+                    await db.execute("""
+                        INSERT INTO debt_payments (debt_id, branch_id, category, amount, note, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, (debt_id, branch_id, c, paid, "Boshlang'ich to'lov", created_at))
+                else:
+                    new_bal = cur_bal
+            else:
+                new_bal = round(cur_bal + cat_totals[c], 2)
+                note = (f"Savdo (Chek: {len(items)} ta mahsulot, {cat_titles[c]} qismi: {cat_summary})" if is_mixed
+                        else f"Savdo (Chek: {len(items)} ta mahsulot: {items_summary})")
                 await db.execute("""
                     INSERT INTO cashbox (branch_id, category, operation_type, amount, note, balance_after, created_at)
-                    VALUES (?, 'carpet', 'INCOME', ?, ?, ?, ?)
-                """, (branch_id, initial_paid, f"Nasiya boshlang'ich to'lov (Chek #{debt_id}): {customer_name}", new_bal, created_at))
-                
-                await db.execute("""
-                    INSERT INTO debt_payments (debt_id, branch_id, category, amount, note, created_at)
-                    VALUES (?, ?, 'carpet', ?, ?, ?)
-                """, (debt_id, branch_id, initial_paid, "Boshlang'ich to'lov", created_at))
-            else:
-                new_bal = cur_bal
-        else:
-            cur_bal = await get_cash_balance(branch_id=branch_id, category="carpet")
-            new_bal = round(cur_bal + batch_total, 2)
-            await db.execute("""
-                INSERT INTO cashbox (branch_id, category, operation_type, amount, note, balance_after, created_at)
-                VALUES (?, 'carpet', 'INCOME', ?, ?, ?, ?)
-            """, (branch_id, batch_total, f"Savdo (Chek: {len(items)} ta mahsulot: {items_summary})", new_bal, created_at))
-            
+                    VALUES (?, ?, 'INCOME', ?, ?, ?, ?)
+                """, (branch_id, c, cat_totals[c], note, new_bal, created_at))
+            new_balances[c] = new_bal
+
         await db.commit()
-        
+
         return {
             "success": True,
             "total_amount": batch_total,
             "cost_price": batch_cost,
             "profit": batch_profit,
             "items_count": len(items),
-            "debt_id": debt_id,
+            "debt_id": debt_ids[0] if debt_ids else None,
+            "debt_ids": debt_ids,
             "is_debt": is_debt,
             "items_summary": items_summary,
             "sales": sale_records,
-            "new_cash_balance": new_bal
+            "totals_by_category": {c: cat_totals[c] for c in present_cats},
+            "new_cash_balances": new_balances
         }
 
 # --- TERI FUNKSIYALARI ($50 / DONA) ---
@@ -2460,14 +2522,18 @@ async def get_dashboard_stats(branch_id: int | None = None) -> dict:
 
 # --- 3-FILIAL FUNKSIYALARI (OMBORSIZ SOTUV) ---
 
-async def make_branch3_sale(collection_name: str, length: float, branch_id: int = 3) -> dict:
+async def make_branch3_sale(collection_name: str, length: float, branch_id: int = 3, custom_price_per_m2: float | None = None) -> dict:
     if collection_name not in BRANCH3_COLLECTIONS:
         raise ValueError(f"Noto'g'ri mahsulot tanlandi: {collection_name}")
     length = round(float(length), 2)
     if length <= 0:
         raise ValueError("Uzunlik 0 dan katta bo'lishi kerak!")
 
-    price_per_m2 = BRANCH3_COLLECTIONS[collection_name]
+    # Sotuvchi formada narxni o'zgartirgan bo'lsa, o'shani olamiz; aks holda kolleksiya narxi
+    if custom_price_per_m2 is not None and float(custom_price_per_m2) > 0:
+        price_per_m2 = round(float(custom_price_per_m2), 2)
+    else:
+        price_per_m2 = BRANCH3_COLLECTIONS[collection_name]
     width = BRANCH3_WIDTH
     area_m2 = round(width * length, 2)
     total_price = round(area_m2 * price_per_m2, 2)

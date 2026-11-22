@@ -4539,6 +4539,7 @@
     function populateLeatherColorDropdown(leathers) {
       const select = document.getElementById('sale-leather-color');
       if (!select) return;
+      const prevVal = select.value;
       select.innerHTML = '<option value="">Rangni tanlang...</option>';
       leathers.forEach(l => {
         const cartUsed = getCartUsedLeatherQty(l.color);
@@ -4551,11 +4552,13 @@
         opt.innerText = `${l.color} (${avail} dona mavjud, $${l.price_per_item || 50}/dona)`;
         select.appendChild(opt);
       });
+      if (prevVal && [...select.options].some(o => o.value === prevVal)) select.value = prevVal;
     }
 
     function populateKavralanRollDropdown(kavralans) {
       const select = document.getElementById('sale-kavralan-select');
       if (!select) return;
+      const prevVal = select.value;
       select.innerHTML = '<option value="">Kavralan rulonini tanlang...</option>';
       kavralans.forEach(k => {
         const cartUsed = getCartUsedKavralanLength(k.id);
@@ -4585,6 +4588,14 @@
         opt.innerText = `4x (${spec})  -  ${avail}`;
         select.appendChild(opt);
       });
+      if (prevVal && [...select.options].some(o => o.value === prevVal)) select.value = prevVal;
+    }
+
+    // Savat o'zgarganda gilam, teri va kavralan ro'yxatidagi "mavjud" miqdorni chekdagi miqdorga qarab yangilash
+    function refreshCartAwareDropdowns() {
+      filterSaleRollDropdown();
+      populateLeatherColorDropdown(ALL_LEATHER || []);
+      populateKavralanRollDropdown(ALL_KAVRALAN || []);
     }
 
     function onRollSelected() {
@@ -4990,7 +5001,7 @@
       }
 
       renderSaleCart();
-      filterSaleRollDropdown();
+      refreshCartAwareDropdowns();
       if (!isSilent) {
         showToast("Mahsulot chekka qo'shildi!");
       }
@@ -5000,13 +5011,13 @@
     function removeSaleCartItem(idx) {
       SALE_CART.splice(idx, 1);
       renderSaleCart();
-      filterSaleRollDropdown();
+      refreshCartAwareDropdowns();
     }
 
     function clearSaleCart() {
       SALE_CART = [];
       renderSaleCart();
-      filterSaleRollDropdown();
+      refreshCartAwareDropdowns();
     }
 
     function renderSaleCart() {

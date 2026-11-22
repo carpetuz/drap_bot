@@ -100,6 +100,28 @@ D:\drap_bot/
 * **Batafsil / Texnik eslatmalar**: (Antigravity yoki boshqa dasturchi bilishi zarur bo'lgan texnik jihatlar)
 ```
 
+### [2026-11-22] - Kritik xatolar production kodiga ko'chirildi: 3-filial sotuvi, teri kirimi, chekda kassalar aralashishi, manfiy qoldiq
+* **O'zgartirilgan fayllar**: `web/routes.py`, `database/local_db.py`, `web/static/index.html` (branch: `fix/prod-cashbox-sales-critical`, asosi — `feat/portal-style-prod`)
+* **Qo'shilgan yangi funksiyalar / modullar**:
+  - `make_branch3_sale(..., custom_price_per_m2=None)` — formadagi narx (bo'sh bo'lsa kolleksiya narxi).
+  - `make_batch_sale()` natijasida yangi maydonlar: `debt_ids`, `totals_by_category`, `new_cash_balances`. `debt_id` qoldi (birinchi qarz ID si), `new_cash_balance` olib tashlandi (frontend ham, bot ham ishlatmaydi).
+  - Frontend: `refreshCartAwareDropdowns()` — savatga qo'shish/o'chirish/tozalashdan keyin gilam, teri va kavralan ro'yxatidagi "mavjud" miqdorni yangilaydi. `populateLeatherColorDropdown()` va `populateKavralanRollDropdown()` tanlangan qiymatni saqlab qoladi.
+* **O'zgarish sababi va maqsadi (Why)**: `c9aff7d` (eski kod, `fix/cashbox-sales-critical`) da tuzatilgan 4 ta xato production kodida ham borligi tasdiqlandi — tuzatilmagan `c1c4703` kodida `data.db` nusxasi ustida qayta ko'rsatildi:
+  1. `POST /api/branch3/sales` mavjud bo'lmagan `add_branch3_sale` ni chaqirardi → 3-filialda har bir sotuv 500 xato.
+  2. Teri kirimi (`POST /api/rolls`, `product_type=leather`) mavjud bo'lmagan `add_leather_stock` ni chaqirardi → kirim ishlamasdi. Endi `add_leather`.
+  3. Chekda (savat) teri va kavralan puli ham Gilam kassasiga tushardi ($228 lik aralash chek to'liq `carpet` ga), nasiya ham bitta `carpet` qarz bo'lib ochilardi (4.2-qoidaga zid).
+  4. Bir xil teri rangi / kavralan ruloni chekda bir necha qatorda bo'lsa har qator alohida tekshirilardi → ombor manfiyga tushardi (sinovda teri 4 → -4, kavralan 3m → -3m). Noma'lum `product_type` jimgina o'tkazilib, $0 lik kassa yozuvi qo'shilardi.
+* **Batafsil / Texnik eslatmalar**:
+  - 3-filial: uzunlik va narxda vergul qabul qilinadi; noto'g'ri qiymat yoki `make_branch3_sale` xatosi endi 400 qaytaradi (avval 500).
+  - Chekda naqd sotuv: har bir toifa o'z kassasiga alohida `INCOME` yozuvi bilan tushadi (aralash chekda izoh: "Savdo (Chek: N ta mahsulot, Teri qismi: ...)").
+  - Chekda nasiya: har bir toifa uchun alohida qarz ("Chek (N ta, Teri qismi): ..."), boshlang'ich to'lov toifalar summasiga mutanosib bo'linadi, sent qoldig'i oxirgi toifaga (manfiy bo'lib qolmasligi uchun cheklangan). Bitta toifali chekda avvalgidek bitta qarz va avvalgi matn.
+  - Chek ichida kassa qoldig'i o'sha DB ulanishi orqali o'qiladi (`get_cash_balance` alohida ulanish ochardi).
+  - `delete_sale()` chekdan sotilgan teri/kavralanni endi o'z toifasi kassasidan topadi. Lekin u chekning shu toifa qismi yozuvini to'liq o'chiradi — bir toifada bir necha qator bo'lsa, butun qism summasi o'chadi (eski muammo, tuzatilmadi).
+  - **Ko'chirilmadi**: `c9aff7d` dagi "Kartal kassasi olib tashlandi" qismi — production uni ishlatadi.
+  - **Serverdagi eski ma'lumotlar o'zgartirilmadi**: avval chek orqali sotilgan teri/kavralan pullari va qarzlari `carpet` toifasida qolgan.
+  - Tekshiruv: haqiqiy `data.db` ga tegilmadi (hash o'zgarmadi), `bot.py` ishga tushirilmadi. `data.db` nusxasi scratch papkada, aiohttp test client orqali haqiqiy route'lar: tuzatilmagan kodda 2/23, bu branch'da 28/28 tekshiruv o'tdi. UI: nusxa bazali lokal server orqali — teri 5 → savatga 3 → ro'yxatda 2, yana 3 qo'shish rad etildi; kavralan 5m → 4m → 1m; o'chirish/tozalashda qaytadi; teri+kavralan chek UI'dan yuborildi → Teri kassasi +100, Kavralan +120, Gilam o'zgarmadi.
+  - **Topilgan, lekin tuzatilmagan**: `api_delete_sale` da `@auth_required` yo'q → `/api/sales/delete` har doim 500 (`KeyError: 'user'`), ya'ni web paneldan sotuvni o'chirish ishlamaydi; `edit_sale()` 3-filial sotuvini tahrirlaganda kassa yozuvini toifasiz qidiradi va `carpet` (o'rniga `branch3`) balansini qayta hisoblaydi; chek qatorini tahrirlash kassa yozuvining summasini shu qator narxiga almashtiradi; boshlang'ich to'lov > summa tekshirilmaydi.
+
 ### [2026-11-22] - Production kodi git'ga olindi va Portal dizayni unga ko'chirildi
 * **O'zgartirilgan fayllar**: `web/static/index.html`, `CLAUDE.md` (branch: `feat/portal-style-prod`, asosi — `prod-snapshot`)
 * **Qo'shilgan yangi funksiyalar / modullar**:
