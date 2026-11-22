@@ -118,7 +118,8 @@ D:\drap_bot/
   - Qarz ro'yxatida mijoz ismi, telefon va sana endi `escapeHtml()` orqali chiqariladi; «bugun» mahalliy sana bo'yicha (`localDateStr()`, avval UTC edi).
   - Transfer sahifasi ochilganda rulon ro'yxati endi o'z-o'zidan ochilib qolmaydi.
   - Kartal kassasi va Bloknot o'zining maxsus dizayniga ega — faqat jadvallar telefonda kartochka bo'ladi.
-  - Tekshiruv: soxta API'li lokal server (namuna qarzlar, xarajatlar, transfer) — 375px va 1280px, kunduzgi/tungi rejim; Qarz filtri/qidiruvi, Kirim xulosasi, Rasxod/Transfer chiplari, Hisobot davrlari JS orqali tekshirildi; `node` bilan barcha inline skriptlar sintaksisi tekshirildi. Haqiqiy server va Telegram ichida sinalmagan, deploy qilinmagan.
+  - Tekshiruv: soxta API'li lokal server (namuna qarzlar, xarajatlar, transfer) — 375px va 1280px, kunduzgi/tungi rejim; Qarz filtri/qidiruvi, Kirim xulosasi, Rasxod/Transfer chiplari, Hisobot davrlari JS orqali tekshirildi; `node` bilan barcha inline skriptlar sintaksisi tekshirildi.
+  - **Deploy (2026-11-22 17:52, drap.uz)**: faqat `web/static/index.html` (`3ba40bb`) yuklandi, bot qayta ishga tushirilmadi (fayl har so'rovda diskdan o'qiladi). Zaxira: `web/static/index.html.bak_before_sections_20261122_175221`. **Endi production = `feat/ui-sections`** (backend fayllari `feat/sotuv-ux` bilan bir xil).
 
 ### [2026-11-22] - Sotuv bo'limi yangi oqimga o'tkazildi (telefon va kompyuter uchun qulay)
 * **O'zgartirilgan fayllar**: `web/static/index.html` (branch: `feat/sotuv-ux`, asosi — `fix/prod-cashbox-sales-critical`)
