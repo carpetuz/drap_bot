@@ -46,6 +46,8 @@ async def send_weekly_backup(bot: Bot):
 
 async def send_daily_debt_reminders(bot: Bot):
     logger.info("Kundalik qarz eslatmalari tekshirilmoqda...")
+    # Kassadan qarzga berilgan pullar (mijoz nasiyasidan alohida) — shu kunlik ishda, nasiya bo'lmasa ham
+    await send_daily_cash_loan_reminders(bot)
     try:
         from database.local_db import get_due_debts_for_reminders
         from config import BRANCH_USERS, BRANCH_NAMES
@@ -120,6 +122,68 @@ async def send_daily_debt_reminders(bot: Bot):
             #         pass
     except Exception as e:
         logger.error(f"Kundalik qarz eslatmalarida xatolik: {e}")
+
+
+def _md_escape(text) -> str:
+    """Telegram Markdown (v1) uchun maxsus belgilarni qochirish (ism/izohdagi _ * ` [ xabarni buzmasligi uchun)."""
+    s = str(text or "")
+    for ch in ("\\", "_", "*", "`", "["):
+        s = s.replace(ch, "\\" + ch)
+    return s
+
+
+async def send_daily_cash_loan_reminders(bot: Bot):
+    try:
+        from database.local_db import get_due_cash_loans_for_reminders
+        from config import BRANCH_USERS, BRANCH_NAMES
+
+        due_data = await get_due_cash_loans_for_reminders()
+        if not due_data:
+            logger.info("Muddati kelgan kassadan berilgan qarzlar yo'q.")
+            return
+
+        cat_names = {"carpet": "Gilam", "leather": "Teri", "kavralan": "Kavralan", "branch3": "3-Filial"}
+
+        def line(l, with_due=False):
+            phone = l.get("borrower_phone") or "-"
+            kassa = cat_names.get(l.get("category"), l.get("category"))
+            due = f" (Muddat: {l.get('due_date')})" if with_due else ""
+            return (f"• *{_md_escape(l.get('borrower_name'))}* ({_md_escape(phone)}): "
+                    f"*${(l.get('remaining_amount') or 0):.2f}* — {kassa} kassasidan{due}")
+
+        for branch_id, buckets in due_data.items():
+            today_list = buckets.get("today", [])
+            tomorrow_list = buckets.get("tomorrow", [])
+            overdue_list = buckets.get("overdue", [])
+            if not (today_list or tomorrow_list or overdue_list):
+                continue
+
+            branch_name = BRANCH_NAMES.get(branch_id, f"{branch_id}-Filial")
+            lines = ["💸 *Kassadan berilgan qarzlar eslatmasi*", f"🏢 *Filial:* {_md_escape(branch_name)}\n"]
+            if today_list:
+                lines.append("⚠️ *Bugun qaytarilishi kerak:*")
+                lines += [line(l) for l in today_list]
+                lines.append("")
+            if tomorrow_list:
+                lines.append("⏳ *Ertaga muddati keladi:*")
+                lines += [line(l) for l in tomorrow_list]
+                lines.append("")
+            if overdue_list:
+                lines.append("🚨 *Muddati o'tgan:*")
+                lines += [line(l, with_due=True) for l in overdue_list[:5]]
+                if len(overdue_list) > 5:
+                    lines.append(f"  _...va yana {len(overdue_list) - 5} ta qarz_")
+                lines.append("")
+
+            msg_text = "\n".join(lines)
+            for uid in [u for u, b in BRANCH_USERS.items() if b == branch_id]:
+                try:
+                    await bot.send_message(chat_id=uid, text=msg_text, parse_mode="Markdown")
+                    logger.info(f"Kassa qarzi eslatmasi filial {branch_id} xodimi {uid} ga yuborildi.")
+                except Exception as e:
+                    logger.error(f"Kassa qarzi eslatmasini ({uid}) yuborishda xatolik: {e}")
+    except Exception as e:
+        logger.error(f"Kassa qarzlari eslatmasida xatolik: {e}")
 
 async def main():
     if not BOT_TOKEN:

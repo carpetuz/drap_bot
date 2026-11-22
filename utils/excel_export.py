@@ -6,6 +6,19 @@ from datetime import datetime
 from database.local_db import DB_PATH
 from config import BRANCH_NAMES
 
+# Kassa amali turi -> hisobotdagi nom (LOAN_RETURN ham kirim, avval "Chiqim" bo'lib chiqardi)
+CASH_OP_LABELS = {
+    "INCOME": "Kirim (Sotuv)",
+    "LOAN_RETURN": "Kirim (Qarz qaytdi)",
+    "LOAN_OUT": "Chiqim (Qarzga berildi)",
+    "EXPENSE": "Chiqim (Rasxod)",
+    "WITHDRAWAL": "Chiqim (Topshirildi)",
+}
+
+
+def cash_op_label(op_type: str) -> str:
+    return CASH_OP_LABELS.get(op_type, "Chiqim")
+
 async def generate_excel_report(file_path: str = "CRM_Hisobot.xlsx", branch_id: int | None = None) -> str:
     wb = openpyxl.Workbook()
     
@@ -53,7 +66,7 @@ async def generate_excel_report(file_path: str = "CRM_Hisobot.xlsx", branch_id: 
                 for c in await cursor.fetchall():
                     ws_b3_cash.append([
                         "3-Filial", c["created_at"],
-                        "Kirim (Sotuv)" if c["operation_type"] == "INCOME" else "Chiqim",
+                        cash_op_label(c["operation_type"]),
                         c["amount"], c["note"], c["balance_after"]
                     ])
             sheet_configs.append((ws_b3_cash, cash_fill))
@@ -86,7 +99,7 @@ async def generate_excel_report(file_path: str = "CRM_Hisobot.xlsx", branch_id: 
             ws_c_cash.append(headers_c_cash)
             async with db.execute("SELECT * FROM cashbox WHERE branch_id = 2 AND category = 'carpet' ORDER BY id DESC") as cursor:
                 for c in await cursor.fetchall():
-                    ws_c_cash.append(["2-Filial", c["created_at"], "Kirim (Sotuv)" if c["operation_type"] == "INCOME" else "Chiqim (Topshirildi)", c["amount"], c["note"], c["balance_after"]])
+                    ws_c_cash.append(["2-Filial", c["created_at"], cash_op_label(c["operation_type"]), c["amount"], c["note"], c["balance_after"]])
             sheet_configs.append((ws_c_cash, cash_fill))
 
             # 4. Gilam Nasiyalari
@@ -197,7 +210,7 @@ async def generate_excel_report(file_path: str = "CRM_Hisobot.xlsx", branch_id: 
             async with db.execute(q, p) as cursor:
                 for c in await cursor.fetchall():
                     b_name = BRANCH_NAMES.get(c["branch_id"], f"Filial-{c['branch_id']}")
-                    ws_c_cash.append([b_name, c["created_at"], "Kirim (Sotuv)" if c["operation_type"] == "INCOME" else "Chiqim (Topshirildi)", c["amount"], c["note"], c["balance_after"]])
+                    ws_c_cash.append([b_name, c["created_at"], cash_op_label(c["operation_type"]), c["amount"], c["note"], c["balance_after"]])
             sheet_configs.append((ws_c_cash, cash_fill))
 
             # 9. Teri Kassasi Harakatlari
@@ -208,7 +221,7 @@ async def generate_excel_report(file_path: str = "CRM_Hisobot.xlsx", branch_id: 
             async with db.execute(q, p) as cursor:
                 for c in await cursor.fetchall():
                     b_name = BRANCH_NAMES.get(c["branch_id"], f"Filial-{c['branch_id']}")
-                    ws_l_cash.append([b_name, c["created_at"], "Kirim (Sotuv)" if c["operation_type"] == "INCOME" else "Chiqim (Topshirildi)", c["amount"], c["note"], c["balance_after"]])
+                    ws_l_cash.append([b_name, c["created_at"], cash_op_label(c["operation_type"]), c["amount"], c["note"], c["balance_after"]])
             sheet_configs.append((ws_l_cash, cash_fill))
 
             # 10. Kavralan Kassasi Harakatlari
@@ -219,7 +232,7 @@ async def generate_excel_report(file_path: str = "CRM_Hisobot.xlsx", branch_id: 
             async with db.execute(q, p) as cursor:
                 for c in await cursor.fetchall():
                     b_name = BRANCH_NAMES.get(c["branch_id"], f"Filial-{c['branch_id']}")
-                    ws_k_cash.append([b_name, c["created_at"], "Kirim (Sotuv)" if c["operation_type"] == "INCOME" else "Chiqim (Topshirildi)", c["amount"], c["note"], c["balance_after"]])
+                    ws_k_cash.append([b_name, c["created_at"], cash_op_label(c["operation_type"]), c["amount"], c["note"], c["balance_after"]])
             sheet_configs.append((ws_k_cash, cash_fill))
 
             # 11. 3-Filial Kassasi (Umumiy hisobotda)
@@ -231,7 +244,7 @@ async def generate_excel_report(file_path: str = "CRM_Hisobot.xlsx", branch_id: 
                     for c in await cursor.fetchall():
                         ws_b3_cash_all.append([
                             "3-Filial", c["created_at"],
-                            "Kirim (Sotuv)" if c["operation_type"] == "INCOME" else "Chiqim",
+                            cash_op_label(c["operation_type"]),
                             c["amount"], c["note"], c["balance_after"]
                         ])
                 sheet_configs.append((ws_b3_cash_all, cash_fill))

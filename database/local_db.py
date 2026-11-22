@@ -5,6 +5,10 @@ from config import PRICE_PER_M2, LEATHER_PRICE, BRANCH_NAMES, LEATHER_COLORS, KA
 
 DB_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data.db")
 
+# cashbox.operation_type turlari: kassaga pul kiradiganlari. Qolganlari (EXPENSE, WITHDRAWAL, LOAN_OUT) — chiqim.
+CASH_IN_OPERATIONS = ('INCOME', 'LOAN_RETURN')
+CASH_LOAN_CATEGORIES = ('carpet', 'leather', 'kavralan', 'branch3')
+
 async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
         # 1. Gilam ombori
@@ -228,6 +232,41 @@ async def init_db():
                 paid_at TEXT,
                 created_at TEXT NOT NULL,
                 FOREIGN KEY (debt_id) REFERENCES debts (id) ON DELETE CASCADE
+            )
+        """)
+
+        # 13. Kassadan qarzga berilgan pul (mijoz nasiyasidan alohida).
+        # Berilganda tanlangan kassadan LOAN_OUT bilan chiqadi, qaytganda o'sha kassaga LOAN_RETURN bilan tushadi.
+        # Bu xarajat ham, savdo tushumi ham emas — foyda hisobotiga ta'sir qilmaydi.
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS cash_loans (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                branch_id INTEGER NOT NULL,
+                category TEXT NOT NULL,
+                borrower_name TEXT NOT NULL,
+                borrower_phone TEXT,
+                amount REAL NOT NULL,
+                returned_amount REAL NOT NULL DEFAULT 0.0,
+                remaining_amount REAL NOT NULL,
+                due_date TEXT,
+                note TEXT,
+                status TEXT NOT NULL DEFAULT 'open',
+                created_by INTEGER,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS cash_loan_payments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                loan_id INTEGER NOT NULL,
+                branch_id INTEGER NOT NULL,
+                category TEXT NOT NULL,
+                amount REAL NOT NULL,
+                note TEXT,
+                created_by INTEGER,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY (loan_id) REFERENCES cash_loans (id)
             )
         """)
 
@@ -2928,7 +2967,8 @@ async def _recalc_cashbox_balance(db, branch_id: int, category: str):
     
     bal = 0.0
     for r_id, op_type, amt in rows:
-        if op_type == 'INCOME':
+        # Kassaga pul kiradigan turlar: savdo/qarz to'lovi (INCOME) va qarzga berilgan pulning qaytishi (LOAN_RETURN)
+        if op_type in CASH_IN_OPERATIONS:
             bal = round(bal + amt, 2)
         else:
             bal = round(bal - amt, 2)
@@ -3545,3 +3585,212 @@ async def toggle_pin_note(note_id: int):
         await db.execute("UPDATE notes SET is_pinned = ?, updated_at = ? WHERE id = ?", (new_val, now_str, note_id))
         await db.commit()
         return new_val
+
+
+# =====================================================================
+# KASSADAN QARZGA BERILGAN PUL (cash_loans)
+# Mijoz nasiyasidan (debts) alohida: bu do'kon kassasidan odamga qarzga berilgan naqd pul.
+# Berish: tanlangan kassadan LOAN_OUT. Qaytarish: o'sha kassaga LOAN_RETURN (qisman ham mumkin).
+# Hisobotdagi savdo tushumi (INCOME) va xarajat (EXPENSE) ga kirmaydi.
+# =====================================================================
+
+def _cash_loan_cat_label(category: str) -> str:
+    return {"carpet": "Gilam", "leather": "Teri", "kavralan": "Kavralan", "branch3": "3-Filial"}.get(category, category)
+
+
+async def _last_cash_balance(db, branch_id: int, category: str) -> float:
+    async with db.execute(
+        "SELECT balance_after FROM cashbox WHERE branch_id = ? AND category = ? ORDER BY id DESC LIMIT 1",
+        (branch_id, category)
+    ) as cur:
+        row = await cur.fetchone()
+    return round(row[0], 2) if row else 0.0
+
+
+def _parse_money(value) -> float:
+    try:
+        return round(float(str(value).replace(",", ".")), 2)
+    except (TypeError, ValueError):
+        raise ValueError("Summa noto'g'ri kiritildi!")
+
+
+async def give_cash_loan(
+    branch_id: int,
+    category: str,
+    borrower_name: str,
+    amount,
+    borrower_phone: str = "",
+    due_date: str | None = None,
+    note: str = "",
+    created_by: int | None = None,
+) -> dict:
+    name = (borrower_name or "").strip()
+    if not name:
+        raise ValueError("Qarz oluvchining ismini kiriting!")
+    if category not in CASH_LOAN_CATEGORIES:
+        raise ValueError("Noto'g'ri kassa tanlandi!")
+    amount = _parse_money(amount)
+    if amount <= 0:
+        raise ValueError("Qarz summasi 0 dan katta bo'lishi kerak!")
+    due = (due_date or "").strip() or None
+    if due:
+        try:
+            datetime.strptime(due, "%Y-%m-%d")
+        except ValueError:
+            raise ValueError("Qaytarish sanasi noto'g'ri (YYYY-MM-DD)!")
+    phone = (borrower_phone or "").strip()
+    note = (note or "").strip()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        # Qoldiqni o'qish va yozish orasida boshqa kassa amali aralashmasligi uchun
+        await db.execute("BEGIN IMMEDIATE")
+        try:
+            balance = await _last_cash_balance(db, branch_id, category)
+            if amount > balance:
+                raise ValueError(f"{_cash_loan_cat_label(category)} kassasida yetarli mablag' yo'q! Mavjud: ${balance:.2f}")
+            new_balance = round(balance - amount, 2)
+            cur = await db.execute("""
+                INSERT INTO cash_loans (branch_id, category, borrower_name, borrower_phone, amount, returned_amount,
+                                        remaining_amount, due_date, note, status, created_by, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, 0.0, ?, ?, ?, 'open', ?, ?, ?)
+            """, (branch_id, category, name, phone, amount, amount, due, note, created_by, now, now))
+            loan_id = cur.lastrowid
+            cash_note = f"Qarzga berildi #{loan_id}: {name}" + (f" — {note}" if note else "")
+            await db.execute("""
+                INSERT INTO cashbox (branch_id, category, operation_type, amount, note, balance_after, created_at)
+                VALUES (?, ?, 'LOAN_OUT', ?, ?, ?, ?)
+            """, (branch_id, category, amount, cash_note, new_balance, now))
+            await db.commit()
+        except Exception:
+            await db.rollback()
+            raise
+
+    return {"loan_id": loan_id, "amount": amount, "category": category, "new_cash_balance": new_balance}
+
+
+async def return_cash_loan(
+    loan_id: int,
+    amount,
+    branch_id: int | None = None,
+    note: str = "",
+    created_by: int | None = None,
+) -> dict:
+    amount = _parse_money(amount)
+    if amount <= 0:
+        raise ValueError("Qaytarilgan summa 0 dan katta bo'lishi kerak!")
+    note = (note or "").strip()
+    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        await db.execute("BEGIN IMMEDIATE")
+        try:
+            async with db.execute("SELECT * FROM cash_loans WHERE id = ?", (loan_id,)) as cur:
+                loan = await cur.fetchone()
+            if not loan:
+                raise ValueError("Qarz yozuvi topilmadi!")
+            if branch_id is not None and loan["branch_id"] != branch_id:
+                raise ValueError("Bu qarz boshqa filialga tegishli!")
+            remaining = round(loan["remaining_amount"] or 0.0, 2)
+            if loan["status"] == "closed" or remaining <= 0:
+                raise ValueError("Bu qarz allaqachon to'liq qaytarilgan!")
+            if amount > remaining + 0.001:
+                raise ValueError(f"Qaytarilayotgan summa qoldiqdan (${remaining:.2f}) ko'p bo'lishi mumkin emas!")
+
+            new_returned = round((loan["returned_amount"] or 0.0) + amount, 2)
+            new_remaining = round(loan["amount"] - new_returned, 2)
+            if new_remaining < 0.005:
+                new_remaining = 0.0
+            status = "closed" if new_remaining == 0.0 else "open"
+
+            balance = await _last_cash_balance(db, loan["branch_id"], loan["category"])
+            new_balance = round(balance + amount, 2)
+            cash_note = f"Qarz qaytdi #{loan_id}: {loan['borrower_name']}" + (f" — {note}" if note else "")
+            await db.execute("""
+                INSERT INTO cashbox (branch_id, category, operation_type, amount, note, balance_after, created_at)
+                VALUES (?, ?, 'LOAN_RETURN', ?, ?, ?, ?)
+            """, (loan["branch_id"], loan["category"], amount, cash_note, new_balance, now))
+            await db.execute("""
+                INSERT INTO cash_loan_payments (loan_id, branch_id, category, amount, note, created_by, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (loan_id, loan["branch_id"], loan["category"], amount, note, created_by, now))
+            await db.execute("""
+                UPDATE cash_loans SET returned_amount = ?, remaining_amount = ?, status = ?, updated_at = ? WHERE id = ?
+            """, (new_returned, new_remaining, status, now, loan_id))
+            await db.commit()
+        except Exception:
+            await db.rollback()
+            raise
+
+    return {"loan_id": loan_id, "returned": amount, "remaining_amount": new_remaining, "status": status,
+            "category": loan["category"], "new_cash_balance": new_balance}
+
+
+async def get_cash_loans(branch_id: int | None = None, status: str = "open", limit: int = 300) -> list[dict]:
+    conditions, params = [], []
+    if branch_id is not None:
+        conditions.append("branch_id = ?")
+        params.append(branch_id)
+    if status in ("open", "closed"):
+        conditions.append("status = ?")
+        params.append(status)
+    where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
+    query = f"""
+        SELECT * FROM cash_loans {where}
+        ORDER BY CASE WHEN status = 'open' THEN 0 ELSE 1 END, COALESCE(due_date, '9999-12-31'), id DESC
+        LIMIT ?
+    """
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute(query, (*params, limit)) as cur:
+            rows = await cur.fetchall()
+    return [dict(r) for r in rows]
+
+
+async def get_cash_loans_summary(branch_id: int | None = None) -> dict:
+    today = datetime.now().strftime("%Y-%m-%d")
+    cond, params = "status = 'open'", []
+    if branch_id is not None:
+        cond += " AND branch_id = ?"
+        params.append(branch_id)
+    async with aiosqlite.connect(DB_PATH) as db:
+        async with db.execute(f"""
+            SELECT category, COUNT(*), COALESCE(SUM(remaining_amount), 0.0),
+                   SUM(CASE WHEN due_date IS NOT NULL AND due_date != '' AND due_date < ? THEN 1 ELSE 0 END)
+            FROM cash_loans WHERE {cond} GROUP BY category
+        """, (today, *params)) as cur:
+            rows = await cur.fetchall()
+    by_category = {cat: round(total, 2) for cat, _, total, _ in rows}
+    return {
+        "open_count": sum(r[1] for r in rows),
+        "total_remaining": round(sum(r[2] for r in rows), 2),
+        "overdue_count": sum(r[3] or 0 for r in rows),
+        "by_category": by_category,
+    }
+
+
+async def get_due_cash_loans_for_reminders() -> dict:
+    from datetime import timedelta
+    today_dt = datetime.now().date()
+    today_str = today_dt.strftime("%Y-%m-%d")
+    tomorrow_str = (today_dt + timedelta(days=1)).strftime("%Y-%m-%d")
+    result: dict = {}
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        async with db.execute("""
+            SELECT * FROM cash_loans
+            WHERE status = 'open' AND remaining_amount > 0 AND due_date IS NOT NULL AND due_date != '' AND due_date <= ?
+            ORDER BY due_date ASC
+        """, (tomorrow_str,)) as cur:
+            rows = await cur.fetchall()
+    for r in rows:
+        bucket = result.setdefault(r["branch_id"], {"today": [], "tomorrow": [], "overdue": []})
+        item = dict(r)
+        if r["due_date"] == today_str:
+            bucket["today"].append(item)
+        elif r["due_date"] == tomorrow_str:
+            bucket["tomorrow"].append(item)
+        else:
+            bucket["overdue"].append(item)
+    return result

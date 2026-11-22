@@ -100,6 +100,22 @@ D:\drap_bot/
 * **Batafsil / Texnik eslatmalar**: (Antigravity yoki boshqa dasturchi bilishi zarur bo'lgan texnik jihatlar)
 ```
 
+### [2026-11-22] - «Berilgan qarzlar»: kassadan qarzga berilgan pul (mijoz nasiyasidan alohida)
+* **O'zgartirilgan fayllar**: `database/local_db.py`, `web/routes.py`, `web/server.py`, `bot.py`, `utils/excel_export.py`, `web/static/index.html` (branch: `feat/ui-sections`)
+* **Qo'shilgan yangi funksiyalar / modullar**:
+  - DB (`init_db`, faqat `CREATE TABLE IF NOT EXISTS`): `cash_loans` (kimga, telefon, kassa toifasi, summa, qaytgan, qoldiq, muddat, izoh, holat `open`/`closed`) va `cash_loan_payments` (har bir qaytish).
+  - `give_cash_loan()` — tanlangan kassadan `cashbox` ga `LOAN_OUT` yozuvi; `return_cash_loan()` — o'sha kassaga `LOAN_RETURN` (qisman ham), to'liq qaytsa `closed`; `get_cash_loans()`, `get_cash_loans_summary()`, `get_due_cash_loans_for_reminders()`. Qoldiq o'qish va yozish bitta `BEGIN IMMEDIATE` tranzaksiyasida.
+  - API: `GET /api/cash-loans?status=open|closed|all`, `POST /api/cash-loans`, `POST /api/cash-loans/{id}/return` — filial xodimi faqat o'z filiali, bosh admin faol filial bo'yicha.
+  - Telegram: `send_daily_cash_loan_reminders()` — mavjud kundalik nasiya eslatmasi bilan birga (bugun / ertaga / muddati o'tgan), faqat o'sha filial xodimlariga; ismlar Markdown uchun qochiriladi (`_md_escape`).
+  - Web: «Berilgan qarzlar» bo'limi (sidebar va telefondagi «Yana» menyusi): xulosa, qarz berish formasi (kimga → qaysi kassadan, kassadagi qoldiq ko'rinadi → summa va muddat), ro'yxat (Qaytmagan / Qaytgan / Hammasi), «Qaytdi» oynasi («To'liq» tugmasi bilan). Kassa bo'limida «Qarzga berilgan pul» qatori.
+  - Excel: kassa amallari endi to'g'ri nomlanadi (`cash_op_label`): «Kirim (Qarz qaytdi)», «Chiqim (Qarzga berildi)», «Chiqim (Rasxod)», «Chiqim (Topshirildi)».
+* **O'zgarish sababi va maqsadi (Why)**: Biznes qo'ldagi naqd puldan odamlarga qarz beradi. Bu xarajat emas (pul qaytadi) va mijoz nasiyasi ham emas — alohida hisob kerak edi. Biznes egasining qarorlari: pul har safar tanlangan kassadan chiqadi va o'sha kassaga qaytadi (kassalar aralashmaydi); filial xodimlari ham bera oladi; muddati kelganda Telegram eslatma.
+* **Batafsil / Texnik eslatmalar**:
+  - **Muhim tuzatish**: `_recalc_cashbox_balance()` (sotuv tahrirlanganda/o'chirilganda chaqiriladi) `INCOME` dan boshqa hamma amalni minus deb hisoblardi — endi `CASH_IN_OPERATIONS = ('INCOME', 'LOAN_RETURN')` plyus. Busiz qarz qaytishi keyingi sotuv tahririda kassadan ikki marta ayirilardi.
+  - `LOAN_OUT` / `LOAN_RETURN` hisobotdagi savdo tushumi va rasxodga kirmaydi (rasxod faqat `EXPENSE`, tushum savdo jadvallaridan) — foyda o'zgarmaydi; «qo'ldagi pul» esa kamayadi, chunki pul haqiqatan kassada yo'q.
+  - Sxema o'zgarishi faqat yangi jadvallar; ular bot ishga tushganda `init_db()` orqali yaratiladi. Eski jadvallarga tegilmadi.
+  - Tekshiruv: `data.db` nusxasida 23/23 (berish, qisman/to'liq qaytish, xatolar kassani o'zgartirmasligi, qayta hisoblashdan keyin qoldiq, boshqa kassalar, eslatmalar, haqiqiy `data.db` hash o'zgarmagan); API test client bilan 10/10 (401, boshqa filial ko'rmaydi/qaytara olmaydi, ortiqcha summa); haqiqiy backend nusxa bazada ishga tushirilib UI orqali to'liq tsikl (Teri kassasi 600 → 450 → 500 → 600), telefon 375px. Mahalliy bazada shu oy sotuv yo'q edi, shuning uchun «hisobot o'zgarmaydi» tekshiruvi kod o'qish bilan ham tasdiqlandi.
+
 ### [2026-11-22] - Barcha bo'limlar Sotuv uslubiga keltirildi (telefonda jadvallar kartochka, tugmali tanlovlar)
 * **O'zgartirilgan fayllar**: `web/static/index.html` (branch: `feat/ui-sections`, asosi — `feat/sotuv-ux`)
 * **Qo'shilgan yangi funksiyalar / modullar**:

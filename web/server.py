@@ -10,6 +10,7 @@ from web.routes import (
     api_get_debts, api_pay_debt, api_get_debt_details, api_setup_debt_installments, api_cancel_debt_installments, api_edit_debt,
     api_transfer_roll, api_get_transfers, api_accept_transfer, api_reject_transfer, api_cancel_transfer,
     api_get_expenses, api_add_expense,
+    api_get_cash_loans, api_give_cash_loan, api_return_cash_loan,
     api_edit_roll, api_delete_roll, api_edit_leather, api_edit_kavralan, api_delete_kavralan, api_delete_sale, api_edit_sale,
     api_get_profit_loss,
     api_get_kartal_cashbox, api_add_kartal_transaction, api_update_kartal_transaction,
@@ -80,6 +81,11 @@ def setup_web_app(bot: Bot = None) -> web.Application:
     app.router.add_post("/api/transfer/cancel", api_cancel_transfer)
     app.router.add_get("/api/expenses", api_get_expenses)
     app.router.add_post("/api/expenses", api_add_expense)
+
+    # Kassadan qarzga berilgan pul (mijoz nasiyasidan alohida)
+    app.router.add_get("/api/cash-loans", api_get_cash_loans)
+    app.router.add_post("/api/cash-loans", api_give_cash_loan)
+    app.router.add_post("/api/cash-loans/{id}/return", api_return_cash_loan)
 
     # Super Admin Stock Management
     app.router.add_post("/api/stock/edit-roll", api_edit_roll)

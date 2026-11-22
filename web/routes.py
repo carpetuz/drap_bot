@@ -971,6 +971,70 @@ async def api_get_expenses(request: web.Request):
     return json_response({"expenses": expenses})
 
 @auth_required
+async def api_get_cash_loans(request: web.Request):
+    """Kassadan qarzga berilgan pullar ro'yxati va xulosasi (faqat joriy filial)."""
+    user = request["user"]
+    branch_id = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
+    status = request.query.get("status", "open")
+    if status not in ("open", "closed", "all"):
+        status = "open"
+    loans = await local_db.get_cash_loans(branch_id=branch_id, status=status)
+    summary = await local_db.get_cash_loans_summary(branch_id=branch_id)
+    return json_response({"loans": loans, "summary": summary})
+
+@auth_required
+async def api_give_cash_loan(request: web.Request):
+    """Tanlangan kassadan qarzga pul berish (kassadan LOAN_OUT bilan chiqadi)."""
+    user = request["user"]
+    branch_id = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
+    try:
+        body = await request.json()
+    except Exception:
+        return json_response({"error": "So'rov noto'g'ri"}, status=400)
+    try:
+        res = await local_db.give_cash_loan(
+            branch_id=branch_id,
+            category=body.get("category", ""),
+            borrower_name=body.get("borrower_name", ""),
+            amount=body.get("amount", 0),
+            borrower_phone=body.get("borrower_phone", ""),
+            due_date=body.get("due_date") or None,
+            note=body.get("note", ""),
+            created_by=user.get("user_id"),
+        )
+        return json_response({"success": True, "result": res})
+    except ValueError as e:
+        return json_response({"error": str(e)}, status=400)
+    except Exception as e:
+        logger.exception("Qarz berishda xatolik")
+        return json_response({"error": f"Qarz berishda xatolik: {e}"}, status=500)
+
+@auth_required
+async def api_return_cash_loan(request: web.Request):
+    """Qarzga berilgan pulning qaytishi (to'liq yoki qisman) — o'sha kassaga LOAN_RETURN bilan qaytadi."""
+    user = request["user"]
+    branch_id = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]
+    try:
+        loan_id = int(request.match_info.get("id", "0"))
+        body = await request.json()
+    except Exception:
+        return json_response({"error": "So'rov noto'g'ri"}, status=400)
+    try:
+        res = await local_db.return_cash_loan(
+            loan_id=loan_id,
+            amount=body.get("amount", 0),
+            branch_id=branch_id,
+            note=body.get("note", ""),
+            created_by=user.get("user_id"),
+        )
+        return json_response({"success": True, "result": res})
+    except ValueError as e:
+        return json_response({"error": str(e)}, status=400)
+    except Exception as e:
+        logger.exception("Qarzni qaytarishda xatolik")
+        return json_response({"error": f"Qarzni qaytarishda xatolik: {e}"}, status=500)
+
+@auth_required
 async def api_add_expense(request: web.Request):
     user = request["user"]
     branch_id = user["active_branch"] if user["role"] == "superadmin" else user["branch_id"]

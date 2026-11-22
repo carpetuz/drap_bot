@@ -1686,6 +1686,18 @@
             </div>
           </div>
 
+          <!-- Kassadan qarzga berilgan pul (kassa qoldig'iga kirmaydi, qaytsa kassaga qo'shiladi) -->
+          <button type="button" id="kassa-loans-banner" onclick="switchView('loans')" class="hidden w-full stat-tile flex items-center justify-between gap-3 text-left">
+            <span class="flex items-center gap-3 min-w-0">
+              <span class="nav-ic" style="background:#0f766e;width:34px;height:34px"><svg viewBox="0 0 24 24" aria-hidden="true" style="width:17px;height:17px"><circle cx="15" cy="7" r="3"/><path d="M15 5.8v2.4"/><path d="M3 15h3l4.5 1.5a2 2 0 0 0 2.5-1.3L9 14"/><path d="M6 20l7-.5 7.2-3.6a1.6 1.6 0 0 0-1.4-2.9L13 15"/></svg></span>
+              <span class="min-w-0">
+                <span class="st-label">Qarzga berilgan pul (kassada yo'q)</span>
+                <span id="kassa-loans-banner-text" class="block text-[15px] font-semibold text-neutral-900">$0.00</span>
+              </span>
+            </span>
+            <span class="text-[13px] font-medium text-[#3442b8] dark:text-[#aab4ff] shrink-0">Ko'rish →</span>
+          </button>
+
           <!-- Cash Withdrawal Form -->
           <div class="bg-white border border-ghostBorder rounded-2xl p-5 sm:p-6 shadow-sm">
             <h2 class="text-base font-semibold text-neutral-900 mb-1">Kassa topshirish (Chiqim qilish)</h2>
@@ -1752,6 +1764,97 @@
                   <!-- Dynamic debts -->
                 </tbody>
               </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- TAB: BERILGAN QARZLAR (kassadan qarzga berilgan pul; mijoz nasiyasidan alohida) -->
+        <section id="view-loans" class="hidden space-y-5">
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div class="stat-tile col-span-2 lg:col-span-1"><span class="st-label">Qarzga berilgan (qaytmagan)</span><span id="loans-sum-total" class="st-value text-[#0f766e]">$0.00</span><span id="loans-sum-bycat" class="block mt-1 text-[11px] text-ghostMuted"></span></div>
+            <div class="stat-tile"><span class="st-label">Ochiq qarzlar</span><span id="loans-sum-count" class="st-value">0</span></div>
+            <div class="stat-tile"><span class="st-label">Muddati o'tgan</span><span id="loans-sum-overdue" class="st-value">0</span></div>
+            <div class="stat-tile hidden lg:block"><span class="st-label">Qayerdan</span><span class="block mt-1.5 text-[12px] leading-snug text-neutral-600">Pul tanlangan kassadan chiqadi va qaytganda o'sha kassaga qaytadi</span></div>
+          </div>
+
+          <div class="grid gap-5 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)] items-start">
+            <!-- Qarz berish formasi -->
+            <div class="bg-white border border-ghostBorder rounded-2xl p-5 sm:p-6 shadow-sm">
+              <h2 class="text-base font-semibold text-neutral-900 mb-1">Qarz berish</h2>
+              <p class="text-xs text-ghostMuted mb-5">Bu xarajat emas — pul qaytgach kassa tiklanadi, foydaga ta'sir qilmaydi</p>
+              <form id="loan-form" onsubmit="submitCashLoan(event)" oninput="updateLoanSubmitLabel()" class="space-y-5">
+                <div class="space-y-2.5">
+                  <h3 class="sale-step"><span>1</span>Kimga</h3>
+                  <input type="text" id="loan-name" required placeholder="Ism familiya" aria-label="Qarz oluvchining ismi" autocomplete="off" class="w-full min-h-[48px] bg-ghostBg border border-ghostBorder rounded-xl px-3.5 text-sm font-medium focus:outline-none focus:border-neutral-900">
+                  <input type="tel" id="loan-phone" placeholder="Telefon (ixtiyoriy)" aria-label="Telefon raqami" class="w-full min-h-[44px] bg-ghostBg border border-ghostBorder rounded-xl px-3.5 text-sm focus:outline-none focus:border-neutral-900">
+                </div>
+
+                <div class="space-y-2.5">
+                  <h3 class="sale-step"><span>2</span>Qaysi kassadan</h3>
+                  <div id="loan-cat-chips" class="flex flex-wrap gap-2" role="group" aria-label="Kassa">
+                    <button type="button" class="sale-chip is-active" data-value="carpet" onclick="pickChip('loan-cat-chips','loan-category','carpet',updateLoanCatHint)"><span class="w-2.5 h-2.5 rounded-full" style="background:#3b6ff5"></span>Gilam</button>
+                    <button type="button" class="sale-chip" data-value="leather" onclick="pickChip('loan-cat-chips','loan-category','leather',updateLoanCatHint)"><span class="w-2.5 h-2.5 rounded-full" style="background:#f08a24"></span>Teri</button>
+                    <button type="button" class="sale-chip" data-value="kavralan" onclick="pickChip('loan-cat-chips','loan-category','kavralan',updateLoanCatHint)"><span class="w-2.5 h-2.5 rounded-full" style="background:#8b5cf6"></span>Kavralan</button>
+                    <button type="button" class="sale-chip" data-value="branch3" onclick="pickChip('loan-cat-chips','loan-category','branch3',updateLoanCatHint)"><span class="w-2.5 h-2.5 rounded-full" style="background:#0e9f9e"></span>3-Filial</button>
+                  </div>
+                  <select id="loan-category" class="hidden" aria-hidden="true" tabindex="-1">
+                    <option value="carpet" selected>carpet</option>
+                    <option value="leather">leather</option>
+                    <option value="kavralan">kavralan</option>
+                    <option value="branch3">branch3</option>
+                  </select>
+                  <p id="loan-cat-hint" class="text-xs text-ghostMuted">Kassada: —</p>
+                </div>
+
+                <div class="space-y-2.5">
+                  <h3 class="sale-step"><span>3</span>Summa va muddat</h3>
+                  <div class="relative">
+                    <label for="loan-amount" class="sr-only">Summa ($)</label>
+                    <span class="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-semibold text-ghostMuted">$</span>
+                    <input type="text" inputmode="decimal" id="loan-amount" required placeholder="0" autocomplete="off" class="w-full min-h-[52px] bg-white border-2 border-neutral-900 rounded-2xl pl-9 pr-4 text-xl font-semibold text-neutral-900 focus:outline-none">
+                  </div>
+                  <div class="flex flex-wrap gap-1.5" id="loan-due-chips" role="group" aria-label="Qaytarish muddati">
+                    <button type="button" class="sale-chip loan-due-chip" data-days="7" onclick="setLoanDueInDays(7)">1 hafta</button>
+                    <button type="button" class="sale-chip loan-due-chip" data-days="14" onclick="setLoanDueInDays(14)">2 hafta</button>
+                    <button type="button" class="sale-chip loan-due-chip" data-days="30" onclick="setLoanDueInDays(30)">1 oy</button>
+                  </div>
+                  <input type="date" id="loan-due" aria-label="Qaytarish muddati (sana)" onchange="markLoanDueChips()" class="w-full min-h-[44px] bg-ghostBg border border-ghostBorder rounded-xl px-3.5 text-sm text-neutral-700">
+                  <input type="text" id="loan-note" placeholder="Izoh (ixtiyoriy)" aria-label="Izoh" class="w-full min-h-[44px] bg-ghostBg border border-ghostBorder rounded-xl px-3.5 text-sm focus:outline-none focus:border-neutral-900">
+                </div>
+
+                <button type="submit" id="loan-submit-btn" class="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-semibold text-[15px] min-h-[52px] px-4 transition">
+                  <span id="loan-submit-label">Qarz berish</span>
+                </button>
+              </form>
+            </div>
+
+            <!-- Berilgan qarzlar ro'yxati -->
+            <div class="bg-white border border-ghostBorder rounded-2xl p-5 sm:p-6 shadow-sm min-w-0">
+              <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <h2 class="text-base font-semibold text-neutral-900">Berilgan qarzlar</h2>
+                <div id="loans-status-chips" class="flex flex-wrap gap-1.5" role="group" aria-label="Holat">
+                  <button type="button" class="sale-chip is-active" data-value="open" onclick="setLoansStatus('open')">Qaytmagan</button>
+                  <button type="button" class="sale-chip" data-value="closed" onclick="setLoansStatus('closed')">Qaytgan</button>
+                  <button type="button" class="sale-chip" data-value="all" onclick="setLoansStatus('all')">Hammasi</button>
+                </div>
+              </div>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left text-xs">
+                  <thead>
+                    <tr class="border-b border-ghostBorder text-ghostMuted font-medium">
+                      <th class="pb-2.5">Sana</th>
+                      <th class="pb-2.5">Kimga</th>
+                      <th class="pb-2.5">Kassa</th>
+                      <th class="pb-2.5">Berilgan</th>
+                      <th class="pb-2.5">Qaytgan</th>
+                      <th class="pb-2.5">Qoldiq</th>
+                      <th class="pb-2.5">Muddat</th>
+                      <th class="pb-2.5 text-right">Amal</th>
+                    </tr>
+                  </thead>
+                  <tbody id="loans-tbody" class="divide-y divide-ghostBorder"></tbody>
+                </table>
+              </div>
             </div>
           </div>
         </section>
@@ -2544,6 +2647,28 @@
   </div>
 
   <!-- EDIT CARPET ROLL MODAL -->
+  <!-- Berilgan qarz qaytishi oynasi -->
+  <div id="modal-loan-return" class="fixed inset-0 z-[80] hidden" role="dialog" aria-modal="true" aria-labelledby="loan-return-title">
+    <div class="absolute inset-0 bg-neutral-900/50" onclick="closeLoanReturn()"></div>
+    <div class="absolute left-0 right-0 bottom-0 sm:inset-0 sm:m-auto sm:h-fit w-full sm:max-w-md bg-white border border-ghostBorder rounded-t-[28px] sm:rounded-[24px] p-5 sm:p-6 shadow-2xl space-y-4" style="padding-bottom: max(20px, env(safe-area-inset-bottom, 0px));">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h3 id="loan-return-title" class="font-display text-[26px] leading-tight text-neutral-900">Qarz qaytishi</h3>
+          <p id="loan-return-info" class="text-xs text-ghostMuted mt-1"></p>
+        </div>
+        <button type="button" onclick="closeLoanReturn()" aria-label="Yopish" class="w-10 h-10 shrink-0 rounded-full bg-neutral-100 text-neutral-600 flex items-center justify-center"><svg class="p-ic w-4 h-4" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+      </div>
+      <div class="relative">
+        <label for="loan-return-amount" class="sr-only">Qaytgan summa ($)</label>
+        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-lg font-semibold text-ghostMuted">$</span>
+        <input type="text" inputmode="decimal" id="loan-return-amount" placeholder="0" autocomplete="off" class="w-full min-h-[52px] bg-white border-2 border-neutral-900 rounded-2xl pl-9 pr-4 text-xl font-semibold text-neutral-900 focus:outline-none">
+      </div>
+      <button type="button" id="loan-return-full" class="sale-chip" onclick="setLoanReturnFull()">To'liq</button>
+      <input type="text" id="loan-return-note" placeholder="Izoh (ixtiyoriy)" aria-label="Izoh" class="w-full min-h-[44px] bg-ghostBg border border-ghostBorder rounded-xl px-3.5 text-sm focus:outline-none focus:border-neutral-900">
+      <button type="button" id="loan-return-submit" onclick="submitLoanReturn()" class="w-full bg-neutral-900 hover:bg-neutral-800 text-white font-semibold text-[15px] min-h-[52px] px-4 transition">Qaytganini saqlash</button>
+    </div>
+  </div>
+
   <div id="modal-edit-carpet" class="fixed inset-0 bg-neutral-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 hidden">
     <div class="bg-white border border-ghostBorder rounded-2xl p-6 shadow-xl max-w-md w-full animate-in fade-in duration-150">
       <div class="flex justify-between items-center mb-4">
@@ -3245,6 +3370,17 @@
             <div>
               <div class="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Transfer</div>
               <div class="text-[11px] text-neutral-500">Filiallararo</div>
+            </div>
+          </button>
+
+          <!-- Berilgan qarzlar (kassadan) -->
+          <button onclick="selectMoreView('loans')" class="flex items-center gap-3 p-3 rounded-2xl bg-neutral-50 dark:bg-[#28282c] hover:bg-neutral-100 dark:hover:bg-[#323236] text-left transition border border-neutral-100 dark:border-neutral-800 active:scale-98">
+            <div class="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 flex items-center justify-center shrink-0">
+              <svg class="p-ic w-5 h-5" viewBox="0 0 24 24" aria-hidden="true"><circle cx="15" cy="7" r="3"/><path d="M15 5.8v2.4"/><path d="M3 15h3l4.5 1.5a2 2 0 0 0 2.5-1.3L9 14"/><path d="M6 20l7-.5 7.2-3.6a1.6 1.6 0 0 0-1.4-2.9L13 15"/></svg>
+            </div>
+            <div>
+              <div class="text-sm font-semibold text-neutral-900 dark:text-neutral-100">Berilgan qarzlar</div>
+              <div class="text-[11px] text-neutral-500">Kassadan qarzga</div>
             </div>
           </button>
 
@@ -3970,7 +4106,8 @@
       import: '<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>',
       box: '<path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5 12 12l9-4.5"/><path d="M12 12v9"/>',
       chart: '<path d="M5 20V11"/><path d="M12 20V5"/><path d="M19 20v-7"/>',
-      note: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>'
+      note: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+      handcoins: '<circle cx="15" cy="7" r="3"/><path d="M15 5.8v2.4"/><path d="M3 15h3l4.5 1.5a2 2 0 0 0 2.5-1.3L9 14"/><path d="M6 20l7-.5 7.2-3.6a1.6 1.6 0 0 0-1.4-2.9L13 15"/>'
     };
 
     // Har bir bo'lim: sarlavha, qisqa izoh, ikonka va rang (sidebar + sahifa sarlavhasi uchun)
@@ -3978,6 +4115,7 @@
       'sale':         { title: 'Sotuv',          sub: 'Yangi sotuvni rasmiylashtirish',                         icon: 'cart',     color: '#3b6ff5' },
       'b3-sale':      { title: 'Sotuv',          sub: "3-Filial kolleksiyalari bo'yicha tezkor sotuv",          icon: 'cart',     color: '#3b6ff5' },
       'debts':        { title: 'Qarz',           sub: "Nasiya daftari va to'lovlarni qabul qilish",             icon: 'book',     color: '#f08a24' },
+      'loans':        { title: 'Berilgan qarzlar', sub: "Kassadan qarzga berilgan pul va uning qaytishi",        icon: 'handcoins', color: '#0f766e' },
       'transfer':     { title: 'Transfer',       sub: "Filiallararo mahsulot o'tkazish",                        icon: 'transfer', color: '#8b5cf6' },
       'expenses':     { title: 'Rasxod',         sub: 'Filial xarajatlari',                                     icon: 'expense',  color: '#e5487a' },
       'cashbox':      { title: 'Kassa',          sub: 'Gilam, Teri va Kavralan kassalari alohida yuritiladi',   icon: 'wallet',   color: '#16a34a' },
@@ -4066,6 +4204,7 @@
         // 3-Filial: 1-blok: Sotuv, Qarz, Rasxod, Kassa; 2-blok: Tarix / Ombor qoldig'i
         b1.innerHTML = navButton('b3-sale', 'Sotuv', true)
           + navButton('debts', 'Qarz')
+          + navButton('loans', 'Berilgan qarzlar')
           + navButton('expenses', 'Rasxod')
           + navButton('cashbox', 'Kassa');
         b2.innerHTML = navButton('b3-history', "Ombor qoldig'i");
@@ -4080,6 +4219,7 @@
         // 1-chi blok: Sotuv, Qarz, Transfer, Rasxod, Kassa
         b1.innerHTML = navButton('sale', 'Sotuv', true)
           + navButton('debts', 'Qarz')
+          + navButton('loans', 'Berilgan qarzlar')
           + navButton('transfer', 'Transfer')
           + navButton('expenses', 'Rasxod')
           + navButton('cashbox', 'Kassa');
@@ -4148,6 +4288,8 @@
       if (vKartal) vKartal.classList.add('hidden');
       const vNotes = document.getElementById('view-notes');
       if (vNotes) vNotes.classList.add('hidden');
+      const vLoans = document.getElementById('view-loans');
+      if (vLoans) vLoans.classList.add('hidden');
 
       if (viewId === 'b3-sale' || viewId === 'b3-history') {
         document.getElementById('view-branch3').classList.remove('hidden');
@@ -4187,6 +4329,9 @@
       } else if (viewId === 'notes') {
         if (vNotes) vNotes.classList.remove('hidden');
         loadNotesData();
+      } else if (viewId === 'loans') {
+        if (vLoans) vLoans.classList.remove('hidden');
+        loadCashLoansData();
       }
     }
 
@@ -5943,6 +6088,7 @@
       document.getElementById('cash-leather').innerText = `$${data.balances.leather.toFixed(2)}`;
       document.getElementById('cash-kavralan').innerText = `$${data.balances.kavralan.toFixed(2)}`;
       document.getElementById('cash-total').innerText = `$${data.balances.total.toFixed(2)}`;
+      updateKassaLoansBanner();
     }
 
     async function submitCashWithdraw(e) {
@@ -6127,6 +6273,218 @@
         `;
         tbody.appendChild(tr);
       });
+    }
+
+    // ==================== BERILGAN QARZLAR (kassadan qarzga berilgan pul) ====================
+    let LOANS_CACHE = [];
+    let LOANS_STATUS = 'open';
+    let LOAN_CASH_BALANCES = null;
+    let LOAN_RETURN_CURRENT = null;
+    const LOAN_CAT_LABELS = { carpet: 'Gilam', leather: 'Teri', kavralan: 'Kavralan', branch3: '3-Filial' };
+    const LOAN_CAT_COLORS = { carpet: '#3b6ff5', leather: '#f08a24', kavralan: '#8b5cf6', branch3: '#0e9f9e' };
+
+    function moneyNum(v) {
+      return parseFloat(String(v || '').replace(',', '.')) || 0;
+    }
+
+    async function loadCashLoansData() {
+      const [loansRes, cashRes] = await Promise.all([
+        apiRequest(`/api/cash-loans?status=${encodeURIComponent(LOANS_STATUS)}`),
+        apiRequest('/api/cashbox')
+      ]);
+      if (cashRes && cashRes.balances) LOAN_CASH_BALANCES = cashRes.balances;
+      // 3-Filialda odatda 3-Filial kassasidan beriladi (forma bo'sh bo'lsa oldindan tanlab qo'yamiz)
+      if (ACTIVE_BRANCH === 3 && !document.getElementById('loan-amount')?.value) {
+        pickChip('loan-cat-chips', 'loan-category', 'branch3');
+      }
+      updateLoanCatHint();
+      if (!loansRes) return;
+      LOANS_CACHE = loansRes.loans || [];
+      renderLoansSummary(loansRes.summary || {});
+      renderLoansList();
+    }
+
+    function renderLoansSummary(s) {
+      const set = (id, v) => { const el = document.getElementById(id); if (el) el.innerText = v; };
+      set('loans-sum-total', `$${(s.total_remaining || 0).toFixed(2)}`);
+      set('loans-sum-count', `${s.open_count || 0}`);
+      set('loans-sum-overdue', `${s.overdue_count || 0}`);
+      const ov = document.getElementById('loans-sum-overdue');
+      if (ov) ov.classList.toggle('text-rose-600', (s.overdue_count || 0) > 0);
+      const parts = Object.entries(s.by_category || {}).filter(([, v]) => v > 0).map(([k, v]) => `${LOAN_CAT_LABELS[k] || k}: $${v.toFixed(2)}`);
+      set('loans-sum-bycat', parts.join(' · '));
+    }
+
+    function setLoansStatus(st) {
+      LOANS_STATUS = st;
+      syncChips('loans-status-chips', st);
+      loadCashLoansData();
+    }
+
+    function renderLoansList() {
+      const tbody = document.getElementById('loans-tbody');
+      if (!tbody) return;
+      tbody.innerHTML = '';
+      if (LOANS_CACHE.length === 0) {
+        const msg = LOANS_STATUS === 'closed' ? "Qaytgan qarzlar yo'q" : "Kassadan qarzga berilgan pul yo'q";
+        tbody.innerHTML = `<tr><td colspan="8" class="py-6 text-center text-ghostMuted text-xs">${msg}</td></tr>`;
+        return;
+      }
+      const todayStr = localDateStr();
+      LOANS_CACHE.forEach(l => {
+        const tr = document.createElement('tr');
+        const isOpen = l.status === 'open';
+        const isOverdue = isOpen && l.due_date && l.due_date < todayStr;
+        tr.className = 'hover:bg-neutral-50/80 transition' + (isOverdue ? ' debt-overdue' : '');
+
+        let dueHtml = '<span class="text-neutral-400">-</span>';
+        if (!isOpen) {
+          dueHtml = '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Qaytgan</span>';
+        } else if (l.due_date) {
+          if (isOverdue) dueHtml = `<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-rose-50 text-rose-700 border border-rose-200">${escapeHtml(l.due_date)} (O'tgan)</span>`;
+          else if (l.due_date === todayStr) dueHtml = '<span class="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">Bugun</span>';
+          else dueHtml = `<span class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-neutral-100 text-neutral-700 border border-neutral-200 font-mono">${escapeHtml(l.due_date)}</span>`;
+        }
+        const phone = l.borrower_phone
+          ? `<a href="tel:${escapeHtml(String(l.borrower_phone).replace(/[^\d+]/g, ''))}" class="text-neutral-500 hover:underline">${escapeHtml(l.borrower_phone)}</a>`
+          : '';
+        const catColor = LOAN_CAT_COLORS[l.category] || '#6b7280';
+        tr.innerHTML = `
+          <td class="py-3 text-neutral-500 whitespace-nowrap">${escapeHtml(String(l.created_at || '').substring(0, 10))}</td>
+          <td class="py-3">
+            <div class="font-semibold text-neutral-900">${escapeHtml(l.borrower_name)}</div>
+            ${phone ? `<div class="text-[11px] font-mono mt-0.5">${phone}</div>` : ''}
+            ${l.note ? `<div class="text-[11px] text-ghostMuted mt-0.5">${escapeHtml(l.note)}</div>` : ''}
+          </td>
+          <td class="py-3"><span class="inline-flex items-center gap-1.5 text-neutral-700"><span class="w-2 h-2 rounded-full" style="background:${catColor}"></span>${LOAN_CAT_LABELS[l.category] || escapeHtml(l.category)}</span></td>
+          <td class="py-3 font-mono text-neutral-700">$${(l.amount || 0).toFixed(2)}</td>
+          <td class="py-3 font-mono text-emerald-600">$${(l.returned_amount || 0).toFixed(2)}</td>
+          <td class="py-3 font-mono font-bold ${isOpen ? 'text-rose-600' : 'text-neutral-400'}">$${(l.remaining_amount || 0).toFixed(2)}</td>
+          <td class="py-3">${dueHtml}</td>
+          <td class="py-3 text-right">
+            ${isOpen ? `<button type="button" onclick="openLoanReturn(${l.id})" class="min-h-[36px] px-3.5 text-[12px] font-semibold bg-neutral-900 hover:bg-neutral-800 text-white rounded-full transition active:scale-95">Qaytdi</button>` : ''}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function updateLoanCatHint() {
+      const hint = document.getElementById('loan-cat-hint');
+      if (!hint) return;
+      const cat = document.getElementById('loan-category')?.value || 'carpet';
+      const bal = LOAN_CASH_BALANCES ? LOAN_CASH_BALANCES[cat] : null;
+      const amount = moneyNum(document.getElementById('loan-amount')?.value);
+      if (bal === null || bal === undefined) { hint.className = 'text-xs text-ghostMuted'; hint.innerText = 'Kassada: —'; return; }
+      if (amount > bal) {
+        hint.className = 'text-xs font-semibold text-rose-600';
+        hint.innerText = `${LOAN_CAT_LABELS[cat]} kassasida faqat $${bal.toFixed(2)} bor`;
+      } else {
+        hint.className = 'text-xs text-ghostMuted';
+        hint.innerText = `${LOAN_CAT_LABELS[cat]} kassasida: $${bal.toFixed(2)}`;
+      }
+    }
+
+    function updateLoanSubmitLabel() {
+      const amount = moneyNum(document.getElementById('loan-amount')?.value);
+      const lbl = document.getElementById('loan-submit-label');
+      if (lbl) lbl.innerText = amount > 0 ? `Qarz berish · $${amount.toFixed(2)}` : 'Qarz berish';
+      updateLoanCatHint();
+    }
+
+    function setLoanDueInDays(days) {
+      const d = new Date();
+      d.setDate(d.getDate() + days);
+      const inp = document.getElementById('loan-due');
+      if (inp) inp.value = localDateStr(d);
+      markLoanDueChips();
+    }
+    function markLoanDueChips() {
+      const val = document.getElementById('loan-due')?.value || '';
+      document.querySelectorAll('.loan-due-chip').forEach(c => {
+        const d = new Date();
+        d.setDate(d.getDate() + parseInt(c.dataset.days, 10));
+        c.classList.toggle('is-active', val === localDateStr(d));
+      });
+    }
+
+    async function submitCashLoan(e) {
+      e.preventDefault();
+      const btn = document.getElementById('loan-submit-btn');
+      const body = {
+        borrower_name: document.getElementById('loan-name').value.trim(),
+        borrower_phone: document.getElementById('loan-phone').value.trim(),
+        category: document.getElementById('loan-category').value,
+        amount: moneyNum(document.getElementById('loan-amount').value),
+        due_date: document.getElementById('loan-due').value || null,
+        note: document.getElementById('loan-note').value.trim()
+      };
+      if (!body.borrower_name) { showToast("Qarz oluvchining ismini kiriting!", true); return; }
+      if (!(body.amount > 0)) { showToast("Summani kiriting!", true); return; }
+      if (btn) btn.disabled = true;
+      const res = await apiRequest('/api/cash-loans', 'POST', body);
+      if (btn) btn.disabled = false;
+      if (res && res.success) {
+        showToast(`$${body.amount.toFixed(2)} ${LOAN_CAT_LABELS[body.category]} kassasidan qarzga berildi`);
+        e.target.reset();
+        syncChips('loan-cat-chips', document.getElementById('loan-category').value);
+        markLoanDueChips();
+        updateLoanSubmitLabel();
+        loadCashLoansData();
+        loadCashboxData();
+      }
+    }
+
+    function openLoanReturn(loanId) {
+      const l = LOANS_CACHE.find(x => x.id === loanId);
+      if (!l) return;
+      LOAN_RETURN_CURRENT = l;
+      document.getElementById('loan-return-info').innerText =
+        `${l.borrower_name} · ${LOAN_CAT_LABELS[l.category] || l.category} kassasiga qaytadi · qoldiq $${(l.remaining_amount || 0).toFixed(2)}`;
+      document.getElementById('loan-return-amount').value = '';
+      document.getElementById('loan-return-note').value = '';
+      document.getElementById('loan-return-full').innerText = `To'liq · $${(l.remaining_amount || 0).toFixed(2)}`;
+      document.getElementById('modal-loan-return').classList.remove('hidden');
+      if (window.matchMedia && window.matchMedia('(pointer: fine)').matches) document.getElementById('loan-return-amount').focus();
+    }
+    function closeLoanReturn() {
+      document.getElementById('modal-loan-return')?.classList.add('hidden');
+      LOAN_RETURN_CURRENT = null;
+    }
+    function setLoanReturnFull() {
+      if (!LOAN_RETURN_CURRENT) return;
+      document.getElementById('loan-return-amount').value = (LOAN_RETURN_CURRENT.remaining_amount || 0).toFixed(2);
+    }
+    async function submitLoanReturn() {
+      const l = LOAN_RETURN_CURRENT;
+      if (!l) return;
+      const amount = moneyNum(document.getElementById('loan-return-amount').value);
+      if (!(amount > 0)) { showToast("Qaytgan summani kiriting!", true); return; }
+      if (amount > (l.remaining_amount || 0) + 0.001) { showToast(`Qoldiq $${(l.remaining_amount || 0).toFixed(2)} dan ko'p bo'lishi mumkin emas!`, true); return; }
+      const btn = document.getElementById('loan-return-submit');
+      if (btn) btn.disabled = true;
+      const res = await apiRequest(`/api/cash-loans/${l.id}/return`, 'POST', {
+        amount, note: document.getElementById('loan-return-note').value.trim()
+      });
+      if (btn) btn.disabled = false;
+      if (res && res.success) {
+        showToast(res.result.status === 'closed' ? "Qarz to'liq qaytdi!" : `$${amount.toFixed(2)} qaytdi, qoldiq $${res.result.remaining_amount.toFixed(2)}`);
+        closeLoanReturn();
+        loadCashLoansData();
+        loadCashboxData();
+      }
+    }
+
+    // Kassa bo'limidagi «Qarzga berilgan pul» qatori
+    async function updateKassaLoansBanner() {
+      const banner = document.getElementById('kassa-loans-banner');
+      const text = document.getElementById('kassa-loans-banner-text');
+      if (!banner || !text) return;
+      const res = await apiRequest('/api/cash-loans?status=open');
+      const s = res && res.summary;
+      if (!s || !s.open_count) { banner.classList.add('hidden'); return; }
+      text.innerText = `$${(s.total_remaining || 0).toFixed(2)} · ${s.open_count} ta qarz${s.overdue_count ? ` · ${s.overdue_count} tasi muddati o'tgan` : ''}`;
+      banner.classList.remove('hidden');
     }
 
     // ==================== QARZNI TO'LASH MODAL LOGIC ====================
